@@ -1,0 +1,7 @@
+default_solution_intent: flexpod
+solution_intent_map:
+  flexpod: flexpod
+  oracle_rac: oracle_rac
+  vast_data: vast_data
+  nutanix: nutanix
+
