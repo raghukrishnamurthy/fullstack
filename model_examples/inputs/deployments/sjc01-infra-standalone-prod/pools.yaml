@@ -1,0 +1,5 @@
+pools:
+  ip:
+    mgmt: ip-pool-sjc01-vast
+  uuid:
+    default: uuid-pool-sjc01-vast

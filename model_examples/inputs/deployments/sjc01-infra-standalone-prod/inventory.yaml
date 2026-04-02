@@ -1,0 +1,27 @@
+inventory:
+  devices:
+    - id: vast-node-01
+      serial: WZP2949ACF2
+      category: server
+      attributes:
+        form_factor: rack
+    - id: vast-node-02
+      serial: WZP2949ACF1
+      category: server
+      attributes:
+        form_factor: rack
+    - id: vast-node-03
+      serial: WZP2949ACDC
+      category: server
+      attributes:
+        form_factor: rack
+    - id: vast-node-04
+      serial: WZP2949ACDB
+      category: server
+      attributes:
+        form_factor: rack
+    - id: vast-node-05
+      serial: WZP2949ACF9
+      category: server
+      attributes:
+        form_factor: rack

@@ -1,0 +1,9 @@
+pools:
+  ip:
+    mgmt: ip-pool-sjc01-flexpod
+  mac:
+    default: mac-pool-sjc01-flexpod
+  uuid:
+    default: uuid-pool-sjc01-flexpod
+  wwpn:
+    default: wwpn-pool-sjc01-flexpod
