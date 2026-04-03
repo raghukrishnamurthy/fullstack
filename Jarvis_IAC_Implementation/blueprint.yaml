@@ -1,5 +1,5 @@
 spec_version: 2
-description: Jarvis IAC inventory-first device discovery and infrastructure classification for Cisco infrastructure
+description: Jarvis IAC inventory-first prepare-and-claim scaffold for Cisco infrastructure
 inputs:
   agent:
     type: agent
@@ -57,21 +57,19 @@ inputs:
             enabled: false
   credential_candidates_yaml:
     type: string
-    description: Optional credential-candidates YAML payload for target claim preparation
+    description: Optional credential-candidates YAML payload for endpoint preparation and claim
     default: |
       credential_candidates:
-        - credential_role: manufacturing
-          target_category: server
-          target_form_factor: rack
-          target_management_type: standalone
-          username: admin
-          password_ref: env://RACKSERVER_MANUFACTURING_PASSWORD
         - credential_role: target
           target_category: server
           target_form_factor: rack
           target_management_type: standalone
           username: admin
           password_ref: env://RACKSERVER_DESIRED_PASSWORD
+        - credential_role: target
+          target_category: fabric_interconnect
+          username: admin
+          password_ref: env://FI_TARGET_PASSWORD
   baseline_input_source:
     type: string
     description: Optional higher-orchestration baseline input source (for Quali/Torque or Cisco Zero Touch usage)
@@ -135,7 +133,7 @@ inputs:
     default: strict
   execution_intent:
     type: string
-    description: Execution intent (`validate_only` by default; future onboarding actions will require an explicit non-default value)
+    description: Execution intent (`validate_only` by default; use `apply` for supported PVA prepare-and-claim actions)
     default: validate_only
 grains:
   discover_infrastructure:

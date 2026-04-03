@@ -8,6 +8,7 @@ Inventory-first standalone rack password reset grain.
 - identify standalone rack targets
 - perform manufacturing-to-desired password transition for IMC rack devices when required
 - emit stable outputs that a later `prepare-endpoints` grain can consume
+- stay independent from the main prepare-and-claim playbook
 
 ## Current behavior
 
@@ -31,3 +32,9 @@ Inventory-first standalone rack password reset grain.
 - `rack_password_reset_results_json`
 - `password_reset_ready_targets_json`
 - `password_reset_pending_targets_json`
+
+## Relationship to Main Claim Flow
+
+- this grain is intentionally separate from `resolve-deployment-model`
+- the main PVA prepare-and-claim flow now assumes standalone rack devices already use the desired credential
+- use this grain first when rack devices may still be at factory/default password

@@ -35,12 +35,13 @@ Notes:
 - YAML textareas are the preferred contract for nested input data in Torque.
 - The keys above should remain stable across the launch form, blueprint inputs, and Ansible extra-vars.
 - `site_yaml` is optional and is the preferred place for site-scoped settings such as location, DNS, NTP, and proxy defaults.
-- `credential_candidates_yaml` is optional and is the current direct-input path for credential rotation candidates used by claim preparation.
-- support typed candidates such as `credential_role: manufacturing` and `credential_role: target` for rack-server flows.
+- `credential_candidates_yaml` is optional and is the current direct-input path for endpoint preparation and claim credentials.
+- in the main prepare-and-claim flow, provide desired rack and FI target credentials.
+- manufacturing rack credentials belong in the separate `reset-rack-password` grain when factory/default password reset is needed.
 - `baseline_input_source` is the higher-orchestration baseline hook and may be hidden in Quali/Torque or Cisco Zero Touch offerings.
 - `baseline_directory` is primarily for direct Ansible-style execution and should contain `baseline.yaml`.
 - provide only one customer baseline source at a time.
 - `baseline_input_source` must be an HTTP(S) URL.
 - `overrides_yaml` is the narrow deployment-specific delta layer and is merged recursively on top of the loaded customer baseline payload.
 - `validation_mode` should typically be `strict`; use `live` only when the referenced Intersight credentials are available to the grain runtime.
-- `execution_intent` should remain `validate_only` until real claim/onboarding actions are implemented.
+- `execution_intent: apply` now supports the current PVA path for one FI pair claim unit plus standalone rack claims.

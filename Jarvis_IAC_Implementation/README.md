@@ -5,11 +5,12 @@ This directory contains a Torque-ready scaffold derived from the v2 Jarvis IAC a
 The current implementation focus is the first infrastructure slice:
 
 1. Collect deployment, platform, placement, site, baseline-resolution, and inventory inputs
-2. Normalize optional credential candidate inputs for future claim preparation
+2. Normalize optional credential candidate inputs for endpoint preparation and claim
 3. Normalize and validate infrastructure devices
 4. Optionally validate declared serials against Cisco Intersight
-5. Derive infrastructure classification from device facts and topology
-6. Render a discovery summary artifact for downstream workflows
+5. Derive run-level claim readiness from baseline, placement, and target selection
+6. Run endpoint-side connector preparation and PVA claim for supported targets
+7. Render a discovery summary artifact for downstream workflows
 
 Current offering shape:
 
@@ -27,11 +28,13 @@ Files:
 - `wiring-table.md`
   Form key to grain input mapping
 - `ansible/resolve-deployment-model/`
-  Validates inventory, normalizes devices, and derives infrastructure classification
+  Validates inventory, derives claim candidates, and runs prepare-and-claim flow
 - `ansible/render-master-plan/`
   Produces a discovery summary from the derived infrastructure view
 - `ansible/bootstrap_runtime/`
   Optional worker bootstrap playbook that installs shared Python and collection requirements
+- `ansible/reset-rack-password/`
+  Separate grain for IMC rack manufacturing-to-desired password reset before prepare-and-claim
 - `examples/ai-pod-sjc01-prod/`
   Local example inputs that mirror the blueprint contract
 - `scripts/run_example_strict.sh`
@@ -66,6 +69,8 @@ Assumptions:
 - `credential_candidates_yaml` is the current direct-input mechanism for target credential rotation candidates
 - rack-server flows can use typed candidates such as:
   `manufacturing` for factory/default login and `target` for the desired post-rotation credential
+- in the main prepare-and-claim flow, standalone rack targets are expected to already use the desired credential
+- manufacturing/default rack credentials now belong in the separate `reset-rack-password` grain
 - `baseline_input_source` and `baseline_directory` are optional customer-baseline sources for higher orchestration and direct Ansible execution
 - `overrides_yaml` is the deployment-specific delta layer and is optional
 - provide only one customer baseline source at a time
@@ -80,8 +85,10 @@ Assumptions:
 - `validation_mode: live` resolves env-based Intersight credential refs and queries Cisco Intersight for declared serials
 - live mode also evaluates placement targets in Intersight and reports whether the requested organization/resource group would be reused, created, or would conflict with placement policy
 - `execution_intent` defaults to `validate_only`
-- even when onboarding is ready, this scaffold still stops at a guarded no-op onboarding-action boundary
-- This scaffold does not yet claim devices or mutate Intersight resources
+- `execution_intent: apply` now supports real PVA claim submission for:
+  - one Fabric Interconnect pair claim unit per declared `fi_pair` domain
+  - standalone rack servers using target credentials
+- blade targets currently remain in the guarded non-direct path and are not submitted for direct PVA claim
 - future target handling should remain type-aware:
   FI and server targets may become claim/onboarding-ready, while storage targets may initially support only reachability-style readiness such as TCP or ping validation
 - discovery outputs now carry target readiness profiles to make that distinction explicit for downstream workflows
@@ -99,3 +106,11 @@ Runtime dependencies:
   - shared Python dependencies
   - `resolve-deployment-model` collections
   - `render-master-plan` collections
+
+Current checkpoint:
+
+- PVA flow is proven live for:
+  - one FI pair claim unit derived from a declared `fi_pair` domain
+  - standalone rack claim targets
+- appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
+- rack password reset is split into its own grain and is no longer part of the main prepare-and-claim playbook

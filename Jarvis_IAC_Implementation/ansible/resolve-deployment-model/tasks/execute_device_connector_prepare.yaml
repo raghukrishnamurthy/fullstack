@@ -109,6 +109,26 @@
     - action
     - prepare
 
+- name: Logout UCS XML API session after connector prepare
+  ansible.builtin.uri:
+    url: "https://{{ claim_target_payload.endpoint }}/nuova"
+    method: POST
+    body: '<aaaLogout inCookie="{{ connector_prepare_xml_cookie }}" />'
+    body_format: raw
+    return_content: true
+    validate_certs: "{{ claim_target_payload.endpoint_validate_certs | default(false) | bool }}"
+    timeout: 20
+  register: connector_prepare_xml_logout_result
+  failed_when: false
+  no_log: true
+  when:
+    - connector_prepare_supported | default(false) | bool
+    - (connector_prepare_xml_cookie | default('') | string | trim | length) > 0
+  tags:
+    - onboarding
+    - action
+    - prepare
+
 - name: Try IMM login for device connector prepare when XML path is not ready
   ansible.builtin.uri:
     url: "https://{{ claim_target_payload.endpoint }}/Login"
@@ -183,6 +203,32 @@
     - action
     - prepare
 
+- name: Logout IMM session after connector prepare
+  ansible.builtin.uri:
+    url: "https://{{ claim_target_payload.endpoint }}/Logout"
+    method: POST
+    headers:
+      Cookie: >-
+        {{
+          connector_prepare_imm_cookies_string
+          if (connector_prepare_imm_cookies_string | default('') | string | trim | length) > 0
+          else 'sessionId=' ~ connector_prepare_imm_session_id
+        }}
+      X-CSRF-Token: "{{ connector_prepare_imm_csrf_token }}"
+    return_content: true
+    validate_certs: "{{ claim_target_payload.endpoint_validate_certs | default(false) | bool }}"
+    timeout: 20
+  register: connector_prepare_imm_logout_result
+  failed_when: false
+  no_log: true
+  when:
+    - connector_prepare_supported | default(false) | bool
+    - (connector_prepare_imm_cookies_string | default('') | string | trim | length) > 0 or (connector_prepare_imm_session_id | default('') | string | trim | length) > 0
+  tags:
+    - onboarding
+    - action
+    - prepare
+
 - name: Build device connector prepare execution result
   ansible.builtin.set_fact:
     connector_prepare_execution_result:
@@ -218,8 +264,10 @@
         endpoint: "{{ claim_target_payload.endpoint }}"
         xml_login_status: "{{ connector_prepare_xml_login_result.status | default(0) }}"
         xml_connector_status: "{{ connector_prepare_xml_systems_result.status | default(0) }}"
+        xml_logout_status: "{{ connector_prepare_xml_logout_result.status | default(0) }}"
         imm_login_status: "{{ connector_prepare_imm_login_result.status | default(0) }}"
         imm_connector_status: "{{ connector_prepare_imm_systems_result.status | default(0) }}"
+        imm_logout_status: "{{ connector_prepare_imm_logout_result.status | default(0) }}"
         imm_cookies_string_present: "{{ (connector_prepare_imm_cookies_string | default('') | string | trim | length) > 0 }}"
         imm_csrf_token_present: "{{ (connector_prepare_imm_csrf_token | default('') | string | trim | length) > 0 }}"
   when:
