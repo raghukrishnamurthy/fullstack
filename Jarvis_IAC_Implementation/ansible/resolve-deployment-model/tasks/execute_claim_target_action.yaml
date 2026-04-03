@@ -23,6 +23,8 @@
       target_category: "{{ claim_action_item.target_category | default('unknown') }}"
       serial: "{{ claim_action_item.serial | default('') }}"
       mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
+      form_factor: "{{ claim_action_item.form_factor | default('') }}"
+      management_type: "{{ claim_action_item.management_type | default('') }}"
       claim_key: "{{ claim_action_item.claim_key | default('') }}"
       endpoint: "{{ claim_target_endpoint }}"
       canonical_endpoint: "{{ claim_target_endpoint }}"
@@ -37,11 +39,41 @@
       intersight_validate_certs: "{{ intersight_validate_certs | default(true) }}"
       endpoint_validate_certs: "{{ false }}"
       credential_candidates: "{{ normalized_credential_candidates | default([]) }}"
+      manufacturing_credential_candidates: >-
+        {{
+          normalized_credential_candidates
+          | default([])
+          | selectattr('credential_role', 'defined')
+          | selectattr('credential_role', 'equalto', 'manufacturing')
+          | selectattr('target_category', 'defined')
+          | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+          | list
+        }}
+      target_credential_candidates: >-
+        {{
+          normalized_credential_candidates
+          | default([])
+          | selectattr('credential_role', 'defined')
+          | selectattr('credential_role', 'equalto', 'target')
+          | selectattr('target_category', 'defined')
+          | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+          | list
+        }}
       prepared_targets:
         - target_id: "{{ claim_action_item.target_id | default('') }}"
           target_category: "{{ claim_action_item.target_category | default('unknown') }}"
           serial: "{{ claim_action_item.serial | default('') }}"
           mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
+          form_factor: "{{ claim_action_item.form_factor | default('') }}"
+          management_type: "{{ claim_action_item.management_type | default('') }}"
           endpoint: "{{ claim_target_endpoint }}"
           canonical_endpoint: "{{ claim_target_endpoint }}"
           normalized_claim_key: "{{ claim_target_normalized_key }}"
@@ -54,6 +86,8 @@
       target_category: "{{ claim_action_item.target_category | default('unknown') }}"
       serial: "{{ claim_action_item.serial | default('') }}"
       mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
+      form_factor: "{{ claim_action_item.form_factor | default('') }}"
+      management_type: "{{ claim_action_item.management_type | default('') }}"
       claim_key: "{{ claim_action_item.claim_key | default('') }}"
       endpoint: "{{ claim_target_endpoint }}"
       canonical_endpoint: "{{ claim_target_endpoint }}"

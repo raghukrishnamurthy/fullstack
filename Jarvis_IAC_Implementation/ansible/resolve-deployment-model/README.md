@@ -38,6 +38,7 @@ Execution notes:
 - Accepts wrapped `deployment`, `platform`, `placement`, `inventory`, and `solution` payloads as YAML strings and parses them with `from_yaml`
 - Accepts optional wrapped `site` payload for site-scoped operational settings
 - Accepts optional direct credential-candidate input for future claim preparation
+- Rack-server claim preparation can distinguish typed candidates such as `manufacturing` and `target`
 - Accepts optional baseline-resolution hints for higher orchestration or direct Ansible execution
 - Always resolves a built-in baseline from `solution.profile`
 - Accepts only one customer baseline source at a time: `baseline_input_source` or `baseline_directory`

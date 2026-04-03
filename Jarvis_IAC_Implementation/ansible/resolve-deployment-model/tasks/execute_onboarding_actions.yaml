@@ -17,6 +17,8 @@
       target_category: "{{ item.category | default('unknown') }}"
       serial: "{{ item.serial | default('') }}"
       mgmt_ip: "{{ item.mgmt_ip | default('') }}"
+      form_factor: "{{ item.form_factor | default('') }}"
+      management_type: "{{ item.management_type | default('') }}"
       readiness_mode: "{{ item.readiness_mode | default('claim_and_onboard') }}"
       connectivity_path: "{{ item.connectivity_path | default('direct_endpoint') }}"
       action_type: "{{ 'claim_and_onboard' if (onboarding_readiness.ready | default(false) | bool) else 'defer' }}"

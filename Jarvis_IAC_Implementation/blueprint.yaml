@@ -59,7 +59,19 @@ inputs:
     type: string
     description: Optional credential-candidates YAML payload for target claim preparation
     default: |
-      credential_candidates: []
+      credential_candidates:
+        - credential_role: manufacturing
+          target_category: server
+          target_form_factor: rack
+          target_management_type: standalone
+          username: admin
+          password_ref: env://RACKSERVER_MANUFACTURING_PASSWORD
+        - credential_role: target
+          target_category: server
+          target_form_factor: rack
+          target_management_type: standalone
+          username: admin
+          password_ref: env://RACKSERVER_DESIRED_PASSWORD
   baseline_input_source:
     type: string
     description: Optional higher-orchestration baseline input source (for Quali/Torque or Cisco Zero Touch usage)

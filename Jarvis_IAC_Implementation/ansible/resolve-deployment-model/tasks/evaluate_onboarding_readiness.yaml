@@ -49,6 +49,8 @@
       category: "{{ item.category | default('unknown') }}"
       serial: "{{ item.serial | default('') }}"
       mgmt_ip: "{{ item.mgmt_ip | default('') }}"
+      form_factor: "{{ item.attributes.form_factor | default('') }}"
+      management_type: "{{ item.attributes.management_type | default(inventory_defaults.server_management_type | default('')) }}"
       readiness_mode: "{{ 'claim_and_onboard' if (item.category | default('')) in ['fabric_interconnect', 'server'] else 'unknown' }}"
       claim_key: "{{ item.serial | default(item.mgmt_ip | default(item.id | default(''))) }}"
       connectivity_path: "{{ 'assist_endpoint' if assist_reachability.assists_present | default(false) else 'direct_endpoint' }}"

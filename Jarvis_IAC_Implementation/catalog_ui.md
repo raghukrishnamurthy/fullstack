@@ -36,6 +36,7 @@ Notes:
 - The keys above should remain stable across the launch form, blueprint inputs, and Ansible extra-vars.
 - `site_yaml` is optional and is the preferred place for site-scoped settings such as location, DNS, NTP, and proxy defaults.
 - `credential_candidates_yaml` is optional and is the current direct-input path for credential rotation candidates used by claim preparation.
+- support typed candidates such as `credential_role: manufacturing` and `credential_role: target` for rack-server flows.
 - `baseline_input_source` is the higher-orchestration baseline hook and may be hidden in Quali/Torque or Cisco Zero Touch offerings.
 - `baseline_directory` is primarily for direct Ansible-style execution and should contain `baseline.yaml`.
 - provide only one customer baseline source at a time.

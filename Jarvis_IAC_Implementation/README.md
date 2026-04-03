@@ -37,6 +37,8 @@ Assumptions:
 - YAML-shaped customer data is supplied as multiline string inputs
 - `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
 - `credential_candidates_yaml` is the current direct-input mechanism for target credential rotation candidates
+- rack-server flows can use typed candidates such as:
+  `manufacturing` for factory/default login and `target` for the desired post-rotation credential
 - `baseline_input_source` and `baseline_directory` are optional customer-baseline sources for higher orchestration and direct Ansible execution
 - `overrides_yaml` is the deployment-specific delta layer and is optional
 - provide only one customer baseline source at a time
