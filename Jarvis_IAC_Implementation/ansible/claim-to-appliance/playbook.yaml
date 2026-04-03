@@ -11,7 +11,15 @@
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
     placement_root: "{{ (placement_yaml | from_yaml) if (placement_yaml | default('') | string | trim | length > 0) else {} }}"
     placement_data: "{{ placement_root.placement | default(placement_root) }}"
-    claim_targets_input: "{{ hostvars['localhost'].appliance_claim_targets_json_runtime | default(claim_targets_json | default('[]')) }}"
+    claim_targets_input: >-
+      {{
+        hostvars['localhost'].appliance_claim_targets_json_runtime
+        | default(
+            '[]'
+            if ((raw_intersight_endpoint | string).find('intersight.com') != -1)
+            else (claim_targets_json | default('[]'))
+          )
+      }}
     claim_targets: >-
       {{
         claim_targets_input

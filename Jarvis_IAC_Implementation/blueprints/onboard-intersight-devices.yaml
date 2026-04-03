@@ -292,7 +292,7 @@ grains:
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
-        - claim_targets_json: '{{ if contains .inputs.platform_yaml "intersight.com" }}{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}{{ else }}[]{{ end }}'
+        - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:
         - batch_status
         - successful_targets
@@ -331,7 +331,7 @@ grains:
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
-        - claim_targets_json: '{{ if contains .inputs.platform_yaml "intersight.com" }}[]{{ else }}{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}{{ end }}'
+        - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:
         - batch_status
         - successful_targets
