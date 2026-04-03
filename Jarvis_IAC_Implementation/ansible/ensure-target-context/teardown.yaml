@@ -1,0 +1,9 @@
+---
+- name: Ensure target context teardown
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Report no-op teardown behavior
+      ansible.builtin.debug:
+        msg: "ensure-target-context does not delete organizations during destroy"

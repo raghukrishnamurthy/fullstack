@@ -214,6 +214,7 @@ def main():
     except Exception as exc:
         result['failed'] = True
         result['msg'] = json.dumps(normalize_error(exc))
+        module.fail_json(**result)
 
     module.exit_json(**result)
 
