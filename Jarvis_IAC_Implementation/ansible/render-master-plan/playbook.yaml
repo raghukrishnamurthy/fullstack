@@ -82,6 +82,8 @@
             next_action: "{{ discovery_model.derived.onboarding_readiness.next_action | default('review_validation_results') }}"
             blockers: "{{ discovery_model.derived.onboarding_readiness.blockers | default([]) }}"
             target_profiles: "{{ discovery_model.derived.onboarding_readiness.target_profiles | default({}) }}"
+            claim_candidate_targets: "{{ discovery_model.derived.onboarding_readiness.claim_candidate_targets | default([]) }}"
+            reachability_only_targets: "{{ discovery_model.derived.onboarding_readiness.reachability_only_targets | default([]) }}"
           onboarding_action_execution:
             requested: "{{ discovery_model.derived.onboarding_action_execution.requested | default(false) }}"
             executed: "{{ discovery_model.derived.onboarding_action_execution.executed | default(false) }}"
@@ -134,6 +136,8 @@
           - FI Readiness Mode: {{ discovery_report.onboarding_readiness.target_profiles.fabric_interconnect.readiness_mode | default('not_applicable') }}
           - Server Readiness Mode: {{ discovery_report.onboarding_readiness.target_profiles.server.readiness_mode | default('not_applicable') }}
           - Storage Readiness Mode: {{ discovery_report.onboarding_readiness.target_profiles.storage.readiness_mode | default('not_applicable') }}
+          - Claim Candidate Count: {{ discovery_report.onboarding_readiness.claim_candidate_targets | length }}
+          - Reachability-only Target Count: {{ discovery_report.onboarding_readiness.reachability_only_targets | length }}
           - Onboarding Actions Requested: {{ discovery_report.onboarding_action_execution.requested }}
           - Onboarding Actions Executed: {{ discovery_report.onboarding_action_execution.executed }}
           - Onboarding Action Status: {{ discovery_report.onboarding_action_execution.status }}

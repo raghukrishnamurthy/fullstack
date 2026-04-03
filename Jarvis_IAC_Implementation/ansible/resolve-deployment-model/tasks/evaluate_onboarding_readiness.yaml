@@ -2,6 +2,8 @@
 - name: Initialize onboarding readiness facts
   ansible.builtin.set_fact:
     target_readiness_profiles: {}
+    claim_candidate_targets: []
+    reachability_only_targets: []
     onboarding_readiness:
       ready: false
       status: blocked
@@ -13,6 +15,56 @@
         live_validation_required: false
         live_validation_enabled: "{{ intersight_live_validation_enabled }}"
         live_validation_passed: true
+  tags:
+    - always
+    - validate
+    - onboarding
+
+- name: Build claim-capable target candidates from inventory
+  ansible.builtin.set_fact:
+    claim_candidate_targets: "{{ claim_candidate_targets + [claim_candidate_target] }}"
+  vars:
+    claim_candidate_target:
+      id: "{{ item.id | default('') }}"
+      category: "{{ item.category | default('unknown') }}"
+      serial: "{{ item.serial | default('') }}"
+      mgmt_ip: "{{ item.mgmt_ip | default('') }}"
+      readiness_mode: "{{ 'claim_and_onboard' if (item.category | default('')) in ['fabric_interconnect', 'server'] else 'unknown' }}"
+      claim_key: "{{ item.serial | default(item.mgmt_ip | default(item.id | default(''))) }}"
+  loop: >-
+    {{
+      inventory_devices
+      | selectattr('category', 'defined')
+      | selectattr('category', 'in', ['fabric_interconnect', 'server'])
+      | list
+    }}
+  loop_control:
+    label: "{{ item.id | default(item.serial | default('unknown-target')) }}"
+  tags:
+    - always
+    - validate
+    - onboarding
+
+- name: Build reachability-only target candidates from inventory
+  ansible.builtin.set_fact:
+    reachability_only_targets: "{{ reachability_only_targets + [reachability_only_target] }}"
+  vars:
+    reachability_only_target:
+      id: "{{ item.id | default('') }}"
+      category: "{{ item.category | default('unknown') }}"
+      serial: "{{ item.serial | default('') }}"
+      mgmt_ip: "{{ item.mgmt_ip | default('') }}"
+      readiness_mode: reachability_only
+      probe_key: "{{ item.mgmt_ip | default(item.serial | default(item.id | default(''))) }}"
+  loop: >-
+    {{
+      inventory_devices
+      | selectattr('category', 'defined')
+      | selectattr('category', 'equalto', 'storage')
+      | list
+    }}
+  loop_control:
+    label: "{{ item.id | default(item.serial | default('unknown-target')) }}"
   tags:
     - always
     - validate
@@ -62,6 +114,8 @@
       next_action: "{{ readiness_next_action }}"
       blockers: "{{ readiness_blockers }}"
       target_profiles: "{{ target_readiness_profiles }}"
+      claim_candidate_targets: "{{ claim_candidate_targets }}"
+      reachability_only_targets: "{{ reachability_only_targets }}"
       checks:
         baseline_expectations_passed: "{{ baseline_expectations_passed }}"
         placement_ready: "{{ placement_ready }}"

@@ -147,6 +147,8 @@
         next_action: "{{ discovery_model.derived.onboarding_readiness.next_action | default('review_validation_results') }}"
         blocker_count: "{{ discovery_model.derived.onboarding_readiness.blockers | default([]) | length }}"
         target_profiles: "{{ discovery_model.derived.onboarding_readiness.target_profiles | default({}) }}"
+        claim_candidate_count: "{{ discovery_model.derived.onboarding_readiness.claim_candidate_targets | default([]) | length }}"
+        reachability_only_count: "{{ discovery_model.derived.onboarding_readiness.reachability_only_targets | default([]) | length }}"
       onboarding_action_execution:
         requested: "{{ discovery_model.derived.onboarding_action_execution.requested | default(false) }}"
         executed: "{{ discovery_model.derived.onboarding_action_execution.executed | default(false) }}"
