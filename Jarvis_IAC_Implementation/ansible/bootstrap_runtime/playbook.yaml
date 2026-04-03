@@ -1,0 +1,71 @@
+---
+- name: Bootstrap shared Python and collection runtime for Jarvis IAC
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  tasks:
+    - name: Install shared Python requirements for Jarvis IAC
+      ansible.builtin.pip:
+        requirements: "{{ playbook_dir }}/../requirements.txt"
+        executable: pip3
+      register: python_requirements_result
+      tags:
+        - bootstrap
+        - python
+
+    - name: Show installed Python package summary
+      ansible.builtin.debug:
+        msg: "{{ python_requirements_result.stdout_lines | default([]) }}"
+      tags:
+        - bootstrap
+        - python
+
+    - name: Install required Ansible collections for resolve-deployment-model
+      ansible.builtin.command:
+        argv:
+          - ansible-galaxy
+          - collection
+          - install
+          - -r
+          - "{{ playbook_dir }}/../resolve-deployment-model/requirements.yaml"
+          - --force
+      register: resolve_collection_install_result
+      changed_when: >-
+        'Installing' in (resolve_collection_install_result.stdout | default(''))
+        or 'was installed successfully' in (resolve_collection_install_result.stdout | default(''))
+      tags:
+        - bootstrap
+        - collections
+
+    - name: Show resolve-deployment-model collection summary
+      ansible.builtin.debug:
+        msg: "{{ resolve_collection_install_result.stdout_lines | default([]) }}"
+      tags:
+        - bootstrap
+        - collections
+
+    - name: Install required Ansible collections for render-master-plan
+      ansible.builtin.command:
+        argv:
+          - ansible-galaxy
+          - collection
+          - install
+          - -r
+          - "{{ playbook_dir }}/../render-master-plan/requirements.yaml"
+          - --force
+      register: render_collection_install_result
+      changed_when: >-
+        'Installing' in (render_collection_install_result.stdout | default(''))
+        or 'was installed successfully' in (render_collection_install_result.stdout | default(''))
+      tags:
+        - bootstrap
+        - collections
+
+    - name: Show render-master-plan collection summary
+      ansible.builtin.debug:
+        msg: "{{ render_collection_install_result.stdout_lines | default([]) }}"
+      tags:
+        - bootstrap
+        - collections

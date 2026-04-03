@@ -30,6 +30,8 @@ Files:
   Validates inventory, normalizes devices, and derives infrastructure classification
 - `ansible/render-master-plan/`
   Produces a discovery summary from the derived infrastructure view
+- `ansible/bootstrap_runtime/`
+  Optional worker bootstrap playbook that installs shared Python and collection requirements
 - `examples/ai-pod-sjc01-prod/`
   Local example inputs that mirror the blueprint contract
 - `scripts/run_example_strict.sh`
@@ -85,3 +87,13 @@ Assumptions:
 - discovery outputs now carry target readiness profiles to make that distinction explicit for downstream workflows
 - vault or secret-manager integration for target credentials is intentionally deferred until the Torque-side mechanism is agreed
 - Explicit no-op destroy flows are included to match the reference repo pattern
+
+Runtime dependencies:
+
+- shared Python requirements live in [requirements.txt](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/requirements.txt)
+- this includes `cryptography==44.0.3`, matching the tested `intersightztp` runtime pattern for Intersight-backed workflows
+- [playbook.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/bootstrap_runtime/playbook.yaml)
+  can be used to prepare a worker with:
+  - shared Python dependencies
+  - `resolve-deployment-model` collections
+  - `render-master-plan` collections
