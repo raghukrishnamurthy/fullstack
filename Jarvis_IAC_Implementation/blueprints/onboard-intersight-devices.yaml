@@ -58,6 +58,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -70,10 +73,8 @@ grains:
                 endpoint: {{ .inputs.intersight_endpoint }}
                 validate_certs: false
                 credentials:
-                  api_key_id: |
-                    {{ .inputs.intersight_api_key_id }}
-                  api_private_key: |
-                    {{ .inputs.intersight_api_private_key }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: |
             placement:
               intersight:
@@ -108,6 +109,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -122,13 +126,11 @@ grains:
                 target_form_factor: rack
                 target_management_type: standalone
                 username: {{ .inputs.rack_target_username }}
-                password: |
-                  {{ .inputs.rack_target_password }}
+                password_ref: env://RACK_TARGET_PASSWORD
               - credential_role: target
                 target_category: fabric_interconnect
                 username: {{ .inputs.fi_target_username }}
-                password: |
-                  {{ .inputs.fi_target_password }}
+                password_ref: env://FI_TARGET_PASSWORD
       outputs:
         - resolved_claim_targets_json
     on-destroy:
@@ -150,6 +152,11 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -163,10 +170,8 @@ grains:
                 endpoint: {{ .inputs.intersight_endpoint }}
                 validate_certs: false
                 credentials:
-                  api_key_id: |
-                    {{ .inputs.intersight_api_key_id }}
-                  api_private_key: |
-                    {{ .inputs.intersight_api_private_key }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: |
             placement:
               intersight:
@@ -203,6 +208,11 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -216,10 +226,8 @@ grains:
                 endpoint: {{ .inputs.intersight_endpoint }}
                 validate_certs: false
                 credentials:
-                  api_key_id: |
-                    {{ .inputs.intersight_api_key_id }}
-                  api_private_key: |
-                    {{ .inputs.intersight_api_private_key }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: |
             placement:
               intersight:
