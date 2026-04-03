@@ -121,6 +121,136 @@
             and (claim_action_item.management_type | default('')) == 'standalone'
           )
         }}
+      preclaim_normalization:
+        required: >-
+          {{
+            (
+              (claim_action_item.target_category | default('')) == 'server'
+              and (claim_action_item.form_factor | default('')) == 'rack'
+              and (claim_action_item.management_type | default('')) == 'standalone'
+            )
+          }}
+        ready: >-
+          {{
+            (
+              (
+                normalized_credential_candidates
+                | default([])
+                | selectattr('credential_role', 'defined')
+                | selectattr('credential_role', 'equalto', 'manufacturing')
+                | selectattr('target_category', 'defined')
+                | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+                | selectattr('target_form_factor', 'defined')
+                | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+                | selectattr('target_management_type', 'defined')
+                | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+                | list
+                | length
+              ) > 0
+              and
+              (
+                normalized_credential_candidates
+                | default([])
+                | selectattr('credential_role', 'defined')
+                | selectattr('credential_role', 'equalto', 'target')
+                | selectattr('target_category', 'defined')
+                | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+                | selectattr('target_form_factor', 'defined')
+                | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+                | selectattr('target_management_type', 'defined')
+                | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+                | list
+                | length
+              ) > 0
+            )
+            if (
+              (claim_action_item.target_category | default('')) == 'server'
+              and (claim_action_item.form_factor | default('')) == 'rack'
+              and (claim_action_item.management_type | default('')) == 'standalone'
+            )
+            else true
+          }}
+        manufacturing_credential_present: >-
+          {{
+            (
+              normalized_credential_candidates
+              | default([])
+              | selectattr('credential_role', 'defined')
+              | selectattr('credential_role', 'equalto', 'manufacturing')
+              | selectattr('target_category', 'defined')
+              | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+              | selectattr('target_form_factor', 'defined')
+              | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+              | selectattr('target_management_type', 'defined')
+              | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+              | list
+              | length
+            ) > 0
+          }}
+        target_credential_present: >-
+          {{
+            (
+              normalized_credential_candidates
+              | default([])
+              | selectattr('credential_role', 'defined')
+              | selectattr('credential_role', 'equalto', 'target')
+              | selectattr('target_category', 'defined')
+              | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+              | selectattr('target_form_factor', 'defined')
+              | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+              | selectattr('target_management_type', 'defined')
+              | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+              | list
+              | length
+            ) > 0
+          }}
+        next_step: >-
+          {{
+            'run_password_normalization_then_claim'
+            if (
+              (claim_action_item.target_category | default('')) == 'server'
+              and (claim_action_item.form_factor | default('')) == 'rack'
+              and (claim_action_item.management_type | default('')) == 'standalone'
+              and (
+                (
+                  normalized_credential_candidates
+                  | default([])
+                  | selectattr('credential_role', 'defined')
+                  | selectattr('credential_role', 'equalto', 'manufacturing')
+                  | selectattr('target_category', 'defined')
+                  | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+                  | selectattr('target_form_factor', 'defined')
+                  | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+                  | selectattr('target_management_type', 'defined')
+                  | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+                  | list
+                  | length
+                ) > 0
+                and
+                (
+                  normalized_credential_candidates
+                  | default([])
+                  | selectattr('credential_role', 'defined')
+                  | selectattr('credential_role', 'equalto', 'target')
+                  | selectattr('target_category', 'defined')
+                  | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+                  | selectattr('target_form_factor', 'defined')
+                  | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+                  | selectattr('target_management_type', 'defined')
+                  | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+                  | list
+                  | length
+                ) > 0
+              )
+            )
+            else 'supply_rack_credentials_for_password_normalization'
+            if (
+              (claim_action_item.target_category | default('')) == 'server'
+              and (claim_action_item.form_factor | default('')) == 'rack'
+              and (claim_action_item.management_type | default('')) == 'standalone'
+            )
+            else 'proceed_to_claim_preparation'
+          }}
       prepared_targets:
         - target_id: "{{ claim_action_item.target_id | default('') }}"
           target_category: "{{ claim_action_item.target_category | default('unknown') }}"
@@ -150,8 +280,58 @@
       action_type: "{{ claim_action_item.action_type | default('claim_and_onboard') }}"
       execution_mode: guarded_hook
       executed: false
-      status: hook_ready_not_implemented
-      reason: "Target passed readiness and entered the guarded claim hook, but real claim/onboarding mutation is not wired yet."
+      status: >-
+        {{
+          'preclaim_ready_not_implemented'
+          if (
+            (claim_target_payload.preclaim_normalization.required | default(false) | bool)
+            and (claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+          )
+          else 'preclaim_credentials_missing'
+          if (
+            (claim_target_payload.preclaim_normalization.required | default(false) | bool)
+            and not (claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+          )
+          else 'hook_ready_not_implemented'
+        }}
+      reason: >-
+        {{
+          'Standalone rack target has the required manufacturing and target credentials for password normalization, but the reset workflow is not wired yet.'
+          if (
+            (claim_target_payload.preclaim_normalization.required | default(false) | bool)
+            and (claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+          )
+          else 'Standalone rack target requires manufacturing and target credentials before password normalization can run.'
+          if (
+            (claim_target_payload.preclaim_normalization.required | default(false) | bool)
+            and not (claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+          )
+          else 'Target passed readiness and entered the guarded claim hook, but real claim/onboarding mutation is not wired yet.'
+        }}
+      preclaim_action_plan: >-
+        {{
+          {
+            'action_type': 'password_normalization_then_claim',
+            'execution_mode': 'would_execute',
+            'ready': (claim_target_payload.preclaim_normalization.ready | default(false) | bool),
+            'endpoint': claim_target_payload.endpoint,
+            'connectivity_path': claim_target_payload.connectivity_path,
+            'reason': (
+              'Standalone rack target has both manufacturing and target credentials and would enter password normalization before claim.'
+              if (claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+              else 'Standalone rack target is missing manufacturing and/or target credentials for password normalization.'
+            )
+          }
+          if (claim_target_payload.preclaim_normalization.required | default(false) | bool)
+          else {
+            'action_type': 'direct_claim_preparation',
+            'execution_mode': 'would_execute',
+            'ready': true,
+            'endpoint': claim_target_payload.endpoint,
+            'connectivity_path': claim_target_payload.connectivity_path,
+            'reason': 'Target does not require rack password normalization before claim.'
+          }
+        }}
       claim_target_payload: "{{ claim_target_payload }}"
   tags:
     - onboarding
