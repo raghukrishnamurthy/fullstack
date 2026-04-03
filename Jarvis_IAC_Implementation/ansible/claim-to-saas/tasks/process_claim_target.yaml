@@ -1,0 +1,243 @@
+---
+- name: Resolve prepared SaaS claim context
+  ansible.builtin.set_fact:
+    prepared_target_context: "{{ hostvars[inventory_hostname].prepared_target_context | default({}) }}"
+    resolved_endpoint: "{{ (hostvars[inventory_hostname].prepared_target_context.endpoint | default(hostvars[inventory_hostname].prepared_target_context.canonical_endpoint | default(''))) | string | trim }}"
+    normalized_claim_key: >-
+      {{
+        (
+          hostvars[inventory_hostname].prepared_target_context.normalized_claim_key
+          | default(hostvars[inventory_hostname].prepared_target_context.claim_serial_number | default(resolved_endpoint))
+        )
+        | string
+        | trim
+      }}
+  tags:
+    - claim
+    - aggregate
+
+- name: Resolve duplicate logical target state
+  ansible.builtin.set_fact:
+    canonical_claim_endpoint: "{{ (hostvars['localhost'].seen_claim_target_map | default({})).get(normalized_claim_key, '') }}"
+    claim_duplicate_detected: >-
+      {{
+        (normalized_claim_key | string | trim | length) > 0
+        and ((hostvars['localhost'].seen_claim_target_map | default({})).get(normalized_claim_key, '') | string | trim | length) > 0
+      }}
+  tags:
+    - claim
+    - aggregate
+
+- name: Skip duplicate logical target before SaaS claim submission
+  ansible.builtin.set_fact:
+    claim_result:
+      endpoint: "{{ resolved_endpoint }}"
+      canonical_endpoint: "{{ canonical_claim_endpoint }}"
+      organization: "{{ internal_organization | default('') }}"
+      device_type: "{{ prepared_target_context.device_type | default(prepared_target_context.target_category | default('unknown')) }}"
+      normalized_claim_key: "{{ normalized_claim_key }}"
+      status: skipped
+      changed: false
+      reason: duplicate_logical_target
+      registration_found: false
+      registration_moid: ''
+      messages:
+        - "Skipped claim submission because this prepared target resolves to the same logical target as {{ canonical_claim_endpoint }}."
+  when: claim_duplicate_detected | bool
+  tags:
+    - claim
+    - aggregate
+
+- name: Record already-claimed prepared target without SaaS resubmission
+  ansible.builtin.set_fact:
+    claim_result:
+      endpoint: "{{ resolved_endpoint }}"
+      canonical_endpoint: "{{ resolved_endpoint }}"
+      organization: "{{ internal_organization | default('') }}"
+      device_type: "{{ prepared_target_context.device_type | default(prepared_target_context.target_category | default('unknown')) }}"
+      normalized_claim_key: "{{ normalized_claim_key }}"
+      status: already_claimed
+      changed: false
+      reason: already_compliant
+      registration_found: false
+      registration_moid: ''
+      messages:
+        - "Prepared target is already claimed and does not require SaaS claim submission."
+  when:
+    - not (claim_duplicate_detected | bool)
+    - not (prepared_target_context.claim_submission_required | default(true) | bool)
+  tags:
+    - claim
+    - aggregate
+
+- name: Validate SaaS claim-ready prepared target inputs
+  ansible.builtin.assert:
+    that:
+      - prepared_target_context.claim_serial_number is defined
+      - prepared_target_context.claim_serial_number | string | trim | length > 0
+      - prepared_target_context.claim_security_token is defined
+      - prepared_target_context.claim_security_token | string | trim | length > 0
+    fail_msg: "Prepared target is missing claim_serial_number or claim_security_token required for SaaS claim"
+  when:
+    - not (claim_duplicate_detected | bool)
+    - prepared_target_context.claim_submission_required | default(true) | bool
+  tags:
+    - claim
+    - verify
+
+- name: Submit SaaS device claim
+  intersight_scoped_claim:
+    api_key_id: "{{ claim_api_key_id }}"
+    api_private_key: "{{ claim_api_private_key }}"
+    api_uri: "{{ claim_api_uri }}"
+    validate_certs: "{{ claim_validate_certs }}"
+    serial_number: "{{ prepared_target_context.claim_serial_number }}"
+    claim_code: "{{ prepared_target_context.claim_security_token }}"
+    organization: "{{ internal_organization | default('') }}"
+  register: saas_claim_result
+  failed_when: false
+  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  when:
+    - not (claim_duplicate_detected | bool)
+    - prepared_target_context.claim_submission_required | default(true) | bool
+  tags:
+    - claim
+
+- name: Derive SaaS claim error text
+  ansible.builtin.set_fact:
+    claim_error_text: "{{ (saas_claim_result.msg | default('')) ~ ' ' ~ (saas_claim_result.api_response | default({}) | to_json) }}"
+    claim_error_text_lower: "{{ ((saas_claim_result.msg | default('')) ~ ' ' ~ (saas_claim_result.api_response | default({}) | to_json)) | lower }}"
+  when:
+    - saas_claim_result is defined
+  tags:
+    - claim
+
+- name: Verify SaaS device registration exists
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ claim_api_key_id }}"
+    api_private_key: "{{ claim_api_private_key }}"
+    api_uri: "{{ claim_api_uri }}"
+    validate_certs: "{{ claim_validate_certs }}"
+    resource_path: /asset/DeviceRegistrations
+    query_params:
+      $filter: "Serial eq '{{ prepared_target_context.claim_serial_number }}'"
+      $top: 1
+    return_list: true
+  register: saas_registration_result
+  failed_when: false
+  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  when:
+    - not (claim_duplicate_detected | bool)
+    - prepared_target_context.claim_submission_required | default(true) | bool
+    - saas_claim_result is defined
+    - not (saas_claim_result.failed | default(false) | bool)
+  tags:
+    - claim
+    - verify
+
+- name: Resolve claimed registration Moid
+  ansible.builtin.set_fact:
+    claimed_registration_moid: >-
+      {{
+        (
+          ((saas_claim_result.api_response | default({})).Device | default({})).Moid
+          | default('')
+        )
+        or
+        (
+          (saas_registration_result.api_response | default([]) | first | default({})).Moid
+          | default('')
+        )
+      }}
+  when:
+    - saas_claim_result is defined
+    - not (saas_claim_result.failed | default(false) | bool)
+  tags:
+    - claim
+    - verify
+
+- name: Record SaaS claim result
+  ansible.builtin.set_fact:
+    claim_result:
+      endpoint: "{{ resolved_endpoint }}"
+      canonical_endpoint: "{{ resolved_endpoint }}"
+      organization: "{{ internal_organization | default('') }}"
+      device_type: "{{ prepared_target_context.device_type | default(prepared_target_context.target_category | default('unknown')) }}"
+      normalized_claim_key: "{{ normalized_claim_key }}"
+      status: >-
+        {%- if 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+        failed
+        {%- elif 'conflict' in claim_error_text_lower -%}
+        conflict
+        {%- elif (saas_claim_result.failed | default(false) | bool) -%}
+        failed
+        {%- else -%}
+        submitted
+        {%- endif -%}
+      changed: "{{ saas_claim_result.changed | default(false) | bool }}"
+      reason: >-
+        {%- if 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+        conflict
+        {%- elif 'conflict' in claim_error_text_lower -%}
+        conflict
+        {%- elif (saas_claim_result.failed | default(false) | bool) -%}
+        claim_submission_failed
+        {%- else -%}
+        claimed_and_configured
+        {%- endif -%}
+      registration_found: "{{ (claimed_registration_moid | default('') | string | trim | length) > 0 }}"
+      registration_moid: "{{ claimed_registration_moid | default('') }}"
+      deployment_name: "{{ internal_deployment_name | default('') }}"
+      messages:
+        - >-
+          {%- if 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+          Intersight reports the device is already claimed.
+          {%- elif 'conflict' in claim_error_text_lower -%}
+          Intersight reported a conflict while attempting the claim.
+          {%- elif (saas_claim_result.failed | default(false) | bool) -%}
+          {{ saas_claim_result.msg | default('Claim submission failed') }}
+          {%- else -%}
+          Claim submitted successfully.
+          {%- endif -%}
+  when:
+    - not (claim_duplicate_detected | bool)
+    - prepared_target_context.claim_submission_required | default(true) | bool
+  tags:
+    - claim
+    - aggregate
+
+- name: Collect SaaS claim result for target on localhost
+  ansible.builtin.set_fact:
+    claim_results: "{{ (claim_results | default([])) + [claim_result] }}"
+    successful_result_items: >-
+      {{ (successful_result_items | default([])) + ([claim_result] if claim_result.status in ['successful', 'submitted', 'already_claimed'] else []) }}
+    failed_result_items: >-
+      {{ (failed_result_items | default([])) + ([claim_result] if claim_result.status == 'failed' else []) }}
+    conflict_result_items: >-
+      {{ (conflict_result_items | default([])) + ([claim_result] if claim_result.status == 'conflict' else []) }}
+    skipped_result_items: >-
+      {{ (skipped_result_items | default([])) + ([claim_result] if claim_result.status == 'skipped' else []) }}
+    changed_result_items: >-
+      {{ (changed_result_items | default([])) + ([claim_result] if (claim_result.changed | default(false) | bool) else []) }}
+    seen_claim_target_map: >-
+      {{
+        (seen_claim_target_map | default({}))
+        | combine(
+            (
+              {
+                (claim_result.normalized_claim_key): (claim_result.canonical_endpoint | default(claim_result.endpoint))
+              }
+              if (
+                (claim_result.normalized_claim_key | default('') | string | trim | length) > 0
+                and (claim_result.status | default('')) != 'failed'
+                and ((seen_claim_target_map | default({})).get(claim_result.normalized_claim_key | default(''), '') | string | trim | length) == 0
+              )
+              else {}
+            ),
+            recursive=True
+          )
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  tags:
+    - aggregate
