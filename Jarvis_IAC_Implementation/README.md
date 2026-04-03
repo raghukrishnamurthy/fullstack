@@ -40,6 +40,8 @@ Files:
   Local runner for live Intersight validation mode using the same example input set
 - `scripts/run_example_live_checked.sh`
   Live-mode runner plus lightweight assertions for expected live-validation outputs
+  the checked runners use small embedded Python assertion blocks to validate
+  persisted JSON outputs rather than relying only on Ansible exit codes
 
 Local test path:
 

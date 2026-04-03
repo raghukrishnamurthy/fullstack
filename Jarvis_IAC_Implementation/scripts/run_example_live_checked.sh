@@ -1,6 +1,9 @@
 #!/bin/zsh
 set -euo pipefail
 
+# Run the live example end to end and verify a few high-value
+# live-validation fields from the persisted JSON artifacts.
+
 example_dir="${1:-$(pwd)/examples/ai-pod-sjc01-prod}"
 tmp_vars_file="/tmp/jarvis_example_live_checked_vars.yaml"
 tmp_wrapper_playbook="/tmp/jarvis_example_live_checked_playbook.yaml"
@@ -70,12 +73,16 @@ ansible-playbook \
   > /tmp/jarvis_example_live_checked_ansible.log
 
 python3 - <<'PY'
+"""Validate the persisted live-mode discovery outputs for the AI Pod example."""
+
 import json
 from pathlib import Path
 
 model = json.loads(Path("/tmp/jarvis_example_live_discovery_model.json").read_text())
 summary = json.loads(Path("/tmp/jarvis_example_live_discovery_summary.json").read_text())
 
+# Keep these assertions focused on the live-validation contract rather than
+# trying to exhaustively validate Intersight behavior from the script.
 assert model["solution"]["profile"] == "ai_pod"
 assert model["derived"]["intersight_live_validation_enabled"] is True
 assert summary["inventory_summary"]["live_validation_enabled"] is True

@@ -1,6 +1,9 @@
 #!/bin/zsh
 set -euo pipefail
 
+# Run the strict example end to end and verify a few high-value
+# output-contract expectations from the persisted JSON artifacts.
+
 example_dir="${1:-$(pwd)/examples/ai-pod-sjc01-prod}"
 tmp_vars_file="/tmp/jarvis_example_strict_checked_vars.yaml"
 tmp_wrapper_playbook="/tmp/jarvis_example_strict_checked_playbook.yaml"
@@ -58,12 +61,16 @@ ansible-playbook \
   > /tmp/jarvis_example_strict_checked_ansible.log
 
 python3 - <<'PY'
+"""Validate the persisted strict-mode discovery outputs for the AI Pod example."""
+
 import json
 from pathlib import Path
 
 model = json.loads(Path("/tmp/jarvis_example_discovery_model.json").read_text())
 summary = json.loads(Path("/tmp/jarvis_example_discovery_summary.json").read_text())
 
+# Keep these assertions small and stable so they act as a regression check
+# for the contract, not as a full behavioral test suite.
 assert model["solution"]["profile"] == "ai_pod"
 assert model["solution"]["delivery_scope"] == "onboarding"
 assert model["derived"]["device_count"] == 10
