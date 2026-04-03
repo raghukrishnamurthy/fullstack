@@ -97,28 +97,9 @@
         id: "{{ discovery_model.deployment.id }}"
         site: "{{ discovery_model.deployment.site }}"
         environment: "{{ discovery_model.deployment.environment }}"
-      placement:
-        organization: "{{ discovery_model.placement.intersight.organization }}"
-        resource_group: "{{ discovery_model.placement.intersight.resource_group }}"
-      site:
-        id: "{{ discovery_model.site.id | default('') }}"
-        location: "{{ discovery_model.site.global_settings.location | default('') }}"
-        dns_server_count: "{{ discovery_model.site.global_settings.dns.servers | default([]) | length }}"
-        ntp_server_count: "{{ discovery_model.site.global_settings.ntp.servers | default([]) | length }}"
-        proxy_enabled: "{{ discovery_model.site.global_settings.proxy.enabled | default(false) }}"
-      baseline_resolution:
-        source_type: "{{ discovery_model.baseline_resolution.customer_baseline.source_type }}"
-        built_in_baseline: "{{ discovery_model.baseline_resolution.selected_built_in_baseline }}"
-        built_in_baseline_file: "{{ discovery_model.baseline_resolution.built_in_baseline.baseline_file | default('') }}"
-        overrides_enabled: "{{ discovery_model.baseline_resolution.overrides.enabled }}"
-        customer_baseline_loaded: "{{ discovery_model.baseline_resolution.customer_baseline.loaded | default(false) }}"
-        effective_baseline_key_count: "{{ discovery_model.baseline_resolution.effective_baseline | default({}) | length }}"
-        expectation_error_count: "{{ discovery_model.derived.baseline_expectation_validation.errors | default([]) | length }}"
       platform:
         intersight_deployment_mode: "{{ discovery_model.platform.intersight.deployment_mode }}"
-        endpoint: "{{ discovery_model.platform.intersight.endpoint }}"
         assist_count: "{{ discovery_model.derived.assist_count }}"
-        credential_candidate_count: "{{ discovery_model.platform.credential_candidates | default([]) | length }}"
       solution:
         profile: "{{ discovery_model.solution.profile }}"
         delivery_scope: "{{ discovery_model.solution.delivery_scope }}"
@@ -128,38 +109,22 @@
         fabric_interconnect_count: "{{ discovery_model.derived.fabric_interconnect_count }}"
         server_count: "{{ discovery_model.derived.server_count }}"
         storage_count: "{{ discovery_model.derived.storage_count }}"
-        ethernet_switch_count: "{{ discovery_model.derived.ethernet_switch_count }}"
-        san_switch_count: "{{ discovery_model.derived.san_switch_count }}"
         domain_count: "{{ discovery_model.derived.domain_count }}"
         live_validation_enabled: "{{ discovery_model.derived.intersight_live_validation_enabled }}"
-        present_device_count: "{{ discovery_model.derived.intersight_validation.present_devices | default([]) | length }}"
         missing_device_count: "{{ discovery_model.derived.intersight_validation.missing_devices | default([]) | length }}"
         not_ready_device_count: "{{ discovery_model.derived.intersight_validation.not_ready_devices | default([]) | length }}"
       placement_validation:
         ready: "{{ discovery_model.derived.placement_validation.ready | default(true) }}"
-        organization_action: "{{ discovery_model.derived.placement_validation.organization.action | default('not_run') }}"
-        resource_group_action: "{{ discovery_model.derived.placement_validation.resource_group.action | default('not_run') }}"
         error_count: "{{ discovery_model.derived.placement_validation.errors | default([]) | length }}"
       baseline_expectations:
         error_count: "{{ discovery_model.derived.baseline_expectation_validation.errors | default([]) | length }}"
-        checks: "{{ discovery_model.derived.baseline_expectation_validation.results | default([]) }}"
       onboarding_readiness:
         ready: "{{ discovery_model.derived.onboarding_readiness.ready | default(false) }}"
         status: "{{ discovery_model.derived.onboarding_readiness.status | default('unknown') }}"
         next_action: "{{ discovery_model.derived.onboarding_readiness.next_action | default('review_validation_results') }}"
         blocker_count: "{{ discovery_model.derived.onboarding_readiness.blockers | default([]) | length }}"
-        target_profiles: "{{ discovery_model.derived.onboarding_readiness.target_profiles | default({}) }}"
         claim_candidate_count: "{{ discovery_model.derived.onboarding_readiness.claim_candidate_targets | default([]) | length }}"
-        reachability_only_count: "{{ discovery_model.derived.onboarding_readiness.reachability_only_targets | default([]) | length }}"
         assist_reachability_mode: "{{ discovery_model.derived.onboarding_readiness.assist_reachability.reachability_mode | default('direct') }}"
-        assist_count: "{{ discovery_model.derived.onboarding_readiness.assist_reachability.assist_count | default(0) }}"
-      onboarding_action_execution:
-        requested: "{{ discovery_model.derived.onboarding_action_execution.requested | default(false) }}"
-        executed: "{{ discovery_model.derived.onboarding_action_execution.executed | default(false) }}"
-        status: "{{ discovery_model.derived.onboarding_action_execution.status | default('not_requested') }}"
-        action_plan_count: "{{ discovery_model.derived.onboarding_action_execution.action_plan | default([]) | length }}"
-        claim_hook_count: "{{ discovery_model.derived.onboarding_action_execution.claim_execution_results | default([]) | length }}"
-        claim_payload_count: "{{ discovery_model.derived.onboarding_action_execution.claim_execution_results | default([]) | selectattr('claim_target_payload', 'defined') | list | length }}"
       validation_mode: "{{ discovery_model.derived.validation_mode }}"
   tags:
     - discover
