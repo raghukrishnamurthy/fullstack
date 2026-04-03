@@ -83,6 +83,7 @@ grains:
                   reuse_existing_organization: true
                   reuse_existing_resource_group: false
         - organization: '{{ .inputs.organization }}'
+        - internal_debug_enabled: 'true'
       outputs:
         - context_status
         - org_status
@@ -119,6 +120,7 @@ grains:
               ansible_connection: local
       inputs:
         - claim_targets_json: '{{ .inputs.claim_targets_json }}'
+        - internal_debug_enabled: 'true'
         - credential_candidates_yaml: |
             credential_candidates:
               - credential_role: target
@@ -164,6 +166,7 @@ grains:
               ansible_connection: local
       inputs:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - internal_debug_enabled: 'true'
         - platform_yaml: |
             platform:
               intersight:
@@ -220,6 +223,7 @@ grains:
               ansible_connection: local
       inputs:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - internal_debug_enabled: 'true'
         - platform_yaml: |
             platform:
               intersight:
@@ -270,6 +274,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
+        - internal_debug_enabled: 'true'
         - appliance_claim_results_json: '{{ .grains.claim_to_appliance.outputs.results_json }}'
         - saas_claim_results_json: '{{ .grains.claim_to_saas.outputs.results_json }}'
       outputs:

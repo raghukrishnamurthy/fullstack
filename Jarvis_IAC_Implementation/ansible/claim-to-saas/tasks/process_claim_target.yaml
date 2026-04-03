@@ -58,7 +58,7 @@
   ansible.builtin.command:
     argv:
       - "{{ ansible_playbook_python }}"
-      - "/Users/rkrishn2/intersightztp/infraonboarding/ansible/claim_to_intersight/tools/run_claim_readiness.py"
+      - "{{ playbook_dir }}/tools/run_claim_readiness.py"
   environment:
     ENDPOINT: "{{ resolved_endpoint }}"
     DESIRED_CREDENTIALS_JSON: "{{ resolved_target_desired_credentials | default([]) | to_json }}"
