@@ -81,6 +81,60 @@
     - action
     - claim
 
+- name: Initialize aggregate appliance-claim follow-up results
+  ansible.builtin.set_fact:
+    enriched_claim_execution_results: []
+    submitted_appliance_claim_results: >-
+      {{
+        claim_execution_results
+        | default([])
+        | selectattr('execution_mode', 'equalto', 'appliance_claim')
+        | selectattr('status', 'equalto', 'submitted')
+        | list
+      }}
+  when: onboarding_actions_requested | bool
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
+- name: Wait once for appliance workflows to appear after all submissions
+  ansible.builtin.pause:
+    seconds: 5
+  when:
+    - onboarding_actions_requested | bool
+    - (submitted_appliance_claim_results | default([]) | length) > 0
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
+- name: Enrich submitted appliance claims after aggregate submission pass
+  ansible.builtin.include_tasks: execute_appliance_claim_followup_target.yaml
+  vars:
+    claim_execution_result_item: "{{ item }}"
+  loop: "{{ claim_execution_results | default([]) }}"
+  loop_control:
+    label: "{{ item.target_id | default(item.endpoint | default('claim-result')) }}"
+  when: onboarding_actions_requested | bool
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
+- name: Replace claim results with aggregate-enriched results
+  ansible.builtin.set_fact:
+    claim_execution_results: "{{ enriched_claim_execution_results | default(claim_execution_results | default([])) }}"
+  when: onboarding_actions_requested | bool
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
 - name: Record onboarding action boundary
   ansible.builtin.set_fact:
     onboarding_action_execution:

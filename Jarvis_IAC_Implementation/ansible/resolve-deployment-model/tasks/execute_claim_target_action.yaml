@@ -29,7 +29,7 @@
         and (claim_action_item.form_factor | default('')) == 'rack'
         and (claim_action_item.management_type | default('')) == 'standalone'
       }}
-    current_manufacturing_credential_candidates: >-
+    current_matching_manufacturing_credentials: >-
       {{
         normalized_credential_candidates
         | default([])
@@ -37,13 +37,9 @@
         | selectattr('credential_role', 'equalto', 'manufacturing')
         | selectattr('target_category', 'defined')
         | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
-        | selectattr('target_form_factor', 'defined')
-        | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
-        | selectattr('target_management_type', 'defined')
-        | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
         | list
       }}
-    current_target_credential_candidates: >-
+    current_matching_target_credentials: >-
       {{
         normalized_credential_candidates
         | default([])
@@ -51,11 +47,81 @@
         | selectattr('credential_role', 'equalto', 'target')
         | selectattr('target_category', 'defined')
         | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
-        | selectattr('target_form_factor', 'defined')
-        | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
-        | selectattr('target_management_type', 'defined')
-        | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
         | list
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Derive matched credential candidates for target
+  ansible.builtin.set_fact:
+    current_manufacturing_credential_candidates: >-
+      {{
+        (
+          current_matching_manufacturing_credentials
+          | rejectattr('target_form_factor', 'defined')
+          | list
+        )
+        +
+        (
+          current_matching_manufacturing_credentials
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+          | list
+        )
+      }}
+    current_target_credential_candidates: >-
+      {{
+        (
+          current_matching_target_credentials
+          | rejectattr('target_form_factor', 'defined')
+          | list
+        )
+        +
+        (
+          current_matching_target_credentials
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+          | list
+        )
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Narrow matched credential candidates by management type when specified
+  ansible.builtin.set_fact:
+    current_manufacturing_credential_candidates: >-
+      {{
+        (
+          current_manufacturing_credential_candidates
+          | rejectattr('target_management_type', 'defined')
+          | list
+        )
+        +
+        (
+          current_manufacturing_credential_candidates
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+          | list
+        )
+      }}
+    current_target_credential_candidates: >-
+      {{
+        (
+          current_target_credential_candidates
+          | rejectattr('target_management_type', 'defined')
+          | list
+        )
+        +
+        (
+          current_target_credential_candidates
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+          | list
+        )
       }}
   tags:
     - onboarding

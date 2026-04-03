@@ -136,7 +136,19 @@
 
 - name: Derive IMM session id for device connector prepare
   ansible.builtin.set_fact:
-    connector_prepare_imm_session_id: "{{ (connector_prepare_imm_login_result.json.SessionId | default('')) if (connector_prepare_imm_login_result.json is defined) else '' }}"
+    connector_prepare_imm_login_payload: >-
+      {{
+        connector_prepare_imm_login_result.json
+        if (connector_prepare_imm_login_result.json is defined)
+        else (
+          (connector_prepare_imm_login_result.content | default('{}') | from_json)
+          if (connector_prepare_imm_login_result.content | default('') | string | trim | length) > 0
+          else {}
+        )
+      }}
+    connector_prepare_imm_session_id: "{{ connector_prepare_imm_login_payload.SessionId | default('') }}"
+    connector_prepare_imm_cookies_string: "{{ connector_prepare_imm_login_result.cookies_string | default('') }}"
+    connector_prepare_imm_csrf_token: "{{ connector_prepare_imm_login_result.x_csrf_token | default('') }}"
   when:
     - connector_prepare_supported | default(false) | bool
     - connector_prepare_imm_login_result is defined
@@ -150,7 +162,13 @@
     url: "https://{{ claim_target_payload.endpoint }}/connector/Systems"
     method: GET
     headers:
-      Cookie: "sessionId={{ connector_prepare_imm_session_id }}"
+      Cookie: >-
+        {{
+          connector_prepare_imm_cookies_string
+          if (connector_prepare_imm_cookies_string | default('') | string | trim | length) > 0
+          else 'sessionId=' ~ connector_prepare_imm_session_id
+        }}
+      X-CSRF-Token: "{{ connector_prepare_imm_csrf_token }}"
     return_content: true
     validate_certs: "{{ claim_target_payload.endpoint_validate_certs | default(false) | bool }}"
     timeout: 20
@@ -159,7 +177,7 @@
   no_log: true
   when:
     - connector_prepare_supported | default(false) | bool
-    - (connector_prepare_imm_session_id | default('') | string | trim | length) > 0
+    - (connector_prepare_imm_cookies_string | default('') | string | trim | length) > 0 or (connector_prepare_imm_session_id | default('') | string | trim | length) > 0
   tags:
     - onboarding
     - action
@@ -202,6 +220,8 @@
         xml_connector_status: "{{ connector_prepare_xml_systems_result.status | default(0) }}"
         imm_login_status: "{{ connector_prepare_imm_login_result.status | default(0) }}"
         imm_connector_status: "{{ connector_prepare_imm_systems_result.status | default(0) }}"
+        imm_cookies_string_present: "{{ (connector_prepare_imm_cookies_string | default('') | string | trim | length) > 0 }}"
+        imm_csrf_token_present: "{{ (connector_prepare_imm_csrf_token | default('') | string | trim | length) > 0 }}"
   when:
     - connector_prepare_supported | default(false) | bool
     - (connector_prepare_password | default('') | string | trim | length) > 0
