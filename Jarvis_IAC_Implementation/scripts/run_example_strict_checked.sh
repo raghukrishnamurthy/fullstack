@@ -79,9 +79,9 @@ assert model["derived"]["server_count"] == 8
 assert model["derived"]["domain_count"] == 1
 assert model["derived"]["onboarding_readiness"]["status"] == "needs_live_validation"
 assert model["derived"]["onboarding_readiness"]["ready"] is False
+assert len(model["platform"]["credential_candidates"]) == 2
 assert summary["baseline_expectations"]["error_count"] == 0
 assert summary["onboarding_readiness"]["claim_candidate_count"] == 10
-assert summary["platform"]["credential_candidate_count"] == 2
 
 print("Strict checked example passed")
 PY
