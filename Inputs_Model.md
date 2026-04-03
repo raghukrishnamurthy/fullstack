@@ -568,6 +568,74 @@ overrides:
     skip_reachability_check: true
 ```
 
+## Baseline Resolution Model
+
+The automation model should support both built-in baselines and customer-supplied baseline layers.
+
+This is important because the same data model may be used through a curated Torque catalog flow or directly as an Ansible-driven workflow.
+
+### Built-In Baselines
+
+The default path should use automation-owned baselines selected from the built-in `baselines/` and `catalog/` content.
+
+These baselines are selected based on:
+
+- inventory
+- platform context
+- placement behavior
+- solution profile
+- delivery scope
+
+### Customer Baseline Layer
+
+An optional customer baseline layer may be provided on top of the built-in baseline selection.
+
+This layer is intended for advanced customers or direct Ansible use cases where baseline customization is required beyond narrow overrides.
+
+Examples include:
+
+- a local baseline directory when running directly with Ansible
+- an HTTPS input-source when running through Torque
+
+### Overrides Layer
+
+`overrides.yaml` remains the narrow exception layer on top of the selected baselines.
+
+This layer should be used for small explicit deltas, not broad baseline replacement.
+
+### Resolution Order
+
+The recommended precedence order is:
+
+1. deployment-specific overrides
+2. customer baseline source
+3. selected built-in baseline
+4. automation defaults
+
+### Torque Path
+
+In Torque or catalog-driven workflows:
+
+- the selected solution profile typically chooses the built-in baseline
+- a customer baseline source may be provided as an input-source, for example over HTTPS
+- narrow customer exceptions may still be applied with overrides
+
+### Direct Ansible Path
+
+In direct Ansible workflows:
+
+- built-in baselines remain the default
+- advanced users may provide a local customer baseline directory
+- narrow overrides may still be applied on top
+
+### Design Rules
+
+- keep built-in baselines automation-owned
+- treat customer baseline layers as optional advanced inputs
+- treat `overrides.yaml` as the lightweight and preferred customization path
+- do not require customers to edit the built-in baseline tree directly
+- preserve the same logical resolution model across Torque and direct Ansible execution
+
 ## Minimum Required Fields by Workflow Stage
 
 Different workflow stages require different minimum inputs.
