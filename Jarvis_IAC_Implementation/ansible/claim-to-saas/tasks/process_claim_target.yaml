@@ -1,17 +1,94 @@
 ---
-- name: Resolve prepared SaaS claim context
+- name: Resolve SaaS claim target context
   ansible.builtin.set_fact:
-    prepared_target_context: "{{ hostvars[inventory_hostname].prepared_target_context | default({}) }}"
-    resolved_endpoint: "{{ (hostvars[inventory_hostname].prepared_target_context.endpoint | default(hostvars[inventory_hostname].prepared_target_context.canonical_endpoint | default(''))) | string | trim }}"
+    claim_target_context: "{{ hostvars[inventory_hostname].claim_target_context | default({}) }}"
+    resolved_endpoint: "{{ (claim_target_context.endpoint | default(claim_target_context.canonical_endpoint | default(''))) | string | trim }}"
+  tags:
+    - claim
+    - aggregate
+
+- name: Refresh SaaS claim readiness inline
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - "/Users/rkrishn2/intersightztp/infraonboarding/ansible/claim_to_intersight/tools/run_claim_readiness.py"
+  environment:
+    ENDPOINT: "{{ resolved_endpoint }}"
+    DESIRED_CREDENTIALS_JSON: "{{ resolved_desired_credentials | default([]) | to_json }}"
+    PREPARED_TARGETS_JSON: "{{ [claim_target_context] | to_json }}"
+    VALIDATE_CERTS: "{{ (claim_endpoint_validate_certs | default(false) | bool) | ternary('true', 'false') }}"
+    TIMEOUT: "{{ internal_helper_timeout_seconds | default(20) | string }}"
+  register: claim_readiness_helper_result
+  changed_when: false
+  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  when:
+    - (resolved_desired_credentials | default([]) | length) > 0
+    - claim_target_context.device_type | default('') | string | lower in ['imc', 'imm']
+  tags:
+    - claim
+    - verify
+
+- name: Parse inline SaaS claim readiness payload
+  ansible.builtin.set_fact:
+    claim_readiness_payload: "{{ claim_readiness_helper_result.stdout | from_json }}"
+  when:
+    - claim_readiness_helper_result is defined
+    - (claim_readiness_helper_result.stdout | default('') | string | trim | length) > 0
+  tags:
+    - claim
+    - verify
+
+- name: Apply refreshed SaaS claim context
+  ansible.builtin.set_fact:
+    effective_target_context: "{{ (claim_readiness_payload.claim_ready_target | default({})) if ((claim_readiness_payload.claim_ready_target | default({}) | length) > 0) else claim_target_context }}"
+    claim_readiness_result: "{{ claim_readiness_payload.result | default({}) }}"
+  when: claim_readiness_payload is defined
+  tags:
+    - claim
+    - verify
+
+- name: Default effective SaaS claim context
+  ansible.builtin.set_fact:
+    effective_target_context: "{{ claim_target_context }}"
+    claim_readiness_result: "{{ {} }}"
+  when: effective_target_context is not defined
+  tags:
+    - claim
+    - verify
+
+- name: Stop SaaS claim when inline readiness failed
+  ansible.builtin.set_fact:
+    claim_result:
+      endpoint: "{{ resolved_endpoint }}"
+      canonical_endpoint: "{{ resolved_endpoint }}"
+      organization: "{{ internal_organization | default('') }}"
+      device_type: "{{ claim_target_context.device_type | default(claim_target_context.target_category | default('unknown')) }}"
+      normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(claim_target_context.claim_serial_number | default(resolved_endpoint))) | string | trim }}"
+      status: failed
+      changed: false
+      reason: "{{ claim_readiness_result.reason | default('claim_readiness_failed') }}"
+      registration_found: false
+      registration_moid: ''
+      messages: "{{ claim_readiness_result.messages | default(['Inline claim readiness failed']) }}"
+  when:
+    - claim_readiness_payload is defined
+    - (claim_readiness_payload.claim_ready_target | default({}) | length) == 0
+  tags:
+    - claim
+    - aggregate
+
+- name: Resolve effective claim key after inline refresh
+  ansible.builtin.set_fact:
     normalized_claim_key: >-
       {{
         (
-          hostvars[inventory_hostname].prepared_target_context.normalized_claim_key
-          | default(hostvars[inventory_hostname].prepared_target_context.claim_serial_number | default(resolved_endpoint))
+          effective_target_context.normalized_claim_key
+          | default(effective_target_context.claim_serial_number | default(resolved_endpoint))
         )
         | string
         | trim
       }}
+  when: claim_result is not defined
   tags:
     - claim
     - aggregate
@@ -24,6 +101,7 @@
         (normalized_claim_key | string | trim | length) > 0
         and ((hostvars['localhost'].seen_claim_target_map | default({})).get(normalized_claim_key, '') | string | trim | length) > 0
       }}
+  when: claim_result is not defined
   tags:
     - claim
     - aggregate
@@ -34,7 +112,7 @@
       endpoint: "{{ resolved_endpoint }}"
       canonical_endpoint: "{{ canonical_claim_endpoint }}"
       organization: "{{ internal_organization | default('') }}"
-      device_type: "{{ prepared_target_context.device_type | default(prepared_target_context.target_category | default('unknown')) }}"
+      device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
       normalized_claim_key: "{{ normalized_claim_key }}"
       status: skipped
       changed: false
@@ -42,19 +120,19 @@
       registration_found: false
       registration_moid: ''
       messages:
-        - "Skipped claim submission because this prepared target resolves to the same logical target as {{ canonical_claim_endpoint }}."
+        - "Skipped claim submission because this claim target resolves to the same logical target as {{ canonical_claim_endpoint }}."
   when: claim_duplicate_detected | bool
   tags:
     - claim
     - aggregate
 
-- name: Record already-claimed prepared target without SaaS resubmission
+- name: Record already-claimed target without SaaS resubmission
   ansible.builtin.set_fact:
     claim_result:
       endpoint: "{{ resolved_endpoint }}"
       canonical_endpoint: "{{ resolved_endpoint }}"
       organization: "{{ internal_organization | default('') }}"
-      device_type: "{{ prepared_target_context.device_type | default(prepared_target_context.target_category | default('unknown')) }}"
+      device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
       normalized_claim_key: "{{ normalized_claim_key }}"
       status: already_claimed
       changed: false
@@ -62,25 +140,27 @@
       registration_found: false
       registration_moid: ''
       messages:
-        - "Prepared target is already claimed and does not require SaaS claim submission."
+        - "Claim target is already claimed and does not require SaaS claim submission."
   when:
+    - claim_result is not defined
     - not (claim_duplicate_detected | bool)
-    - not (prepared_target_context.claim_submission_required | default(true) | bool)
+    - not (effective_target_context.claim_submission_required | default(true) | bool)
   tags:
     - claim
     - aggregate
 
-- name: Validate SaaS claim-ready prepared target inputs
+- name: Validate SaaS claim-ready target inputs
   ansible.builtin.assert:
     that:
-      - prepared_target_context.claim_serial_number is defined
-      - prepared_target_context.claim_serial_number | string | trim | length > 0
-      - prepared_target_context.claim_security_token is defined
-      - prepared_target_context.claim_security_token | string | trim | length > 0
-    fail_msg: "Prepared target is missing claim_serial_number or claim_security_token required for SaaS claim"
+      - effective_target_context.claim_serial_number is defined
+      - effective_target_context.claim_serial_number | string | trim | length > 0
+      - effective_target_context.claim_security_token is defined
+      - effective_target_context.claim_security_token | string | trim | length > 0
+    fail_msg: "Claim target is missing claim_serial_number or claim_security_token required for SaaS claim"
   when:
+    - claim_result is not defined
     - not (claim_duplicate_detected | bool)
-    - prepared_target_context.claim_submission_required | default(true) | bool
+    - effective_target_context.claim_submission_required | default(true) | bool
   tags:
     - claim
     - verify
@@ -91,15 +171,16 @@
     api_private_key: "{{ claim_api_private_key }}"
     api_uri: "{{ claim_api_uri }}"
     validate_certs: "{{ claim_validate_certs }}"
-    serial_number: "{{ prepared_target_context.claim_serial_number }}"
-    claim_code: "{{ prepared_target_context.claim_security_token }}"
+    serial_number: "{{ effective_target_context.claim_serial_number }}"
+    claim_code: "{{ effective_target_context.claim_security_token }}"
     organization: "{{ internal_organization | default('') }}"
   register: saas_claim_result
   failed_when: false
   no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
   when:
+    - claim_result is not defined
     - not (claim_duplicate_detected | bool)
-    - prepared_target_context.claim_submission_required | default(true) | bool
+    - effective_target_context.claim_submission_required | default(true) | bool
   tags:
     - claim
 
@@ -108,6 +189,7 @@
     claim_error_text: "{{ (saas_claim_result.msg | default('')) ~ ' ' ~ (saas_claim_result.api_response | default({}) | to_json) }}"
     claim_error_text_lower: "{{ ((saas_claim_result.msg | default('')) ~ ' ' ~ (saas_claim_result.api_response | default({}) | to_json)) | lower }}"
   when:
+    - claim_result is not defined
     - saas_claim_result is defined
   tags:
     - claim
@@ -120,15 +202,16 @@
     validate_certs: "{{ claim_validate_certs }}"
     resource_path: /asset/DeviceRegistrations
     query_params:
-      $filter: "Serial eq '{{ prepared_target_context.claim_serial_number }}'"
+      $filter: "Serial eq '{{ effective_target_context.claim_serial_number }}'"
       $top: 1
     return_list: true
   register: saas_registration_result
   failed_when: false
   no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
   when:
+    - claim_result is not defined
     - not (claim_duplicate_detected | bool)
-    - prepared_target_context.claim_submission_required | default(true) | bool
+    - effective_target_context.claim_submission_required | default(true) | bool
     - saas_claim_result is defined
     - not (saas_claim_result.failed | default(false) | bool)
   tags:
@@ -150,6 +233,7 @@
         )
       }}
   when:
+    - claim_result is not defined
     - saas_claim_result is defined
     - not (saas_claim_result.failed | default(false) | bool)
   tags:
@@ -162,26 +246,26 @@
       endpoint: "{{ resolved_endpoint }}"
       canonical_endpoint: "{{ resolved_endpoint }}"
       organization: "{{ internal_organization | default('') }}"
-      device_type: "{{ prepared_target_context.device_type | default(prepared_target_context.target_category | default('unknown')) }}"
+      device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
       normalized_claim_key: "{{ normalized_claim_key }}"
       status: >-
-        {%- if 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+        {%- if (saas_claim_result.failed | default(false) | bool) -%}
         failed
         {%- elif 'conflict' in claim_error_text_lower -%}
         conflict
-        {%- elif (saas_claim_result.failed | default(false) | bool) -%}
-        failed
+        {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+        conflict
         {%- else -%}
         submitted
         {%- endif -%}
       changed: "{{ saas_claim_result.changed | default(false) | bool }}"
       reason: >-
-        {%- if 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
-        conflict
+        {%- if (saas_claim_result.failed | default(false) | bool) -%}
+        claim_submission_failed
         {%- elif 'conflict' in claim_error_text_lower -%}
         conflict
-        {%- elif (saas_claim_result.failed | default(false) | bool) -%}
-        claim_submission_failed
+        {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+        conflict
         {%- else -%}
         claimed_and_configured
         {%- endif -%}
@@ -190,18 +274,19 @@
       deployment_name: "{{ internal_deployment_name | default('') }}"
       messages:
         - >-
-          {%- if 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
-          Intersight reports the device is already claimed.
+          {%- if (saas_claim_result.failed | default(false) | bool) -%}
+          {{ saas_claim_result.msg | default('Claim submission failed') }}
           {%- elif 'conflict' in claim_error_text_lower -%}
           Intersight reported a conflict while attempting the claim.
-          {%- elif (saas_claim_result.failed | default(false) | bool) -%}
-          {{ saas_claim_result.msg | default('Claim submission failed') }}
+          {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+          Intersight reports the device is already claimed.
           {%- else -%}
           Claim submitted successfully.
           {%- endif -%}
   when:
+    - claim_result is not defined
     - not (claim_duplicate_detected | bool)
-    - prepared_target_context.claim_submission_required | default(true) | bool
+    - effective_target_context.claim_submission_required | default(true) | bool
   tags:
     - claim
     - aggregate
