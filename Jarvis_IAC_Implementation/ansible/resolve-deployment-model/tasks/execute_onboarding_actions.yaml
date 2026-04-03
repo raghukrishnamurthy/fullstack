@@ -1,7 +1,9 @@
 ---
 - name: Initialize onboarding action plan facts
   ansible.builtin.set_fact:
+    onboarding_actions_requested: "{{ (execution_intent | default('validate_only') | string | trim | lower) in ['apply', 'onboard', 'claim_and_onboard'] }}"
     onboarding_action_plan: []
+    claim_execution_results: []
   tags:
     - onboarding
     - action
@@ -27,7 +29,7 @@
   loop: "{{ onboarding_readiness.claim_candidate_targets | default([]) }}"
   loop_control:
     label: "{{ item.id | default(item.claim_key | default('claim-target')) }}"
-  when: onboarding_action_execution.requested | default(false) | bool
+  when: onboarding_actions_requested | bool
   tags:
     - onboarding
     - action
@@ -48,24 +50,52 @@
   loop: "{{ onboarding_readiness.reachability_only_targets | default([]) }}"
   loop_control:
     label: "{{ item.id | default(item.probe_key | default('probe-target')) }}"
-  when: onboarding_action_execution.requested | default(false) | bool
+  when: onboarding_actions_requested | bool
   tags:
     - onboarding
     - action
 
+- name: Run guarded claim hook for claim-and-onboard actions
+  ansible.builtin.include_tasks: execute_claim_target_action.yaml
+  vars:
+    claim_action_item: "{{ item }}"
+  loop: >-
+    {{
+      onboarding_action_plan
+      | selectattr('action_type', 'equalto', 'claim_and_onboard')
+      | list
+    }}
+  loop_control:
+    label: "{{ item.target_id | default(item.claim_key | default('claim-action')) }}"
+  when: onboarding_actions_requested | bool
+  tags:
+    - onboarding
+    - action
+    - claim
+
 - name: Record onboarding action boundary
   ansible.builtin.set_fact:
     onboarding_action_execution:
-      requested: "{{ (execution_intent | default('validate_only') | string | trim | lower) in ['apply', 'onboard', 'claim_and_onboard'] }}"
+      requested: "{{ onboarding_actions_requested }}"
       executed: false
-      status: "{{ 'planned_only' if (onboarding_action_plan | default([]) | length) > 0 else 'placeholder_only' }}"
+      status: >-
+        {{
+          'guarded_claim_hook_ready'
+          if (claim_execution_results | default([]) | length) > 0
+          else 'planned_only'
+          if (onboarding_action_plan | default([]) | length) > 0
+          else 'placeholder_only'
+        }}
       message: >-
         {{
-          'Onboarding actions are represented as a non-mutating action plan only. This scaffold stops before remote mutation.'
+          'Claim-capable targets entered the guarded claim hook, but remote mutation is still intentionally disabled.'
+          if (claim_execution_results | default([]) | length) > 0
+          else 'Onboarding actions are represented as a non-mutating action plan only. This scaffold stops before remote mutation.'
           if (onboarding_action_plan | default([]) | length) > 0
           else 'Onboarding action execution is intentionally not implemented yet. This scaffold stops at readiness evaluation.'
         }}
       action_plan: "{{ onboarding_action_plan | default([]) }}"
+      claim_execution_results: "{{ claim_execution_results | default([]) }}"
   tags:
     - onboarding
     - action
@@ -73,7 +103,7 @@
 - name: Explain why onboarding actions were not executed
   ansible.builtin.debug:
     msg: "{{ onboarding_action_execution.message }}"
-  when: onboarding_action_execution.requested | bool
+  when: onboarding_actions_requested | bool
   tags:
     - onboarding
     - action
