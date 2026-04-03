@@ -81,7 +81,7 @@ assert model["derived"]["onboarding_readiness"]["status"] == "needs_live_validat
 assert model["derived"]["onboarding_readiness"]["ready"] is False
 assert len(model["platform"]["credential_candidates"]) == 2
 assert summary["baseline_expectations"]["error_count"] == 0
-assert summary["onboarding_readiness"]["claim_candidate_count"] == 10
+assert summary["onboarding_readiness"]["claim_candidate_count"] == 9
 
 print("Strict checked example passed")
 PY

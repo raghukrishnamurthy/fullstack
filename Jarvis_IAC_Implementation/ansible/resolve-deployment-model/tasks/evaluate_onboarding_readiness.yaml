@@ -4,6 +4,7 @@
     target_readiness_profiles: {}
     claim_candidate_targets: []
     reachability_only_targets: []
+    paired_fi_member_ids: []
     assist_reachability:
       assists_present: false
       assist_count: 0
@@ -41,6 +42,86 @@
     - validate
     - onboarding
 
+- name: Track Fabric Interconnect members that belong to declared FI pairs
+  ansible.builtin.set_fact:
+    paired_fi_member_ids: "{{ (paired_fi_member_ids | default([])) + (item.members | default([])) }}"
+  loop: >-
+    {{
+      inventory_domains
+      | selectattr('type', 'defined')
+      | selectattr('type', 'equalto', 'fi_pair')
+      | list
+    }}
+  loop_control:
+    label: "{{ item.domain_id | default('fi-pair') }}"
+  tags:
+    - always
+    - validate
+    - onboarding
+
+- name: Build claim-capable Fabric Interconnect pair targets from declared domains
+  ansible.builtin.set_fact:
+    claim_candidate_targets: "{{ claim_candidate_targets + [claim_candidate_target] }}"
+  vars:
+    fi_primary_member_id: "{{ (item.members | default([]) | first) | default('') }}"
+    fi_primary_device: >-
+      {{
+        (
+          inventory_devices
+          | selectattr('id', 'defined')
+          | selectattr('id', 'equalto', fi_primary_member_id)
+          | list
+          | first
+        )
+        | default({}, true)
+      }}
+    fi_pair_devices: >-
+      {{
+        inventory_devices
+        | selectattr('id', 'defined')
+        | selectattr('id', 'in', item.members | default([]))
+        | list
+      }}
+    fi_pair_serials: >-
+      {{
+        fi_pair_devices
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+    claim_candidate_target:
+      id: "{{ item.domain_id | default(fi_primary_member_id) }}"
+      category: fabric_interconnect
+      serial: "{{ fi_primary_device.serial | default(fi_pair_serials | first | default('')) }}"
+      mgmt_ip: "{{ fi_primary_device.mgmt_ip | default('') }}"
+      form_factor: pair
+      management_type: clustered
+      readiness_mode: claim_and_onboard
+      claim_key: "{{ item.domain_id | default(fi_primary_member_id) }}"
+      connectivity_path: "{{ 'assist_endpoint' if assist_reachability.assists_present | default(false) else 'direct_endpoint' }}"
+      pair_domain_id: "{{ item.domain_id | default('') }}"
+      pair_members: "{{ item.members | default([]) }}"
+      pair_serials: "{{ fi_pair_serials }}"
+      pair_primary_member_id: "{{ fi_primary_member_id }}"
+  loop: >-
+    {{
+      inventory_domains
+      | selectattr('type', 'defined')
+      | selectattr('type', 'equalto', 'fi_pair')
+      | list
+    }}
+  loop_control:
+    label: "{{ item.domain_id | default('fi-pair') }}"
+  when:
+    - (item.members | default([]) | length) > 0
+  tags:
+    - always
+    - validate
+    - onboarding
+
 - name: Build claim-capable target candidates from inventory
   ansible.builtin.set_fact:
     claim_candidate_targets: "{{ claim_candidate_targets + [claim_candidate_target] }}"
@@ -64,6 +145,9 @@
     }}
   loop_control:
     label: "{{ item.id | default(item.serial | default('unknown-target')) }}"
+  when:
+    - (item.category | default('')) != 'fabric_interconnect'
+      or (item.id | default('')) not in (paired_fi_member_ids | default([]))
   tags:
     - always
     - validate
