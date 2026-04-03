@@ -4,6 +4,12 @@
     target_readiness_profiles: {}
     claim_candidate_targets: []
     reachability_only_targets: []
+    assist_reachability:
+      assists_present: false
+      assist_count: 0
+      reachability_mode: direct
+      expected_probe_path: direct_endpoint
+      candidate_assists: []
     onboarding_readiness:
       ready: false
       status: blocked
@@ -15,6 +21,20 @@
         live_validation_required: false
         live_validation_enabled: "{{ intersight_live_validation_enabled }}"
         live_validation_passed: true
+        assist_reachability_defined: false
+  tags:
+    - always
+    - validate
+    - onboarding
+
+- name: Build assist-aware reachability context
+  ansible.builtin.set_fact:
+    assist_reachability:
+      assists_present: "{{ (assists | default([]) | length) > 0 }}"
+      assist_count: "{{ assists | default([]) | length }}"
+      reachability_mode: "{{ 'assist_proxy' if ((assists | default([]) | length) > 0) else 'direct' }}"
+      expected_probe_path: "{{ 'assist_endpoint' if ((assists | default([]) | length) > 0) else 'direct_endpoint' }}"
+      candidate_assists: "{{ assists | default([]) }}"
   tags:
     - always
     - validate
@@ -31,6 +51,7 @@
       mgmt_ip: "{{ item.mgmt_ip | default('') }}"
       readiness_mode: "{{ 'claim_and_onboard' if (item.category | default('')) in ['fabric_interconnect', 'server'] else 'unknown' }}"
       claim_key: "{{ item.serial | default(item.mgmt_ip | default(item.id | default(''))) }}"
+      connectivity_path: "{{ 'assist_endpoint' if assist_reachability.assists_present | default(false) else 'direct_endpoint' }}"
   loop: >-
     {{
       inventory_devices
@@ -56,6 +77,7 @@
       mgmt_ip: "{{ item.mgmt_ip | default('') }}"
       readiness_mode: reachability_only
       probe_key: "{{ item.mgmt_ip | default(item.serial | default(item.id | default(''))) }}"
+      connectivity_path: "{{ assist_reachability.expected_probe_path }}"
   loop: >-
     {{
       inventory_devices
@@ -78,27 +100,33 @@
       value:
         target_type: fabric_interconnect
         readiness_mode: claim_and_onboard
+        connectivity_path: "{{ 'assist_endpoint' if assist_reachability.assists_present | default(false) else 'direct_endpoint' }}"
         present_in_inventory: "{{ fi_count | int > 0 }}"
         target_count: "{{ fi_count }}"
         notes:
           - "Fabric Interconnect targets are expected to progress from validation into claim/onboarding workflows."
+          - "When Assist is present, reachability should prefer the Assist endpoint path first."
     - key: server
       value:
         target_type: server
         readiness_mode: claim_and_onboard
+        connectivity_path: "{{ 'assist_endpoint' if assist_reachability.assists_present | default(false) else 'direct_endpoint' }}"
         present_in_inventory: "{{ server_count | int > 0 }}"
         target_count: "{{ server_count }}"
         notes:
           - "Server targets are expected to progress from validation into claim/onboarding workflows."
+          - "When Assist is present, reachability should prefer the Assist endpoint path first."
     - key: storage
       value:
         target_type: storage
         readiness_mode: reachability_only
+        connectivity_path: "{{ assist_reachability.expected_probe_path }}"
         present_in_inventory: "{{ storage_count | int > 0 }}"
         target_count: "{{ storage_count }}"
         notes:
           - "Storage targets are currently modeled as reachability-only candidates."
           - "Future storage onboarding may start with TCP or ping validation rather than claim readiness."
+          - "When Assist is present, storage reachability should target Assist-facing paths first."
   loop_control:
     label: "{{ item.key }}"
   tags:
@@ -116,12 +144,14 @@
       target_profiles: "{{ target_readiness_profiles }}"
       claim_candidate_targets: "{{ claim_candidate_targets }}"
       reachability_only_targets: "{{ reachability_only_targets }}"
+      assist_reachability: "{{ assist_reachability }}"
       checks:
         baseline_expectations_passed: "{{ baseline_expectations_passed }}"
         placement_ready: "{{ placement_ready }}"
         live_validation_required: "{{ live_validation_required }}"
         live_validation_enabled: "{{ intersight_live_validation_enabled }}"
         live_validation_passed: "{{ live_validation_passed }}"
+        assist_reachability_defined: true
   vars:
     baseline_expectations_passed: "{{ (baseline_expectation_errors | default([]) | length) == 0 }}"
     live_validation_required: "{{ effective_baseline_payload.onboarding.intersight_validation.enabled | default(false) | bool }}"
