@@ -155,6 +155,7 @@
         requested: "{{ discovery_model.derived.onboarding_action_execution.requested | default(false) }}"
         executed: "{{ discovery_model.derived.onboarding_action_execution.executed | default(false) }}"
         status: "{{ discovery_model.derived.onboarding_action_execution.status | default('not_requested') }}"
+        action_plan_count: "{{ discovery_model.derived.onboarding_action_execution.action_plan | default([]) | length }}"
       validation_mode: "{{ discovery_model.derived.validation_mode }}"
   tags:
     - discover

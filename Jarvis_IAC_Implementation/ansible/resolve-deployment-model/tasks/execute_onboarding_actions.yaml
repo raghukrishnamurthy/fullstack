@@ -1,11 +1,71 @@
 ---
+- name: Initialize onboarding action plan facts
+  ansible.builtin.set_fact:
+    onboarding_action_plan: []
+  tags:
+    - onboarding
+    - action
+
+- name: Build claim-capable target action plan entries
+  ansible.builtin.set_fact:
+    onboarding_action_plan: "{{ onboarding_action_plan + [claim_action_plan_item] }}"
+  vars:
+    claim_action_plan_item:
+      target_id: "{{ item.id | default('') }}"
+      target_category: "{{ item.category | default('unknown') }}"
+      readiness_mode: "{{ item.readiness_mode | default('claim_and_onboard') }}"
+      connectivity_path: "{{ item.connectivity_path | default('direct_endpoint') }}"
+      action_type: "{{ 'claim_and_onboard' if (onboarding_readiness.ready | default(false) | bool) else 'defer' }}"
+      execution_mode: would_execute
+      claim_key: "{{ item.claim_key | default('') }}"
+      reason: >-
+        {{
+          'Target is claim-capable and onboarding readiness passed'
+          if (onboarding_readiness.ready | default(false) | bool)
+          else 'Target is claim-capable but onboarding readiness is not satisfied'
+        }}
+  loop: "{{ onboarding_readiness.claim_candidate_targets | default([]) }}"
+  loop_control:
+    label: "{{ item.id | default(item.claim_key | default('claim-target')) }}"
+  when: onboarding_action_execution.requested | default(false) | bool
+  tags:
+    - onboarding
+    - action
+
+- name: Build reachability-only target action plan entries
+  ansible.builtin.set_fact:
+    onboarding_action_plan: "{{ onboarding_action_plan + [reachability_action_plan_item] }}"
+  vars:
+    reachability_action_plan_item:
+      target_id: "{{ item.id | default('') }}"
+      target_category: "{{ item.category | default('unknown') }}"
+      readiness_mode: "{{ item.readiness_mode | default('reachability_only') }}"
+      connectivity_path: "{{ item.connectivity_path | default('direct_endpoint') }}"
+      action_type: reachability_probe
+      execution_mode: would_execute
+      probe_key: "{{ item.probe_key | default('') }}"
+      reason: "Target is modeled as reachability-only and should not enter claim workflows"
+  loop: "{{ onboarding_readiness.reachability_only_targets | default([]) }}"
+  loop_control:
+    label: "{{ item.id | default(item.probe_key | default('probe-target')) }}"
+  when: onboarding_action_execution.requested | default(false) | bool
+  tags:
+    - onboarding
+    - action
+
 - name: Record onboarding action boundary
   ansible.builtin.set_fact:
     onboarding_action_execution:
       requested: "{{ (execution_intent | default('validate_only') | string | trim | lower) in ['apply', 'onboard', 'claim_and_onboard'] }}"
       executed: false
-      status: placeholder_only
-      message: "Onboarding action execution is intentionally not implemented yet. This scaffold stops at readiness evaluation."
+      status: "{{ 'planned_only' if (onboarding_action_plan | default([]) | length) > 0 else 'placeholder_only' }}"
+      message: >-
+        {{
+          'Onboarding actions are represented as a non-mutating action plan only. This scaffold stops before remote mutation.'
+          if (onboarding_action_plan | default([]) | length) > 0
+          else 'Onboarding action execution is intentionally not implemented yet. This scaffold stops at readiness evaluation.'
+        }}
+      action_plan: "{{ onboarding_action_plan | default([]) }}"
   tags:
     - onboarding
     - action
