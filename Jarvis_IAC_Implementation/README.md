@@ -30,6 +30,20 @@ Files:
   Validates inventory, normalizes devices, and derives infrastructure classification
 - `ansible/render-master-plan/`
   Produces a discovery summary from the derived infrastructure view
+- `examples/ai-pod-sjc01-prod/`
+  Local example inputs that mirror the blueprint contract
+- `scripts/run_example_strict.sh`
+  Safe local runner for the example inputs in strict non-mutating mode
+- `scripts/run_example_strict_checked.sh`
+  Safe local runner plus lightweight assertions for expected strict-mode outputs
+
+Local test path:
+
+- `./scripts/run_example_strict.sh`
+  executes the example input set end to end against `ansible/resolve-deployment-model/playbook.yaml`
+  in `validation_mode=strict` and `execution_intent=validate_only`
+- `./scripts/run_example_strict_checked.sh`
+  executes the same path and verifies a few expected JSON output values for the AI Pod example
 
 Assumptions:
 
