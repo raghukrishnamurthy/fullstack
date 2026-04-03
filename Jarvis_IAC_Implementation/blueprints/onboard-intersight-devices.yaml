@@ -13,45 +13,49 @@ inputs:
         id: ai-pod-sjc01-prod
         site: sjc01
         environment: production
-  platform_yaml:
+  intersight_endpoint:
     type: string
-    description: Platform YAML payload
-    default: |
-      platform:
-        intersight:
-          endpoint: https://intersight.com/api/v1
-          credentials:
-            api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-            api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-  placement_yaml:
+    description: Intersight SaaS or appliance endpoint
+    default: https://intersight.com/api/v1
+  intersight_api_key_id:
     type: string
-    description: Placement YAML payload
-    default: |
-      placement:
-        intersight:
-          organization: ai-prod
-          policy:
-            reuse_existing_organization: true
-            reuse_existing_resource_group: false
+    description: Intersight API key id
+  intersight_api_private_key:
+    type: string
+    description: Intersight API private key PEM content
+    sensitive: true
+  validate_certs:
+    type: boolean
+    description: Validate TLS certificates for the Intersight endpoint
+    default: true
   organization:
     type: string
-    description: Optional direct Intersight organization input for reusable context and claim grains
+    description: Intersight organization
     default: ai-prod
-  credential_candidates_yaml:
+  reuse_existing_organization:
+    type: boolean
+    description: Reuse an existing organization when present
+    default: true
+  reuse_existing_resource_group:
+    type: boolean
+    description: Reuse an existing resource group when present
+    default: false
+  fi_target_username:
     type: string
-    description: Shared credential-candidates YAML payload for claim target resolution
-    default: |
-      credential_candidates:
-        - credential_role: target
-          target_category: server
-          target_form_factor: rack
-          target_management_type: standalone
-          username: admin
-          password_ref: env://RACKSERVER_DESIRED_PASSWORD
-        - credential_role: target
-          target_category: fabric_interconnect
-          username: admin
-          password_ref: env://FI_TARGET_PASSWORD
+    description: Username for fabric interconnect claim readiness and appliance claim
+    default: admin
+  fi_target_password:
+    type: string
+    description: Password for fabric interconnect claim readiness and appliance claim
+    sensitive: true
+  rack_target_username:
+    type: string
+    description: Username for standalone rack claim readiness and appliance claim
+    default: admin
+  rack_target_password:
+    type: string
+    description: Password for standalone rack claim readiness and appliance claim
+    sensitive: true
   claim_targets_json:
     type: string
     description: Claim target list for reusable claim grains
@@ -71,8 +75,23 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.intersight_endpoint }}
+                validate_certs: {{ .inputs.validate_certs }}
+                credentials:
+                  api_key_id: |
+                    {{ .inputs.intersight_api_key_id }}
+                  api_private_key: |
+                    {{ .inputs.intersight_api_private_key }}
+        - placement_yaml: |
+            placement:
+              intersight:
+                organization: {{ .inputs.organization }}
+                policy:
+                  reuse_existing_organization: {{ .inputs.reuse_existing_organization }}
+                  reuse_existing_resource_group: {{ .inputs.reuse_existing_resource_group }}
         - organization: '{{ .inputs.organization }}'
       outputs:
         - context_status
@@ -106,7 +125,20 @@ grains:
               ansible_connection: local
       inputs:
         - claim_targets_json: '{{ .inputs.claim_targets_json }}'
-        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
+        - credential_candidates_yaml: |
+            credential_candidates:
+              - credential_role: target
+                target_category: server
+                target_form_factor: rack
+                target_management_type: standalone
+                username: {{ .inputs.rack_target_username }}
+                password: |
+                  {{ .inputs.rack_target_password }}
+              - credential_role: target
+                target_category: fabric_interconnect
+                username: {{ .inputs.fi_target_username }}
+                password: |
+                  {{ .inputs.fi_target_password }}
       outputs:
         - resolved_claim_targets_json
     on-destroy:
@@ -134,8 +166,23 @@ grains:
               ansible_connection: local
       inputs:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.intersight_endpoint }}
+                validate_certs: {{ .inputs.validate_certs }}
+                credentials:
+                  api_key_id: |
+                    {{ .inputs.intersight_api_key_id }}
+                  api_private_key: |
+                    {{ .inputs.intersight_api_private_key }}
+        - placement_yaml: |
+            placement:
+              intersight:
+                organization: {{ .inputs.organization }}
+                policy:
+                  reuse_existing_organization: {{ .inputs.reuse_existing_organization }}
+                  reuse_existing_resource_group: {{ .inputs.reuse_existing_resource_group }}
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:
@@ -171,8 +218,23 @@ grains:
               ansible_connection: local
       inputs:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.intersight_endpoint }}
+                validate_certs: {{ .inputs.validate_certs }}
+                credentials:
+                  api_key_id: |
+                    {{ .inputs.intersight_api_key_id }}
+                  api_private_key: |
+                    {{ .inputs.intersight_api_private_key }}
+        - placement_yaml: |
+            placement:
+              intersight:
+                organization: {{ .inputs.organization }}
+                policy:
+                  reuse_existing_organization: {{ .inputs.reuse_existing_organization }}
+                  reuse_existing_resource_group: {{ .inputs.reuse_existing_resource_group }}
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:

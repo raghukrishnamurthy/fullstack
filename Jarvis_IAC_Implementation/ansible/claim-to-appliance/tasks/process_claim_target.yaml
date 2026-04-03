@@ -45,6 +45,11 @@
         claim_target_context.claim_password_ref
         | default(claim_target_context.selected_target_credential.password_ref | default(''))
       }}
+    pva_claim_password_direct: >-
+      {{
+        claim_target_context.claim_password
+        | default(claim_target_context.selected_target_credential.password | default(''))
+      }}
   tags:
     - claim
     - aggregate
@@ -68,6 +73,9 @@
   ansible.builtin.set_fact:
     pva_claim_password: >-
       {{
+        pva_claim_password_direct
+        if (pva_claim_password_direct | trim | length) > 0
+        else
         lookup('ansible.builtin.env', pva_claim_password_env_name)
         if (pva_claim_password_env_name | string | trim | length) > 0
         else ''

@@ -11,6 +11,7 @@
   ansible.builtin.set_fact:
     claim_target_username: "{{ claim_target_context.claim_username | default('') | string | trim }}"
     claim_target_password_ref: "{{ claim_target_context.claim_password_ref | default('') | string | trim }}"
+    claim_target_password_direct: "{{ claim_target_context.claim_password | default('') | string }}"
     claim_target_password_env_name: >-
       {{
         (claim_target_context.claim_password_ref | regex_replace('^env://', ''))
@@ -28,6 +29,9 @@
   ansible.builtin.set_fact:
     claim_target_password: >-
       {{
+        claim_target_password_direct
+        if (claim_target_password_direct | trim | length) > 0
+        else
         lookup('ansible.builtin.env', claim_target_password_env_name)
         if (claim_target_password_env_name | string | trim | length) > 0
         else ''
@@ -196,9 +200,9 @@
   ansible.builtin.assert:
     that:
       - claim_target_username | string | trim | length > 0
-      - claim_target_password_ref | string | trim | length > 0
+      - (claim_target_password_ref | string | trim | length > 0) or (claim_target_password_direct | string | trim | length > 0)
       - claim_target_password | string | trim | length > 0
-    fail_msg: "Standalone claim-to-saas requires claim_username and env-backed claim_password_ref on each target when claim readiness must be refreshed inline"
+    fail_msg: "Standalone claim-to-saas requires claim_username plus either claim_password or env-backed claim_password_ref on each target when claim readiness must be refreshed inline"
   when:
     - claim_result is not defined
     - effective_target_context.claim_submission_required | default(true) | bool

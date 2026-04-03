@@ -26,6 +26,7 @@ Design requirement:
 - blueprint or one thin direct-Ansible wrapper playbook is the orchestration layer
 - credential-map resolution belongs in orchestration or in a dedicated resolver grain, not inside execution grains
 - standalone execution grains should consume per-target fields such as `claim_username` and `claim_password_ref`
+- the public Torque blueprint should prefer direct inputs for endpoints, organizations, and secrets, then translate them into internal YAML or env-shaped contracts as needed
 
 Files:
 
@@ -80,6 +81,7 @@ Assumptions:
 
 - Torque launch-form complex inputs are passed as strings
 - YAML-shaped customer data is supplied as multiline string inputs
+- the focused claim blueprint now prefers direct user-facing inputs for endpoint, org, and secrets, and internally builds `platform_yaml`, `placement_yaml`, and `credential_candidates_yaml` for the reusable grains
 - `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
 - `credential_candidates_yaml` is the current direct-input mechanism for target credential rotation candidates
 - blueprint and direct-Ansible orchestration can accept shared `credential_candidates_yaml`, but standalone claim grains are expected to consume per-target `claim_username` and `claim_password_ref`

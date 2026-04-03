@@ -39,10 +39,15 @@
         if ((raw_intersight_endpoint | string | regex_search('/api/v1/?$')) is not none)
         else ((raw_intersight_endpoint | string | regex_replace('/+$', '')) ~ '/api/v1')
       }}
+    intersight_api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    intersight_api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
     intersight_api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') }}"
     intersight_api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
     resolved_api_key_id: >-
       {{
+        intersight_api_key_id_direct
+        if (intersight_api_key_id_direct | length) > 0
+        else
         lookup('ansible.builtin.env', intersight_api_key_id_ref | regex_replace('^env://', ''))
         if (
           (intersight_api_key_id_ref | string | trim | length) > 0
@@ -52,6 +57,9 @@
       }}
     resolved_api_private_key: >-
       {{
+        intersight_api_private_key_direct
+        if (intersight_api_private_key_direct | trim | length) > 0
+        else
         lookup('ansible.builtin.env', intersight_api_private_key_ref | regex_replace('^env://', ''))
         if (
           (intersight_api_private_key_ref | string | trim | length) > 0
@@ -92,7 +100,7 @@
         that:
           - resolved_api_key_id | string | trim | length > 0
           - resolved_api_private_key | string | trim | length > 0
-        fail_msg: "claim-to-saas requires env:// Intersight API credentials in platform_yaml when claim targets are present"
+        fail_msg: "claim-to-saas requires direct or env-backed Intersight API credentials in platform_yaml when claim targets are present"
       when: (claim_targets | select('mapping') | list | length) > 0
       no_log: true
       tags:

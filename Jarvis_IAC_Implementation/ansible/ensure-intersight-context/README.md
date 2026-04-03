@@ -20,7 +20,7 @@ Shared Jarvis grain that ensures the requested Intersight target context exists 
 
 ## Current behavior
 
-- resolves the Intersight endpoint and env-backed API credentials from `platform_yaml`
+- resolves the Intersight endpoint and direct or env-backed API credentials from `platform_yaml`
 - uses direct `organization` when supplied
 - otherwise reads the requested organization from `placement_yaml`
 - when an organization is supplied:

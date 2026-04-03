@@ -20,26 +20,30 @@ deployment:
   environment: production
 ```
 
-### `platform_yaml`
+### `intersight_endpoint`
 
-```yaml
-platform:
-  intersight:
-    endpoint: https://intersight.com/api/v1
-    credentials:
-      api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-      api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+```text
+https://intersight.com/api/v1
 ```
 
-### `placement_yaml`
+### `intersight_api_key_id`
 
-```yaml
-placement:
-  intersight:
-    organization: ai-prod
-    policy:
-      reuse_existing_organization: true
-      reuse_existing_resource_group: false
+```text
+<your-saas-api-key-id>
+```
+
+### `intersight_api_private_key`
+
+```text
+-----BEGIN EC PRIVATE KEY-----
+...
+-----END EC PRIVATE KEY-----
+```
+
+### `validate_certs`
+
+```text
+true
 ```
 
 ### `organization`
@@ -48,20 +52,40 @@ placement:
 ai-prod
 ```
 
-### `credential_candidates_yaml`
+### `reuse_existing_organization`
 
-```yaml
-credential_candidates:
-  - credential_role: target
-    target_category: fabric_interconnect
-    username: admin
-    password_ref: env://FI_TARGET_PASSWORD
-  - credential_role: target
-    target_category: server
-    target_form_factor: rack
-    target_management_type: standalone
-    username: admin
-    password_ref: env://RACKSERVER_DESIRED_PASSWORD
+```text
+true
+```
+
+### `reuse_existing_resource_group`
+
+```text
+false
+```
+
+### `fi_target_username`
+
+```text
+admin
+```
+
+### `fi_target_password`
+
+```text
+<fi-target-password>
+```
+
+### `rack_target_username`
+
+```text
+admin
+```
+
+### `rack_target_password`
+
+```text
+<rack-target-password>
 ```
 
 ### `claim_targets_json`
@@ -93,18 +117,6 @@ credential_candidates:
 ]
 ```
 
-### `validation_mode`
-
-```text
-strict
-```
-
-### `execution_intent`
-
-```text
-validate_only
-```
-
 ## Appliance Small Mixed Test
 
 Use this for the first real Torque appliance run with:
@@ -121,27 +133,30 @@ deployment:
   environment: production
 ```
 
-### `platform_yaml`
+### `intersight_endpoint`
 
-```yaml
-platform:
-  intersight:
-    endpoint: https://ucs-hci-appliance-2.cisco.com
-    validate_certs: false
-    credentials:
-      api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-      api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+```text
+https://ucs-hci-appliance-2.cisco.com
 ```
 
-### `placement_yaml`
+### `intersight_api_key_id`
 
-```yaml
-placement:
-  intersight:
-    organization: ai-prod
-    policy:
-      reuse_existing_organization: true
-      reuse_existing_resource_group: false
+```text
+<your-appliance-api-key-id>
+```
+
+### `intersight_api_private_key`
+
+```text
+-----BEGIN EC PRIVATE KEY-----
+...
+-----END EC PRIVATE KEY-----
+```
+
+### `validate_certs`
+
+```text
+false
 ```
 
 ### `organization`
@@ -150,20 +165,40 @@ placement:
 ai-prod
 ```
 
-### `credential_candidates_yaml`
+### `reuse_existing_organization`
 
-```yaml
-credential_candidates:
-  - credential_role: target
-    target_category: fabric_interconnect
-    username: admin
-    password_ref: env://FI_TARGET_PASSWORD
-  - credential_role: target
-    target_category: server
-    target_form_factor: rack
-    target_management_type: standalone
-    username: admin
-    password_ref: env://RACKSERVER_DESIRED_PASSWORD
+```text
+true
+```
+
+### `reuse_existing_resource_group`
+
+```text
+false
+```
+
+### `fi_target_username`
+
+```text
+admin
+```
+
+### `fi_target_password`
+
+```text
+<fi-target-password>
+```
+
+### `rack_target_username`
+
+```text
+admin
+```
+
+### `rack_target_password`
+
+```text
+<rack-target-password>
 ```
 
 ### `claim_targets_json`
@@ -197,22 +232,10 @@ credential_candidates:
 ]
 ```
 
-### `validation_mode`
-
-```text
-strict
-```
-
-### `execution_intent`
-
-```text
-validate_only
-```
-
 ## Notes
 
 - For blueprint claim testing, the key launch input is `claim_targets_json`.
-- The active claim branch is selected from `platform_yaml` endpoint.
+- The active claim branch is selected from `intersight_endpoint`.
 - Use SaaS endpoint for `claim_to_saas`.
 - Use appliance endpoint for `claim_to_appliance`.
-- Keep `credential_candidates_yaml` at the blueprint layer; standalone claim grains expect per-target credentials after resolver mapping.
+- The blueprint now accepts direct secret inputs and internally builds the YAML payloads consumed by the reusable grains.

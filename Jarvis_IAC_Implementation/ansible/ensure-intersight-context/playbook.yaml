@@ -16,10 +16,15 @@
         if ((raw_intersight_endpoint | string | regex_search('/api/v1/?$')) is not none)
         else ((raw_intersight_endpoint | string | regex_replace('/+$', '')) ~ '/api/v1')
       }}
+    intersight_api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    intersight_api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
     intersight_api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') }}"
     intersight_api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
     resolved_api_key_id: >-
       {{
+        intersight_api_key_id_direct
+        if (intersight_api_key_id_direct | length) > 0
+        else
         lookup('ansible.builtin.env', intersight_api_key_id_ref | regex_replace('^env://', ''))
         if (
           (intersight_api_key_id_ref | string | trim | length) > 0
@@ -29,6 +34,9 @@
       }}
     resolved_api_private_key: >-
       {{
+        intersight_api_private_key_direct
+        if (intersight_api_private_key_direct | trim | length) > 0
+        else
         lookup('ansible.builtin.env', intersight_api_private_key_ref | regex_replace('^env://', ''))
         if (
           (intersight_api_private_key_ref | string | trim | length) > 0
@@ -54,7 +62,7 @@
           - platform_data | type_debug == 'dict'
           - resolved_api_key_id | string | trim | length > 0
           - resolved_api_private_key | string | trim | length > 0
-        fail_msg: "ensure-intersight-context requires platform_yaml with env-backed Intersight API credentials"
+        fail_msg: "ensure-intersight-context requires platform_yaml with direct or env-backed Intersight API credentials"
       no_log: true
       tags:
         - always

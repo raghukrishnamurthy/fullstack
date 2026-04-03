@@ -18,6 +18,7 @@ Standalone Jarvis grain for mapping a credential-candidate pool onto claim targe
 - passes through targets that already include:
   - `claim_username`
   - `claim_password_ref`
+  - or `claim_password`
 - otherwise selects a `credential_role: target` candidate by:
   - `target_category`
   - optional `target_form_factor`
@@ -25,6 +26,7 @@ Standalone Jarvis grain for mapping a credential-candidate pool onto claim targe
 - writes matched values back onto each target as:
   - `claim_username`
   - `claim_password_ref`
+  - and `claim_password` when the selected candidate includes a direct password value
 
 ## Outputs
 

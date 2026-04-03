@@ -28,7 +28,9 @@ Standalone Jarvis grain for claiming target contexts into Intersight SaaS.
 - `normalized_claim_key`
 - one of:
   - `claim_serial_number` and `claim_security_token`
-  - or `claim_username` and `claim_password_ref`
+  - or `claim_username` and either:
+    - `claim_password`
+    - `claim_password_ref`
 - `claim_submission_required`
 - optional:
   - `device_type`
@@ -38,10 +40,10 @@ Standalone Jarvis grain for claiming target contexts into Intersight SaaS.
 
 ## Current behavior
 
-- uses the `platform_yaml` Intersight endpoint and env-backed API credentials
+ - uses the `platform_yaml` Intersight endpoint and direct or env-backed API credentials
 - scopes claims to the direct `organization` input when one is supplied
 - otherwise falls back to the placement organization
-- refreshes endpoint claim readiness inline from per-target `claim_username` and env-backed `claim_password_ref` when serial/token data is not already present
+ - refreshes endpoint claim readiness inline from per-target `claim_username` plus either direct `claim_password` or env-backed `claim_password_ref` when serial/token data is not already present
 - skips duplicate logical targets after the first canonical endpoint
 - records already-claimed targets without resubmission when `claim_submission_required` is false
 

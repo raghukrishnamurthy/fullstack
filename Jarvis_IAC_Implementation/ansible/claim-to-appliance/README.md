@@ -31,8 +31,12 @@ Standalone Jarvis grain for claiming claim-target contexts into an Intersight ap
     - `form_factor`
     - `management_type`
 - one of:
-  - `claim_username` and `claim_password_ref`
-  - or `selected_target_credential.username` and `selected_target_credential.password_ref`
+  - `claim_username` and either:
+    - `claim_password`
+    - `claim_password_ref`
+  - or `selected_target_credential.username` and either:
+    - `selected_target_credential.password`
+    - `selected_target_credential.password_ref`
 - optional:
   - `canonical_endpoint`
   - `normalized_claim_key`
@@ -42,7 +46,7 @@ Standalone Jarvis grain for claiming claim-target contexts into an Intersight ap
 
 ## Current behavior
 
-- uses the appliance endpoint and env-backed API credentials from `platform_yaml`
+- uses the appliance endpoint and direct or env-backed API credentials from `platform_yaml`
 - scopes result reporting with direct `organization` when supplied
 - otherwise falls back to the placement organization
 - records already-claimed targets without resubmission when `claim_submission_required` is false

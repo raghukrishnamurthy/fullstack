@@ -4,7 +4,10 @@
     target_has_direct_claim_credentials: >-
       {{
         (claim_target.claim_username | default('') | string | trim | length) > 0
-        and (claim_target.claim_password_ref | default('') | string | trim | length) > 0
+        and (
+          (claim_target.claim_password_ref | default('') | string | trim | length) > 0
+          or (claim_target.claim_password | default('') | string | trim | length) > 0
+        )
       }}
   tags:
     - configure
@@ -96,7 +99,8 @@
                     if (target_has_direct_claim_credentials | bool)
                     else {
                       'claim_username': (selected_target_credential.username | default('')),
-                      'claim_password_ref': (selected_target_credential.password_ref | default(''))
+                      'claim_password_ref': (selected_target_credential.password_ref | default('')),
+                      'claim_password': (selected_target_credential.password | default(''))
                     }
                   ),
                   recursive=True
