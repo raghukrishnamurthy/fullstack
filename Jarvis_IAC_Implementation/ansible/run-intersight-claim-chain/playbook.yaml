@@ -10,18 +10,31 @@
     claim_targets_json: "{{ claim_targets_json | default('[]') }}"
     credential_candidates_yaml: "{{ credential_candidates_yaml | default('credential_candidates: []') }}"
 
+- name: Prepare direct wrapper branch inputs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Persist runtime branch claim target inputs
+      ansible.builtin.set_fact:
+        saas_claim_targets_json_runtime: >-
+          {{
+            resolved_claim_targets_json | default('[]')
+            if ((platform_yaml | default('') | string).find('intersight.com') != -1)
+            else '[]'
+          }}
+        appliance_claim_targets_json_runtime: >-
+          {{
+            '[]'
+            if ((platform_yaml | default('') | string).find('intersight.com') != -1)
+            else (resolved_claim_targets_json | default('[]'))
+          }}
+
 - import_playbook: /Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/playbook.yaml
   vars:
     deployment_yaml: "{{ deployment_yaml | default('') }}"
     platform_yaml: "{{ platform_yaml | default('') }}"
     placement_yaml: "{{ placement_yaml | default('') }}"
-    organization: "{{ org_name | default(organization | default('')) }}"
-    claim_targets_json: >-
-      {{
-        resolved_claim_targets_json
-        if ((platform_yaml | default('') | string).find('intersight.com') != -1)
-        else '[]'
-      }}
 
 - name: Capture SaaS branch outputs for direct orchestration
   hosts: localhost
@@ -37,13 +50,6 @@
     deployment_yaml: "{{ deployment_yaml | default('') }}"
     platform_yaml: "{{ platform_yaml | default('') }}"
     placement_yaml: "{{ placement_yaml | default('') }}"
-    organization: "{{ org_name | default(organization | default('')) }}"
-    claim_targets_json: >-
-      {{
-        '[]'
-        if ((platform_yaml | default('') | string).find('intersight.com') != -1)
-        else resolved_claim_targets_json
-      }}
 
 - name: Capture appliance branch outputs for direct orchestration
   hosts: localhost

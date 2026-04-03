@@ -11,7 +11,7 @@
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
     placement_root: "{{ (placement_yaml | from_yaml) if (placement_yaml | default('') | string | trim | length > 0) else {} }}"
     placement_data: "{{ placement_root.placement | default(placement_root) }}"
-    claim_targets_input: "{{ claim_targets_json | default('[]') }}"
+    claim_targets_input: "{{ hostvars['localhost'].appliance_claim_targets_json_runtime | default(claim_targets_json | default('[]')) }}"
     claim_targets: >-
       {{
         claim_targets_input
@@ -50,7 +50,7 @@
         else ''
       }}
     claim_validate_certs: "{{ platform_data.intersight.validate_certs | default(false) | bool }}"
-    direct_organization: "{{ organization | default('') | string | trim }}"
+    direct_organization: "{{ hostvars['localhost'].org_name | default(organization | default('')) | string | trim }}"
     internal_organization: "{{ direct_organization if (direct_organization | length > 0) else (placement_data.intersight.organization | default('')) }}"
     internal_deployment_name: "{{ deployment_data.id | default('') }}"
     internal_debug_enabled: "{{ debug_enabled | default('false') }}"

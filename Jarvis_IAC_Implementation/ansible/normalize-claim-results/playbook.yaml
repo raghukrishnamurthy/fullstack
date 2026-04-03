@@ -46,27 +46,17 @@
         - always
         - normalize
 
-    - name: Build normalized claim result contract
+    - name: Build normalized claim result buckets
       ansible.builtin.set_fact:
-        normalized_claim_results:
-          summary:
-            total_results: "{{ combined_claim_results | length }}"
-            appliance_result_count: "{{ appliance_claim_results | length }}"
-            saas_result_count: "{{ saas_claim_results | length }}"
-            successful_count: "{{ successful_result_items | length }}"
-            failed_count: "{{ failed_result_items | length }}"
-            conflict_count: "{{ conflict_result_items | length }}"
-            skipped_count: "{{ skipped_result_items | length }}"
-            changed_count: "{{ changed_result_items | length }}"
-            batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
-          results: "{{ combined_claim_results }}"
-      vars:
         successful_result_items: >-
           {{
-            combined_claim_results
-            | selectattr('status', 'defined')
-            | selectattr('status', 'in', ['successful', 'submitted', 'already_claimed'])
-            | list
+            (
+              (combined_claim_results | selectattr('status', 'defined') | selectattr('status', 'equalto', 'successful') | list)
+              +
+              (combined_claim_results | selectattr('status', 'defined') | selectattr('status', 'equalto', 'submitted') | list)
+              +
+              (combined_claim_results | selectattr('status', 'defined') | selectattr('status', 'equalto', 'already_claimed') | list)
+            )
           }}
         failed_result_items: >-
           {{
@@ -96,6 +86,24 @@
             | selectattr('changed', 'equalto', true)
             | list
           }}
+      tags:
+        - always
+        - normalize
+
+    - name: Build normalized claim result contract
+      ansible.builtin.set_fact:
+        normalized_claim_results:
+          summary:
+            total_results: "{{ combined_claim_results | length }}"
+            appliance_result_count: "{{ appliance_claim_results | length }}"
+            saas_result_count: "{{ saas_claim_results | length }}"
+            successful_count: "{{ successful_result_items | length }}"
+            failed_count: "{{ failed_result_items | length }}"
+            conflict_count: "{{ conflict_result_items | length }}"
+            skipped_count: "{{ skipped_result_items | length }}"
+            changed_count: "{{ changed_result_items | length }}"
+            batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
+          results: "{{ combined_claim_results }}"
       tags:
         - always
         - normalize
