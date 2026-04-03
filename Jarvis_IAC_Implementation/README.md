@@ -86,6 +86,8 @@ Assumptions:
   FI and server targets may become claim/onboarding-ready, while storage targets may initially support only reachability-style readiness such as TCP or ping validation
 - discovery outputs now carry target readiness profiles to make that distinction explicit for downstream workflows
 - vault or secret-manager integration for target credentials is intentionally deferred until the Torque-side mechanism is agreed
+- storage target handling should evolve toward an Assist-mediated flow:
+  first validate Assist reachability, then run storage claim using Assist as the effective target path
 - Explicit no-op destroy flows are included to match the reference repo pattern
 
 Runtime dependencies:

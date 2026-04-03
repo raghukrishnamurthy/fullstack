@@ -50,6 +50,8 @@ Execution notes:
 - Produces a read-only onboarding readiness result from baseline, placement, and live-validation state
 - Treats onboarding readiness as target-specific rather than universal; future storage targets may only support reachability readiness instead of claim readiness
 - Exposes target readiness profiles so downstream workflows can distinguish claim-capable targets from reachability-only targets
+- Future storage-target handling should shift from temporary reachability-only modeling to an Assist-mediated claim flow:
+  validate Assist reachability first, then claim storage through the Assist-target path
 - `validation_mode: strict` validates only the local input contract
 - `validation_mode: live` resolves `env://` Intersight credential refs and queries Intersight for declared serials
 - live mode also queries the requested Intersight organization and resource group and reports placement reuse/create/conflict outcomes
