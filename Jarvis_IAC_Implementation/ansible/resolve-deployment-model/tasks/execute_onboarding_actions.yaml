@@ -15,11 +15,14 @@
     claim_action_plan_item:
       target_id: "{{ item.id | default('') }}"
       target_category: "{{ item.category | default('unknown') }}"
+      serial: "{{ item.serial | default('') }}"
+      mgmt_ip: "{{ item.mgmt_ip | default('') }}"
       readiness_mode: "{{ item.readiness_mode | default('claim_and_onboard') }}"
       connectivity_path: "{{ item.connectivity_path | default('direct_endpoint') }}"
       action_type: "{{ 'claim_and_onboard' if (onboarding_readiness.ready | default(false) | bool) else 'defer' }}"
       execution_mode: would_execute
       claim_key: "{{ item.claim_key | default('') }}"
+      endpoint_hint: "{{ item.mgmt_ip | default(item.claim_key | default(item.id | default(''))) }}"
       reason: >-
         {{
           'Target is claim-capable and onboarding readiness passed'
@@ -41,11 +44,14 @@
     reachability_action_plan_item:
       target_id: "{{ item.id | default('') }}"
       target_category: "{{ item.category | default('unknown') }}"
+      serial: "{{ item.serial | default('') }}"
+      mgmt_ip: "{{ item.mgmt_ip | default('') }}"
       readiness_mode: "{{ item.readiness_mode | default('reachability_only') }}"
       connectivity_path: "{{ item.connectivity_path | default('direct_endpoint') }}"
       action_type: reachability_probe
       execution_mode: would_execute
       probe_key: "{{ item.probe_key | default('') }}"
+      endpoint_hint: "{{ item.mgmt_ip | default(item.probe_key | default(item.id | default(''))) }}"
       reason: "Target is modeled as reachability-only and should not enter claim workflows"
   loop: "{{ onboarding_readiness.reachability_only_targets | default([]) }}"
   loop_control:

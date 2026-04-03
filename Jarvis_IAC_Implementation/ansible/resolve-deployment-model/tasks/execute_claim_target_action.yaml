@@ -9,8 +9,8 @@
         | default('')
         if (claim_action_item.mgmt_ip | default('') | string | trim | length) > 0
         else (
-          claim_action_item.claim_key
-          | default('')
+          claim_action_item.endpoint_hint
+          | default(claim_action_item.claim_key | default(''))
         )
       }}
     claim_target_normalized_key: >-
@@ -21,6 +21,8 @@
     claim_target_payload:
       target_id: "{{ claim_action_item.target_id | default('') }}"
       target_category: "{{ claim_action_item.target_category | default('unknown') }}"
+      serial: "{{ claim_action_item.serial | default('') }}"
+      mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
       claim_key: "{{ claim_action_item.claim_key | default('') }}"
       endpoint: "{{ claim_target_endpoint }}"
       canonical_endpoint: "{{ claim_target_endpoint }}"
@@ -34,10 +36,12 @@
       intersight_api_private_key_ref: "{{ api_private_key_ref | default('') }}"
       intersight_validate_certs: "{{ intersight_validate_certs | default(true) }}"
       endpoint_validate_certs: "{{ false }}"
-      desired_credentials: []
+      credential_candidates: "{{ normalized_credential_candidates | default([]) }}"
       prepared_targets:
         - target_id: "{{ claim_action_item.target_id | default('') }}"
           target_category: "{{ claim_action_item.target_category | default('unknown') }}"
+          serial: "{{ claim_action_item.serial | default('') }}"
+          mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
           endpoint: "{{ claim_target_endpoint }}"
           canonical_endpoint: "{{ claim_target_endpoint }}"
           normalized_claim_key: "{{ claim_target_normalized_key }}"
@@ -48,6 +52,8 @@
     claim_execution_result:
       target_id: "{{ claim_action_item.target_id | default('') }}"
       target_category: "{{ claim_action_item.target_category | default('unknown') }}"
+      serial: "{{ claim_action_item.serial | default('') }}"
+      mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
       claim_key: "{{ claim_action_item.claim_key | default('') }}"
       endpoint: "{{ claim_target_endpoint }}"
       canonical_endpoint: "{{ claim_target_endpoint }}"

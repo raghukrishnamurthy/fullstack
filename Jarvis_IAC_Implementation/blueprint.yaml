@@ -55,6 +55,11 @@ inputs:
               - 10.20.20.11
           proxy:
             enabled: false
+  credential_candidates_yaml:
+    type: string
+    description: Optional credential-candidates YAML payload for target claim preparation
+    default: |
+      credential_candidates: []
   baseline_input_source:
     type: string
     description: Optional higher-orchestration baseline input source (for Quali/Torque or Cisco Zero Touch usage)
@@ -139,6 +144,7 @@ grains:
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - site_yaml: '{{ .inputs.site_yaml }}'
+        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
         - baseline_input_source: '{{ .inputs.baseline_input_source }}'
         - baseline_directory: '{{ .inputs.baseline_directory }}'
         - overrides_yaml: '{{ .inputs.overrides_yaml }}'

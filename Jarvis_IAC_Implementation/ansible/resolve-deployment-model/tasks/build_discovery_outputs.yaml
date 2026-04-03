@@ -12,6 +12,7 @@
           deployment_mode: "{{ derived_intersight_mode }}"
           credentials: "{{ platform_data.intersight.credentials }}"
           assists: "{{ assists }}"
+        credential_candidates: "{{ normalized_credential_candidates }}"
         raw_platform: "{{ platform_data }}"
       placement:
         intersight:
@@ -117,6 +118,7 @@
         intersight_deployment_mode: "{{ discovery_model.platform.intersight.deployment_mode }}"
         endpoint: "{{ discovery_model.platform.intersight.endpoint }}"
         assist_count: "{{ discovery_model.derived.assist_count }}"
+        credential_candidate_count: "{{ discovery_model.platform.credential_candidates | default([]) | length }}"
       solution:
         profile: "{{ discovery_model.solution.profile }}"
         delivery_scope: "{{ discovery_model.solution.delivery_scope }}"

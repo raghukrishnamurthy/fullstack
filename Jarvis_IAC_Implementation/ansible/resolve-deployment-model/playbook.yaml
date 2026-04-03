@@ -32,6 +32,7 @@
     platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
     placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
     site_root: "{{ (site_yaml | default('') | trim | length > 0) | ternary(site_yaml | from_yaml, {}) }}"
+    credential_candidates_root: "{{ (credential_candidates_yaml | default('') | trim | length > 0) | ternary(credential_candidates_yaml | from_yaml, {}) }}"
     overrides_root: "{{ (overrides_yaml | default('') | trim | length > 0) | ternary(overrides_yaml | from_yaml, {}) }}"
     inventory_root: "{{ (inventory_yaml | default('') | trim | length > 0) | ternary(inventory_yaml | from_yaml, {}) }}"
     solution_root: "{{ (solution_yaml | default('') | trim | length > 0) | ternary(solution_yaml | from_yaml, {}) }}"
@@ -39,6 +40,12 @@
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
     placement_data: "{{ placement_root.placement | default(placement_root) }}"
     site_data: "{{ site_root.site | default(site_root) }}"
+    credential_candidates_data: >-
+      {{
+        credential_candidates_root.credential_candidates
+        | default(credential_candidates_root.credentials
+        | default(credential_candidates_root))
+      }}
     overrides_data: "{{ overrides_root.overrides | default(overrides_root) }}"
     inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
     solution_data: "{{ solution_root.solution | default(solution_root) }}"
@@ -51,6 +58,7 @@
     inventory_defaults: "{{ inventory_data.defaults | default({}) }}"
     inventory_devices: "{{ inventory_data.devices | default([]) }}"
     inventory_domains: "{{ inventory_data.domains | default([]) }}"
+    normalized_credential_candidates: "{{ credential_candidates_data if (credential_candidates_data is sequence and credential_candidates_data is not string) else [] }}"
     assists: "{{ platform_data.intersight.assists | default([]) }}"
     intersight_query_rules: "{{ default_intersight_query_rules_json | from_json }}"
     derived_intersight_mode: "{{ 'saas' if ('intersight.com' in (platform_data.intersight.endpoint | default(''))) else 'pva' }}"

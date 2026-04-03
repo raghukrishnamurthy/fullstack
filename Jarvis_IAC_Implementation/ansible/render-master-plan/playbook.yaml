@@ -37,6 +37,7 @@
             organization: "{{ discovery_model.placement.intersight.organization }}"
             resource_group: "{{ discovery_model.placement.intersight.resource_group }}"
             assist_count: "{{ discovery_model.derived.assist_count }}"
+            credential_candidate_count: "{{ discovery_model.platform.credential_candidates | default([]) | length }}"
           site:
             id: "{{ discovery_model.site.id | default('') }}"
             location: "{{ discovery_model.site.global_settings.location | default('') }}"
@@ -127,6 +128,7 @@
           - Organization: {{ discovery_report.platform.organization }}
           - Resource Group: {{ discovery_report.platform.resource_group }}
           - Assist Count: {{ discovery_report.platform.assist_count }}
+          - Credential Candidate Count: {{ discovery_report.platform.credential_candidate_count }}
           - DNS Server Count: {{ discovery_report.site.dns_server_count }}
           - NTP Server Count: {{ discovery_report.site.ntp_server_count }}
           - Proxy Enabled: {{ discovery_report.site.proxy_enabled }}

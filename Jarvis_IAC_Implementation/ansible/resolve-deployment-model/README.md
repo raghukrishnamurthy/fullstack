@@ -15,6 +15,7 @@ Grain inputs:
 - `platform_yaml`
 - `placement_yaml`
 - `site_yaml`
+- `credential_candidates_yaml`
 - `baseline_input_source`
 - `baseline_directory`
 - `overrides_yaml`
@@ -36,6 +37,7 @@ Execution notes:
 - Uses `any_errors_fatal: true`
 - Accepts wrapped `deployment`, `platform`, `placement`, `inventory`, and `solution` payloads as YAML strings and parses them with `from_yaml`
 - Accepts optional wrapped `site` payload for site-scoped operational settings
+- Accepts optional direct credential-candidate input for future claim preparation
 - Accepts optional baseline-resolution hints for higher orchestration or direct Ansible execution
 - Always resolves a built-in baseline from `solution.profile`
 - Accepts only one customer baseline source at a time: `baseline_input_source` or `baseline_directory`
@@ -51,6 +53,7 @@ Execution notes:
 - `validation_mode: live` resolves `env://` Intersight credential refs and queries Intersight for declared serials
 - live mode also queries the requested Intersight organization and resource group and reports placement reuse/create/conflict outcomes
 - `execution_intent` defaults to `validate_only`; future onboarding actions should only run when readiness is true and the intent is explicitly non-default
+- target credential rotation candidates are currently modeled as direct input; vault-backed resolution is intentionally deferred
 
 Execution flow:
 

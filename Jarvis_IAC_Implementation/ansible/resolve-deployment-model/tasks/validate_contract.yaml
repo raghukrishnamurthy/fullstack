@@ -111,6 +111,18 @@
     - validate
     - precheck
 
+- name: Validate optional credential candidates payload when provided
+  ansible.builtin.assert:
+    that:
+      - credential_candidates_root == {} or credential_candidates_root.credential_candidates is defined or credential_candidates_root.credentials is defined or credential_candidates_data is sequence
+      - normalized_credential_candidates is sequence
+    fail_msg: "credential_candidates_yaml must define a credential_candidates: or credentials: list when provided"
+  when: credential_candidates_yaml is defined and credential_candidates_yaml | string | trim | length > 0
+  tags:
+    - always
+    - validate
+    - precheck
+
 - name: Validate only one customer baseline source is provided
   ansible.builtin.assert:
     that:
