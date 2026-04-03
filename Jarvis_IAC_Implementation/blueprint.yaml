@@ -131,9 +131,13 @@ inputs:
       solution:
         profile: ai_pod
         delivery_scope: onboarding
-  claim_targets_json:
+  appliance_claim_targets_json:
     type: string
-    description: Optional claim target list for direct reusable claim grains
+    description: Optional appliance claim target list for direct reusable claim grains
+    default: '[]'
+  saas_claim_targets_json:
+    type: string
+    description: Optional SaaS claim target list for direct reusable claim grains
     default: '[]'
   validation_mode:
     type: string
@@ -264,7 +268,7 @@ grains:
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
-        - claim_targets_json: '{{ .inputs.claim_targets_json }}'
+        - claim_targets_json: '{{ .inputs.saas_claim_targets_json }}'
       outputs:
         - batch_status
         - successful_targets
@@ -282,9 +286,48 @@ grains:
             hosts:
               localhost:
                 ansible_connection: local
+  claim_to_appliance:
+    kind: ansible
+    depends-on: ensure_intersight_context
+    spec:
+      source:
+        store: automation-repo
+        path: ansible/claim-to-appliance/playbook.yaml
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
+        - claim_targets_json: '{{ .inputs.appliance_claim_targets_json }}'
+      outputs:
+        - batch_status
+        - successful_targets
+        - failed_targets
+        - conflict_targets
+        - skipped_targets
+        - changed_targets
+        - results_json
+    on-destroy:
+      - source:
+          store: automation-repo
+          path: ansible/claim-to-appliance/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
   normalize_claim_results:
     kind: ansible
-    depends-on: claim_to_saas
+    depends-on:
+      - claim_to_saas
+      - claim_to_appliance
     spec:
       source:
         store: automation-repo
@@ -297,7 +340,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - appliance_claim_results_json: '[]'
+        - appliance_claim_results_json: '{{ .grains.claim_to_appliance.outputs.results_json }}'
         - saas_claim_results_json: '{{ .grains.claim_to_saas.outputs.results_json }}'
       outputs:
         - normalized_claim_results_json
@@ -327,6 +370,8 @@ outputs:
     value: '{{ .grains.render_discovery_summary.outputs.discovery_summary_markdown }}'
   context_result_json:
     value: '{{ .grains.ensure_intersight_context.outputs.context_result_json }}'
+  appliance_claim_results_json:
+    value: '{{ .grains.claim_to_appliance.outputs.results_json }}'
   saas_claim_results_json:
     value: '{{ .grains.claim_to_saas.outputs.results_json }}'
   normalized_claim_results_json:
