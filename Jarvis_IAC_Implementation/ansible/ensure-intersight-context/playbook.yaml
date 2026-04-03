@@ -177,14 +177,17 @@
         - verify
 
     - name: Export ensure-intersight-context outputs
-      ansible.builtin.set_stats:
-        data:
+      torque.collections.export_torque_outputs:
+        outputs:
           context_status: "{{ context_status }}"
           org_status: "{{ org_status }}"
           org_name: "{{ org_name }}"
           org_action: "{{ org_action }}"
           org_result_json: "{{ org_result_json }}"
           context_result_json: "{{ context_result_json }}"
-        per_host: false
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
       tags:
+        - always
         - outputs

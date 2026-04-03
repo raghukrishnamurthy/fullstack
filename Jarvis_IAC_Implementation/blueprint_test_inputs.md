@@ -40,28 +40,10 @@ https://intersight.com/api/v1
 -----END EC PRIVATE KEY-----
 ```
 
-### `validate_certs`
-
-```text
-true
-```
-
 ### `organization`
 
 ```text
 ai-prod
-```
-
-### `reuse_existing_organization`
-
-```text
-true
-```
-
-### `reuse_existing_resource_group`
-
-```text
-false
 ```
 
 ### `fi_target_username`
@@ -149,28 +131,10 @@ https://ucs-hci-appliance-2.cisco.com
 -----END EC PRIVATE KEY-----
 ```
 
-### `validate_certs`
-
-```text
-false
-```
-
 ### `organization`
 
 ```text
 ai-prod
-```
-
-### `reuse_existing_organization`
-
-```text
-true
-```
-
-### `reuse_existing_resource_group`
-
-```text
-false
 ```
 
 ### `fi_target_username`
@@ -230,4 +194,5 @@ admin
 - The active claim branch is selected from `intersight_endpoint`.
 - Use SaaS endpoint for `claim_to_saas`.
 - Use appliance endpoint for `claim_to_appliance`.
-- The blueprint now accepts direct secret inputs and internally builds the YAML payloads consumed by the reusable grains.
+- The blueprint now accepts direct secret inputs and internally uses an env bridge plus internal YAML refs for the reusable grains.
+- `validate_certs` and reuse-policy values are intentionally fixed inside the blueprint during development and are not exposed in the launch form.

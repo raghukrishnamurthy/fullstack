@@ -4,11 +4,15 @@ Use these official references as the anchor for Torque behavior:
 
 - [Torque Blueprint Automation Best Practices (PDF)](https://www.quali.com/wp-content/uploads/2026/03/torque-best-practices.pdf)
 - [Writing Torque-Ready Ansible Playbooks (PDF)](https://www.quali.com/wp-content/uploads/2026/03/torque-ready-playbooks.pdf)
+- [Blueprints Overview](https://docs.qtorque.io/blueprint-designer-guide/blueprints/blueprints-overview)
+- [The Ansible Grain](https://docs.qtorque.io/blueprint-designer-guide/blueprints/ansible-grain)
 
 ## Rules We Reuse Here
 - Keep blueprints under top-level `blueprints/`.
 - Let Torque generate inventory from the blueprint.
 - Treat grain inputs as extra-vars.
+- Avoid YAML-shaped blueprint inputs in Torque-facing contracts; prefer direct inputs or JSON strings, then assemble internal structures inside the automation layer.
+- When users must supply YAML-like documents, prefer explicit `file` inputs over pasted multiline YAML strings.
 - Use scalar `depends-on`.
 - Keep output references on a real dependency chain.
 - Avoid blueprint-side conditional routing when Torque template behavior is uncertain.

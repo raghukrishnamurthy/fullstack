@@ -66,9 +66,12 @@
         - verify
 
     - name: Export resolve-claim-target-credentials outputs to Torque
-      ansible.builtin.set_stats:
-        data:
+      torque.collections.export_torque_outputs:
+        outputs:
           resolved_claim_targets_json: "{{ resolved_claim_targets_json }}"
-        per_host: false
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
       tags:
+        - always
         - outputs

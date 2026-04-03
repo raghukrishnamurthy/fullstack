@@ -24,6 +24,7 @@ It is optimized for:
 2. Let Torque own runtime inputs.
 - Torque passes grain inputs as extra-vars.
 - Do not assume a static inventory file or pre-existing shell environment.
+- Avoid YAML-shaped blueprint inputs in Torque-facing designs; current Quali guidance indicates YAML-type blueprint inputs are not supported, so prefer direct scalar inputs or JSON strings and assemble internal YAML only inside automation when necessary.
 
 3. Model secrets in Torque-native ways.
 - Prefer blueprint params, inputs, or credentials for secrets.
@@ -58,3 +59,6 @@ It is optimized for:
 
 ## References
 - [official-quali-guides.md](references/official-quali-guides.md)
+- qTorque docs to consult first for blueprint/grain behavior:
+  - [Blueprints Overview](https://docs.qtorque.io/blueprint-designer-guide/blueprints/blueprints-overview)
+  - [The Ansible Grain](https://docs.qtorque.io/blueprint-designer-guide/blueprints/ansible-grain)

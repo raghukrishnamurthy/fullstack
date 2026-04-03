@@ -80,7 +80,7 @@ Local test path:
 Assumptions:
 
 - Torque launch-form complex inputs are passed as strings
-- YAML-shaped customer data is supplied as multiline string inputs
+- YAML-shaped blueprint inputs should be avoided in Torque-facing contracts; prefer direct inputs or JSON strings and assemble internal YAML only inside the blueprint or automation layer when necessary
 - the focused claim blueprint now prefers direct user-facing inputs for endpoint, org, and secrets, and internally builds `platform_yaml`, `placement_yaml`, and `credential_candidates_yaml` for the reusable grains
 - `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
 - `credential_candidates_yaml` is the current direct-input mechanism for target credential rotation candidates

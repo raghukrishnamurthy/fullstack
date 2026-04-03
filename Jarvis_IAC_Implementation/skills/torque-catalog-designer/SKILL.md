@@ -22,6 +22,7 @@ Focus on:
 2. Prefer narrow, understandable inputs.
 - Expose values the user actually chooses.
 - Hide internal orchestration details behind the blueprint or wrapper.
+- Prefer direct string/sensitive inputs or JSON-string contracts over YAML-shaped blueprint inputs, since Torque support for YAML-type blueprint inputs is currently unreliable.
 
 3. Keep field names stable.
 - Use `snake_case`.
@@ -47,3 +48,6 @@ Focus on:
 
 ## References
 - [official-quali-guides.md](references/official-quali-guides.md)
+- qTorque docs to consult first for user-facing blueprint design:
+  - [Blueprint Quickstart / Design](https://docs.qtorque.io/blueprint-designer-guide/blueprint-quickstart-guide)
+  - [Blueprints Overview](https://docs.qtorque.io/blueprint-designer-guide/blueprints/blueprints-overview)
