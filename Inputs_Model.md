@@ -23,6 +23,7 @@ Examples:
 
 - `deployment.yaml` -> `deployment:`
 - `platform.yaml` -> `platform:`
+- `placement.yaml` -> `placement:`
 - `inventory.yaml` -> `inventory:`
 - `solution.yaml` -> `solution:`
 - `pools.yaml` -> `pools:`
@@ -41,8 +42,13 @@ deployment:
 ```yaml
 platform:
   intersight:
+    endpoint: https://intersight.com/api/v1
+```
+
+```yaml
+placement:
+  intersight:
     organization: ai-prod
-    resource_group: rg-sjc01-ai
 ```
 
 ```yaml
@@ -66,6 +72,7 @@ Customer-provided data should be organized into these domains:
 
 - `deployment`
 - `platform`
+- `placement`
 - `inventory`
 - `pools`
 - `solution`
@@ -89,13 +96,21 @@ Defines management-plane and control-plane context.
 
 Typical fields:
 
-- Intersight organization
-- resource group
-- Assist context
-- PVA context
-- target platform
+- Intersight endpoint
 - credential references
-- endpoint references
+- Assist context
+- SaaS or PVA control-plane behavior
+
+### Placement Domain
+
+Defines where discovered or declared inventory should land inside Intersight.
+
+Typical fields:
+
+- organization
+- resource group
+- reuse behavior for existing organization or resource group
+- optional naming controls
 
 ### Inventory Domain
 
@@ -178,8 +193,8 @@ The platform contract defines the management-plane and control-plane context use
 ### Typical Sections
 
 - `platform.intersight`
-- `platform.endpoints`
-- `platform.credentials`
+- `platform.intersight.credentials`
+- `platform.intersight.assists`
 - `platform.settings`
 
 ### Example
@@ -187,52 +202,56 @@ The platform contract defines the management-plane and control-plane context use
 ```yaml
 platform:
   intersight:
-    organization: flexpod-prod
-    resource_group: rg-flexpod-sjc01
-    target_platform: FIAttached
+    endpoint: https://intersight.com/api/v1
 
-  endpoints:
-    assist:
-      type: virtual_service
-      enabled: true
-      endpoint: https://assist.example.com
+    credentials:
+      api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+      api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
 
-  credentials:
-    intersight_api: vault://customer/flexpod/intersight-api
-    fi_admin: vault://customer/flexpod/fi-admin
+    assists:
+      - id: assist-01
+        enabled: true
+        endpoint: https://assist-01.example.com
 ```
 
 ### Platform Rules
 
 - keep platform context separate from inventory
-- keep service-style helpers under `platform.endpoints`
+- keep Assist helpers under `platform.intersight.assists`
 - use references for credentials where possible
+- derive SaaS versus PVA behavior from the Intersight endpoint unless an override is required
 
-## Platform Endpoint Contract
+## Placement Input Contract
 
-Platform endpoints are workflow-supporting management or service endpoints.
+The placement contract defines where onboarding places discovered or declared inventory inside Intersight.
 
-They are not infrastructure devices.
+### Typical Sections
 
-### Common Endpoint Fields
-
-- `type`
-- `enabled`
-- `endpoint`
-- `address`
-- `port`
-- `credentials_ref`
+- `placement.intersight.organization`
+- `placement.intersight.resource_group`
+- `placement.intersight.policy`
+- `placement.intersight.naming`
 
 ### Example
 
 ```yaml
-platform:
-  endpoints:
-    assist:
-      type: virtual_service
-      enabled: true
-      endpoint: https://assist.example.com
+placement:
+  intersight:
+    organization: ai-prod
+
+    policy:
+      reuse_existing_organization: true
+      reuse_existing_resource_group: false
 ```
+
+### Placement Rules
+
+- `organization` is required
+- `resource_group` is optional
+- if `resource_group` is omitted, automation should use `organization`
+- default behavior is create-if-not-present
+- reuse behavior should be controlled with explicit booleans
+- naming controls are optional
 
 ## Inventory Input Contract
 
@@ -243,11 +262,16 @@ It is the primary source of truth for device presence, identity, topology, and d
 ### Core Section
 
 - `inventory.devices`
+- `inventory.defaults`
+- `inventory.domains`
 
 ### Example
 
 ```yaml
 inventory:
+  defaults:
+    server_management_type: standalone
+
   devices:
     - id: fi-a
       serial: FCH000001A1
@@ -261,6 +285,16 @@ inventory:
       parent: fi-a
       attributes:
         form_factor: blade
+
+  domains:
+    - domain_id: domain-01
+      type: fi_pair
+      members:
+        - fi-a
+        - fi-b
+      summary:
+        chassis_count: 1
+        blade_count: 4
 ```
 
 ### Inventory Rules
@@ -271,6 +305,7 @@ inventory:
 - use attributes for specialization
 - use solution assignments for functional role
 - do not mix service endpoints into inventory
+- explicit child blade entries are optional when a domain summary is sufficient for early validation
 
 ## Device Category Taxonomy
 
@@ -341,6 +376,39 @@ inventory:
         vendor: cisco
         model: ucs-c480
 ```
+
+### Category-Specific Expectations
+
+- FI-managed blades may be represented with serials and `management_type: fi_managed` and do not require `mgmt_ip`
+- standalone or IMM-managed rack servers should include `mgmt_ip`
+- `parent` is optional and may be discovered later
+
+## Inventory Domain Contract
+
+Inventory domains describe declared infrastructure groupings used for validation, discovery scoping, and later naming.
+
+### Example
+
+```yaml
+inventory:
+  domains:
+    - domain_id: domain-01
+      type: fi_pair
+      members:
+        - fi-a
+        - fi-b
+      summary:
+        chassis_count: 1
+        blade_count: 4
+```
+
+### Domain Rules
+
+- `domain_id` should be stable and unique within the deployment
+- `type` describes the declared grouping, such as `fi_pair`
+- `members` references device IDs from `inventory.devices`
+- `summary` is optional and may describe declared contents such as chassis or blade counts
+- domains support early validation even when some managed child devices are discovered later
 
 ## Pools Input Contract
 
@@ -529,7 +597,7 @@ Minimum required inputs:
 - deployment scope fields
 - device identity sufficient for the onboarding method
 - platform context required by the onboarding workflow
-- required platform endpoints
+- required Assist or equivalent platform helpers
 - required credential references
 
 ### Stage 3: Infrastructure Provisioning
@@ -565,3 +633,50 @@ Minimum required inputs:
 - `solution.delivery_scope`
 - `solution.server_assignments`
 - extension-specific parameters when required
+
+## Inventory Input Modes
+
+The model should support more than one inventory input mode.
+
+### Declared Inventory Mode
+
+Customer or ordering systems provide explicit inventory input.
+
+This mode is best when strong early validation matters.
+
+### Scan Inventory Mode
+
+Customer provides discovery targets and automation builds the effective inventory.
+
+This mode is best when the customer does not want to enumerate systems manually.
+
+Both modes should normalize into the same effective inventory structure before solution-profile validation proceeds.
+
+## Scan Input Contract
+
+The scan input contract defines discovery targets used to build inventory when the customer does not want to provide a fully declared inventory file.
+
+### Example
+
+```yaml
+scan:
+  targets:
+    - type: single
+      endpoint: 10.29.135.101
+      management_type_hint: fi
+
+    - type: single
+      endpoint: 10.29.135.102
+      management_type_hint: fi
+
+    - type: range
+      start_ip: 10.29.135.106
+      end_ip: 10.29.135.109
+      management_type_hint: standalone
+```
+
+### Scan Rules
+
+- scan mode is an alternative input path, not a different architecture
+- scan results must normalize into the common inventory model
+- scan input should stay discovery-focused and should not include solution semantics

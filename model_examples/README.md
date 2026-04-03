@@ -37,5 +37,15 @@ Input model notes:
 - input files use one top-level wrapper per domain
 - deployments use a single `solution:` object
 - infrastructure shape is derived from inventory facts rather than a required `infrastructure_pattern`
-- workflow-supporting service endpoints such as Assist belong under `platform.endpoints`
+- workflow-supporting service endpoints such as Assist belong under `platform.intersight.assists`
 - pools are organized by pool type and usage, such as `pools.ip.mgmt` and `pools.ip.os`
+- Intersight placement such as organization and resource group lives in `placement.yaml`
+
+Concrete deployment examples:
+
+- `inputs/deployments/sjc01-infra-converged-prod/`
+  converged infrastructure example aligned to the v2 input model
+- `inputs/deployments/sjc01-infra-standalone-prod/`
+  standalone infrastructure example aligned to the v2 input model
+- `inputs/deployments/ai-pod-sjc01-prod/`
+  AI Pod-oriented example using real-life inventory details for an FI pair, blades, and standalone rack servers
