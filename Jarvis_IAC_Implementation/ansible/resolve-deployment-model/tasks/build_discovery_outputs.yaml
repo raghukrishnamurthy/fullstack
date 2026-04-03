@@ -81,6 +81,11 @@
           not_ready_devices: "{{ intersight_not_ready_devices | default([]) }}"
           fi_pair_errors: "{{ fi_pair_validation_errors | default([]) }}"
         placement_validation: "{{ placement_validation | default({}) }}"
+        baseline_expectation_validation:
+          errors: "{{ baseline_expectation_errors | default([]) }}"
+          results: "{{ baseline_expectation_results | default([]) }}"
+        onboarding_readiness: "{{ onboarding_readiness | default({}) }}"
+        onboarding_action_execution: "{{ onboarding_action_execution | default({'requested': false, 'executed': false, 'status': 'not_requested', 'message': 'No onboarding actions were requested'}) }}"
   tags:
     - discover
 
@@ -107,6 +112,7 @@
         overrides_enabled: "{{ discovery_model.baseline_resolution.overrides.enabled }}"
         customer_baseline_loaded: "{{ discovery_model.baseline_resolution.customer_baseline.loaded | default(false) }}"
         effective_baseline_key_count: "{{ discovery_model.baseline_resolution.effective_baseline | default({}) | length }}"
+        expectation_error_count: "{{ discovery_model.derived.baseline_expectation_validation.errors | default([]) | length }}"
       platform:
         intersight_deployment_mode: "{{ discovery_model.platform.intersight.deployment_mode }}"
         endpoint: "{{ discovery_model.platform.intersight.endpoint }}"
@@ -132,6 +138,19 @@
         organization_action: "{{ discovery_model.derived.placement_validation.organization.action | default('not_run') }}"
         resource_group_action: "{{ discovery_model.derived.placement_validation.resource_group.action | default('not_run') }}"
         error_count: "{{ discovery_model.derived.placement_validation.errors | default([]) | length }}"
+      baseline_expectations:
+        error_count: "{{ discovery_model.derived.baseline_expectation_validation.errors | default([]) | length }}"
+        checks: "{{ discovery_model.derived.baseline_expectation_validation.results | default([]) }}"
+      onboarding_readiness:
+        ready: "{{ discovery_model.derived.onboarding_readiness.ready | default(false) }}"
+        status: "{{ discovery_model.derived.onboarding_readiness.status | default('unknown') }}"
+        next_action: "{{ discovery_model.derived.onboarding_readiness.next_action | default('review_validation_results') }}"
+        blocker_count: "{{ discovery_model.derived.onboarding_readiness.blockers | default([]) | length }}"
+        target_profiles: "{{ discovery_model.derived.onboarding_readiness.target_profiles | default({}) }}"
+      onboarding_action_execution:
+        requested: "{{ discovery_model.derived.onboarding_action_execution.requested | default(false) }}"
+        executed: "{{ discovery_model.derived.onboarding_action_execution.executed | default(false) }}"
+        status: "{{ discovery_model.derived.onboarding_action_execution.status | default('not_requested') }}"
       validation_mode: "{{ discovery_model.derived.validation_mode }}"
   tags:
     - discover

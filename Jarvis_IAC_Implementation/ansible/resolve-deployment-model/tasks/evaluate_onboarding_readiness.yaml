@@ -1,0 +1,142 @@
+---
+- name: Initialize onboarding readiness facts
+  ansible.builtin.set_fact:
+    target_readiness_profiles: {}
+    onboarding_readiness:
+      ready: false
+      status: blocked
+      next_action: review_validation_results
+      blockers: []
+      checks:
+        baseline_expectations_passed: true
+        placement_ready: true
+        live_validation_required: false
+        live_validation_enabled: "{{ intersight_live_validation_enabled }}"
+        live_validation_passed: true
+  tags:
+    - always
+    - validate
+    - onboarding
+
+- name: Build target readiness profiles
+  ansible.builtin.set_fact:
+    target_readiness_profiles: "{{ target_readiness_profiles | combine({item.key: item.value}) }}"
+  loop:
+    - key: fabric_interconnect
+      value:
+        target_type: fabric_interconnect
+        readiness_mode: claim_and_onboard
+        present_in_inventory: "{{ fi_count | int > 0 }}"
+        target_count: "{{ fi_count }}"
+        notes:
+          - "Fabric Interconnect targets are expected to progress from validation into claim/onboarding workflows."
+    - key: server
+      value:
+        target_type: server
+        readiness_mode: claim_and_onboard
+        present_in_inventory: "{{ server_count | int > 0 }}"
+        target_count: "{{ server_count }}"
+        notes:
+          - "Server targets are expected to progress from validation into claim/onboarding workflows."
+    - key: storage
+      value:
+        target_type: storage
+        readiness_mode: reachability_only
+        present_in_inventory: "{{ storage_count | int > 0 }}"
+        target_count: "{{ storage_count }}"
+        notes:
+          - "Storage targets are currently modeled as reachability-only candidates."
+          - "Future storage onboarding may start with TCP or ping validation rather than claim readiness."
+  loop_control:
+    label: "{{ item.key }}"
+  tags:
+    - always
+    - validate
+    - onboarding
+
+- name: Build onboarding readiness result
+  ansible.builtin.set_fact:
+    onboarding_readiness:
+      ready: "{{ readiness_ready }}"
+      status: "{{ readiness_status }}"
+      next_action: "{{ readiness_next_action }}"
+      blockers: "{{ readiness_blockers }}"
+      target_profiles: "{{ target_readiness_profiles }}"
+      checks:
+        baseline_expectations_passed: "{{ baseline_expectations_passed }}"
+        placement_ready: "{{ placement_ready }}"
+        live_validation_required: "{{ live_validation_required }}"
+        live_validation_enabled: "{{ intersight_live_validation_enabled }}"
+        live_validation_passed: "{{ live_validation_passed }}"
+  vars:
+    baseline_expectations_passed: "{{ (baseline_expectation_errors | default([]) | length) == 0 }}"
+    live_validation_required: "{{ effective_baseline_payload.onboarding.intersight_validation.enabled | default(false) | bool }}"
+    placement_ready: >-
+      {{
+        (placement_validation.ready | default(false))
+        if intersight_live_validation_enabled
+        else (not live_validation_required)
+      }}
+    live_validation_passed: >-
+      {{
+        (
+          (intersight_missing_devices | default([]) | length) == 0
+          and (intersight_not_ready_devices | default([]) | length) == 0
+          and (fi_pair_validation_errors | default([]) | length) == 0
+        )
+        if intersight_live_validation_enabled
+        else (not live_validation_required)
+      }}
+    readiness_blockers: >-
+      {%- set blockers = [] -%}
+      {%- if not baseline_expectations_passed -%}
+      {%- set _ = blockers.append('Baseline expectations are not satisfied by the declared inventory') -%}
+      {%- endif -%}
+      {%- if live_validation_required and not intersight_live_validation_enabled -%}
+      {%- set _ = blockers.append('Live Intersight validation is required before onboarding can proceed') -%}
+      {%- endif -%}
+      {%- if intersight_live_validation_enabled and not placement_ready -%}
+      {%- set _ = blockers.append('Placement validation is not ready in Intersight') -%}
+      {%- endif -%}
+      {%- if intersight_live_validation_enabled and (intersight_missing_devices | default([]) | length) > 0 -%}
+      {%- set _ = blockers.append('One or more declared devices were not found in Intersight') -%}
+      {%- endif -%}
+      {%- if intersight_live_validation_enabled and (intersight_not_ready_devices | default([]) | length) > 0 -%}
+      {%- set _ = blockers.append('One or more discovered devices are not in a ready state') -%}
+      {%- endif -%}
+      {%- if intersight_live_validation_enabled and (fi_pair_validation_errors | default([]) | length) > 0 -%}
+      {%- set _ = blockers.append('Declared FI pair validation failed against discovered Intersight state') -%}
+      {%- endif -%}
+      {{ blockers }}
+    readiness_ready: "{{ readiness_blockers | length == 0 }}"
+    readiness_status: >-
+      {{
+        'ready_for_onboarding'
+        if readiness_ready
+        else 'needs_live_validation'
+        if (live_validation_required and not intersight_live_validation_enabled)
+        else 'blocked'
+      }}
+    readiness_next_action: >-
+      {{
+        'proceed_to_claim_and_onboarding'
+        if readiness_ready
+        else 'run_live_intersight_validation'
+        if (live_validation_required and not intersight_live_validation_enabled)
+        else 'fix_placement_targets'
+        if (intersight_live_validation_enabled and not placement_ready)
+        else 'fix_device_readiness_or_inventory'
+        if (
+          intersight_live_validation_enabled
+          and (
+            (intersight_missing_devices | default([]) | length) > 0
+            or (intersight_not_ready_devices | default([]) | length) > 0
+            or (fi_pair_validation_errors | default([]) | length) > 0
+          )
+        )
+        else 'fix_baseline_expectations'
+      }}
+  tags:
+    - always
+    - validate
+    - onboarding

@@ -44,8 +44,14 @@ Assumptions:
 - precedence is:
   built-in baseline -> customer baseline -> overrides
 - `overrides_yaml` is merged recursively onto the effective baseline payload
+- the scaffold now uses the effective baseline payload for early onboarding expectation checks
 - `validation_mode: strict` validates the input contract only
 - `validation_mode: live` resolves env-based Intersight credential refs and queries Cisco Intersight for declared serials
 - live mode also evaluates placement targets in Intersight and reports whether the requested organization/resource group would be reused, created, or would conflict with placement policy
+- `execution_intent` defaults to `validate_only`
+- even when onboarding is ready, this scaffold still stops at a guarded no-op onboarding-action boundary
 - This scaffold does not yet claim devices or mutate Intersight resources
+- future target handling should remain type-aware:
+  FI and server targets may become claim/onboarding-ready, while storage targets may initially support only reachability-style readiness such as TCP or ping validation
+- discovery outputs now carry target readiness profiles to make that distinction explicit for downstream workflows
 - Explicit no-op destroy flows are included to match the reference repo pattern

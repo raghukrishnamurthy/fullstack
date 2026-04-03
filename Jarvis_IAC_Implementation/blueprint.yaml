@@ -116,6 +116,10 @@ inputs:
     type: string
     description: Validation mode (`strict` for contract-only checks, `live` for Intersight serial validation)
     default: strict
+  execution_intent:
+    type: string
+    description: Execution intent (`validate_only` by default; future onboarding actions will require an explicit non-default value)
+    default: validate_only
 grains:
   discover_infrastructure:
     kind: ansible
@@ -141,6 +145,7 @@ grains:
         - inventory_yaml: '{{ .inputs.inventory_yaml }}'
         - solution_yaml: '{{ .inputs.solution_yaml }}'
         - validation_mode: '{{ .inputs.validation_mode }}'
+        - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:
         - discovery_model_json
         - discovery_summary_json

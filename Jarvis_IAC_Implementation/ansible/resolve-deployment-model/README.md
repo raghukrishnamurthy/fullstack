@@ -6,6 +6,7 @@ Purpose:
 - Validate device inventory and topology relationships
 - Optionally validate declared serials against Cisco Intersight using the `cisco.intersight` collection
 - Derive infrastructure classification from inventory facts
+- Derive a read-only onboarding readiness decision before claim/onboarding actions
 - Export a stable JSON document for downstream grains
 
 Grain inputs:
@@ -20,6 +21,7 @@ Grain inputs:
 - `inventory_yaml`
 - `solution_yaml`
 - `validation_mode`
+- `execution_intent`
 
 Exported outputs:
 
@@ -41,17 +43,25 @@ Execution notes:
 - When `baseline_directory` is provided, loads `baseline.yaml` from that directory and exposes the parsed payload in the discovery model
 - Applies precedence in this order: built-in baseline, customer baseline, then deployment overrides
 - Merges `overrides_yaml` recursively onto the effective baseline payload
+- Uses the effective baseline payload for early onboarding expectation checks
+- Produces a read-only onboarding readiness result from baseline, placement, and live-validation state
+- Treats onboarding readiness as target-specific rather than universal; future storage targets may only support reachability readiness instead of claim readiness
+- Exposes target readiness profiles so downstream workflows can distinguish claim-capable targets from reachability-only targets
 - `validation_mode: strict` validates only the local input contract
 - `validation_mode: live` resolves `env://` Intersight credential refs and queries Intersight for declared serials
 - live mode also queries the requested Intersight organization and resource group and reports placement reuse/create/conflict outcomes
+- `execution_intent` defaults to `validate_only`; future onboarding actions should only run when readiness is true and the intent is explicitly non-default
 
 Execution flow:
 
 1. `tasks/validate_contract.yaml`
 2. `tasks/validate_inventory_and_site.yaml`
 3. `tasks/load_baseline.yaml`
-4. `tasks/live_intersight_validation.yaml`
-5. `tasks/build_discovery_outputs.yaml`
+4. `tasks/validate_baseline_expectations.yaml`
+5. `tasks/live_intersight_validation.yaml`
+6. `tasks/evaluate_onboarding_readiness.yaml`
+7. `tasks/execute_onboarding_actions.yaml`
+8. `tasks/build_discovery_outputs.yaml`
 
 Destroy behavior:
 

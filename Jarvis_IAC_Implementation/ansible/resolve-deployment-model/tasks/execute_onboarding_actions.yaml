@@ -1,0 +1,19 @@
+---
+- name: Record onboarding action boundary
+  ansible.builtin.set_fact:
+    onboarding_action_execution:
+      requested: "{{ (execution_intent | default('validate_only') | string | trim | lower) in ['apply', 'onboard', 'claim_and_onboard'] }}"
+      executed: false
+      status: placeholder_only
+      message: "Onboarding action execution is intentionally not implemented yet. This scaffold stops at readiness evaluation."
+  tags:
+    - onboarding
+    - action
+
+- name: Explain why onboarding actions were not executed
+  ansible.builtin.debug:
+    msg: "{{ onboarding_action_execution.message }}"
+  when: onboarding_action_execution.requested | bool
+  tags:
+    - onboarding
+    - action

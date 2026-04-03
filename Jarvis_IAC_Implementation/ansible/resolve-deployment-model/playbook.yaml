@@ -101,8 +101,20 @@
     - name: Load customer baseline and apply overrides
       ansible.builtin.include_tasks: tasks/load_baseline.yaml
 
+    - name: Validate effective baseline expectations
+      ansible.builtin.include_tasks: tasks/validate_baseline_expectations.yaml
+
     - name: Run optional live Intersight validation
       ansible.builtin.include_tasks: tasks/live_intersight_validation.yaml
+
+    - name: Evaluate onboarding readiness
+      ansible.builtin.include_tasks: tasks/evaluate_onboarding_readiness.yaml
+
+    - name: Execute onboarding actions when explicitly requested
+      ansible.builtin.include_tasks: tasks/execute_onboarding_actions.yaml
+      when:
+        - onboarding_readiness.ready | default(false) | bool
+        - (execution_intent | default('validate_only') | string | trim | lower) in ['apply', 'onboard', 'claim_and_onboard']
 
     - name: Build discovery model and summary outputs
       ansible.builtin.include_tasks: tasks/build_discovery_outputs.yaml

@@ -27,6 +27,7 @@ Stable form keys:
 | Device Inventory | Inventory YAML | textarea | yes | `inventory_yaml` |
 | Device Inventory | Solution YAML | textarea | yes | `solution_yaml` |
 | Device Inventory | Validation Mode | text | no | `validation_mode` |
+| Review and Classify | Execution Intent | text | no | `execution_intent` |
 
 Notes:
 
@@ -39,3 +40,4 @@ Notes:
 - `baseline_input_source` must be an HTTP(S) URL.
 - `overrides_yaml` is the narrow deployment-specific delta layer and is merged recursively on top of the loaded customer baseline payload.
 - `validation_mode` should typically be `strict`; use `live` only when the referenced Intersight credentials are available to the grain runtime.
+- `execution_intent` should remain `validate_only` until real claim/onboarding actions are implemented.

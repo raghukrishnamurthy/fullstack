@@ -1,0 +1,67 @@
+---
+- name: Initialize baseline expectation validation facts
+  ansible.builtin.set_fact:
+    baseline_expectation_errors: []
+    baseline_expectation_results: []
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Validate minimum blade count expectation when defined
+  ansible.builtin.set_fact:
+    baseline_expectation_results: "{{ baseline_expectation_results + [blade_expectation_result] }}"
+    baseline_expectation_errors: "{{ baseline_expectation_errors + ([blade_expectation_error] if blade_count_actual < blade_count_expected else []) }}"
+  vars:
+    blade_count_expected: "{{ effective_baseline_payload.solution_expectations.minimum_blade_count | int }}"
+    blade_count_actual: >-
+      {{
+        inventory_devices
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('attributes.form_factor', 'defined')
+        | selectattr('attributes.form_factor', 'equalto', 'blade')
+        | list
+        | length
+      }}
+    blade_expectation_result:
+      check: minimum_blade_count
+      expected: "{{ blade_count_expected }}"
+      actual: "{{ blade_count_actual }}"
+      passed: "{{ blade_count_actual >= blade_count_expected }}"
+    blade_expectation_error:
+      check: minimum_blade_count
+      expected: "{{ blade_count_expected }}"
+      actual: "{{ blade_count_actual }}"
+      message: "Inventory does not meet the baseline minimum blade count expectation"
+  when:
+    - effective_baseline_payload.solution_expectations is defined
+    - effective_baseline_payload.solution_expectations.minimum_blade_count is defined
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Validate minimum FI domain count expectation when defined
+  ansible.builtin.set_fact:
+    baseline_expectation_results: "{{ baseline_expectation_results + [fi_domain_expectation_result] }}"
+    baseline_expectation_errors: "{{ baseline_expectation_errors + ([fi_domain_expectation_error] if fi_domain_count_actual < fi_domain_count_expected else []) }}"
+  vars:
+    fi_domain_count_expected: "{{ effective_baseline_payload.solution_expectations.minimum_fi_domain_count | int }}"
+    fi_domain_count_actual: "{{ inventory_domains | selectattr('type', 'defined') | selectattr('type', 'equalto', 'fi_pair') | list | length }}"
+    fi_domain_expectation_result:
+      check: minimum_fi_domain_count
+      expected: "{{ fi_domain_count_expected }}"
+      actual: "{{ fi_domain_count_actual }}"
+      passed: "{{ fi_domain_count_actual >= fi_domain_count_expected }}"
+    fi_domain_expectation_error:
+      check: minimum_fi_domain_count
+      expected: "{{ fi_domain_count_expected }}"
+      actual: "{{ fi_domain_count_actual }}"
+      message: "Inventory does not meet the baseline minimum FI domain count expectation"
+  when:
+    - effective_baseline_payload.solution_expectations is defined
+    - effective_baseline_payload.solution_expectations.minimum_fi_domain_count is defined
+  tags:
+    - always
+    - validate
+    - baseline
