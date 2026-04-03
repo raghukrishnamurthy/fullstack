@@ -163,10 +163,25 @@
         if intersight_live_validation_enabled
         else (not live_validation_required)
       }}
+    blocking_intersight_missing_devices: >-
+      {{
+        intersight_missing_devices
+        | default([])
+        | rejectattr('category', 'defined')
+        | list
+        +
+        (
+          intersight_missing_devices
+          | default([])
+          | selectattr('category', 'defined')
+          | rejectattr('category', 'in', ['Rack', 'Blade'])
+          | list
+        )
+      }}
     live_validation_passed: >-
       {{
         (
-          (intersight_missing_devices | default([]) | length) == 0
+          (blocking_intersight_missing_devices | length) == 0
           and (intersight_not_ready_devices | default([]) | length) == 0
           and (fi_pair_validation_errors | default([]) | length) == 0
         )
@@ -184,7 +199,7 @@
       {%- if intersight_live_validation_enabled and not placement_ready -%}
       {%- set _ = blockers.append('Placement validation is not ready in Intersight') -%}
       {%- endif -%}
-      {%- if intersight_live_validation_enabled and (intersight_missing_devices | default([]) | length) > 0 -%}
+      {%- if intersight_live_validation_enabled and (blocking_intersight_missing_devices | length) > 0 -%}
       {%- set _ = blockers.append('One or more declared devices were not found in Intersight') -%}
       {%- endif -%}
       {%- if intersight_live_validation_enabled and (intersight_not_ready_devices | default([]) | length) > 0 -%}
@@ -215,7 +230,7 @@
         if (
           intersight_live_validation_enabled
           and (
-            (intersight_missing_devices | default([]) | length) > 0
+            (blocking_intersight_missing_devices | length) > 0
             or (intersight_not_ready_devices | default([]) | length) > 0
             or (fi_pair_validation_errors | default([]) | length) > 0
           )
