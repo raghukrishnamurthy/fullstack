@@ -1,0 +1,138 @@
+---
+- name: Build normalized discovery model
+  ansible.builtin.set_fact:
+    discovery_model:
+      deployment:
+        id: "{{ deployment_data.id }}"
+        site: "{{ deployment_data.site }}"
+        environment: "{{ deployment_data.environment }}"
+      platform:
+        intersight:
+          endpoint: "{{ platform_data.intersight.endpoint }}"
+          deployment_mode: "{{ derived_intersight_mode }}"
+          credentials: "{{ platform_data.intersight.credentials }}"
+          assists: "{{ assists }}"
+        raw_platform: "{{ platform_data }}"
+      placement:
+        intersight:
+          organization: "{{ placement_data.intersight.organization }}"
+          resource_group: "{{ effective_resource_group }}"
+          policy: "{{ placement_data.intersight.policy | default({}) }}"
+          naming: "{{ placement_data.intersight.naming | default({}) }}"
+      baseline_resolution:
+        selected_solution_profile: "{{ solution_data.profile }}"
+        selected_built_in_baseline: "{{ solution_data.profile }}"
+        built_in_baseline:
+          baseline_file: "{{ built_in_baseline_file | default('') }}"
+          payload: "{{ built_in_baseline_data | default({}) }}"
+        customer_baseline:
+          source_type: >-
+            {{
+              'input_source'
+              if (normalized_baseline_input_source | length > 0)
+              else 'directory'
+              if (normalized_baseline_directory | length > 0)
+              else 'none'
+            }}
+          input_source: "{{ normalized_baseline_input_source }}"
+          baseline_directory: "{{ normalized_baseline_directory }}"
+          loaded: "{{ customer_baseline_loaded | default(false) }}"
+          baseline_file: "{{ customer_baseline_file | default('') }}"
+          baseline_location: "{{ customer_baseline_location | default('') }}"
+          payload: "{{ customer_baseline_data | default({}) }}"
+        overrides:
+          enabled: "{{ overrides_enabled }}"
+          payload: "{{ overrides_data | default({}) }}"
+        effective_baseline: "{{ effective_baseline_payload | default({}) }}"
+        precedence:
+          - overrides
+          - customer_baseline
+          - selected_built_in_baseline
+          - automation_defaults
+      site:
+        id: "{{ site_data.id | default(deployment_data.site) }}"
+        global_settings: "{{ site_global_settings }}"
+      inventory:
+        defaults: "{{ inventory_defaults }}"
+        devices: "{{ inventory_devices }}"
+        domains: "{{ inventory_domains }}"
+      solution:
+        profile: "{{ solution_data.profile }}"
+        extension: "{{ solution_data.extension | default('') }}"
+        goal: "{{ solution_data.goal | default('') }}"
+        delivery_scope: "{{ solution_data.delivery_scope }}"
+        parameters: "{{ solution_data.parameters | default({}) }}"
+      derived:
+        infrastructure_classification: "{{ classification | trim }}"
+        device_count: "{{ inventory_devices | length }}"
+        fabric_interconnect_count: "{{ fi_count }}"
+        server_count: "{{ server_count }}"
+        storage_count: "{{ storage_count }}"
+        ethernet_switch_count: "{{ ethernet_switch_count }}"
+        san_switch_count: "{{ san_switch_count }}"
+        gpu_server_count: "{{ gpu_server_count }}"
+        assist_count: "{{ assists | length }}"
+        domain_count: "{{ inventory_domains | length }}"
+        validation_mode: "{{ validation_mode | default('strict') }}"
+        intersight_live_validation_enabled: "{{ intersight_live_validation_enabled }}"
+        intersight_validation:
+          present_devices: "{{ intersight_present_devices | default([]) }}"
+          missing_devices: "{{ intersight_missing_devices | default([]) }}"
+          not_ready_devices: "{{ intersight_not_ready_devices | default([]) }}"
+          fi_pair_errors: "{{ fi_pair_validation_errors | default([]) }}"
+        placement_validation: "{{ placement_validation | default({}) }}"
+  tags:
+    - discover
+
+- name: Build discovery summary output
+  ansible.builtin.set_fact:
+    discovery_summary:
+      deployment:
+        id: "{{ discovery_model.deployment.id }}"
+        site: "{{ discovery_model.deployment.site }}"
+        environment: "{{ discovery_model.deployment.environment }}"
+      placement:
+        organization: "{{ discovery_model.placement.intersight.organization }}"
+        resource_group: "{{ discovery_model.placement.intersight.resource_group }}"
+      site:
+        id: "{{ discovery_model.site.id | default('') }}"
+        location: "{{ discovery_model.site.global_settings.location | default('') }}"
+        dns_server_count: "{{ discovery_model.site.global_settings.dns.servers | default([]) | length }}"
+        ntp_server_count: "{{ discovery_model.site.global_settings.ntp.servers | default([]) | length }}"
+        proxy_enabled: "{{ discovery_model.site.global_settings.proxy.enabled | default(false) }}"
+      baseline_resolution:
+        source_type: "{{ discovery_model.baseline_resolution.customer_baseline.source_type }}"
+        built_in_baseline: "{{ discovery_model.baseline_resolution.selected_built_in_baseline }}"
+        built_in_baseline_file: "{{ discovery_model.baseline_resolution.built_in_baseline.baseline_file | default('') }}"
+        overrides_enabled: "{{ discovery_model.baseline_resolution.overrides.enabled }}"
+        customer_baseline_loaded: "{{ discovery_model.baseline_resolution.customer_baseline.loaded | default(false) }}"
+        effective_baseline_key_count: "{{ discovery_model.baseline_resolution.effective_baseline | default({}) | length }}"
+      platform:
+        intersight_deployment_mode: "{{ discovery_model.platform.intersight.deployment_mode }}"
+        endpoint: "{{ discovery_model.platform.intersight.endpoint }}"
+        assist_count: "{{ discovery_model.derived.assist_count }}"
+      solution:
+        profile: "{{ discovery_model.solution.profile }}"
+        delivery_scope: "{{ discovery_model.solution.delivery_scope }}"
+      inventory_summary:
+        infrastructure_classification: "{{ discovery_model.derived.infrastructure_classification }}"
+        device_count: "{{ discovery_model.derived.device_count }}"
+        fabric_interconnect_count: "{{ discovery_model.derived.fabric_interconnect_count }}"
+        server_count: "{{ discovery_model.derived.server_count }}"
+        storage_count: "{{ discovery_model.derived.storage_count }}"
+        ethernet_switch_count: "{{ discovery_model.derived.ethernet_switch_count }}"
+        san_switch_count: "{{ discovery_model.derived.san_switch_count }}"
+        domain_count: "{{ discovery_model.derived.domain_count }}"
+        live_validation_enabled: "{{ discovery_model.derived.intersight_live_validation_enabled }}"
+        present_device_count: "{{ discovery_model.derived.intersight_validation.present_devices | default([]) | length }}"
+        missing_device_count: "{{ discovery_model.derived.intersight_validation.missing_devices | default([]) | length }}"
+        not_ready_device_count: "{{ discovery_model.derived.intersight_validation.not_ready_devices | default([]) | length }}"
+      placement_validation:
+        ready: "{{ discovery_model.derived.placement_validation.ready | default(true) }}"
+        organization_action: "{{ discovery_model.derived.placement_validation.organization.action | default('not_run') }}"
+        resource_group_action: "{{ discovery_model.derived.placement_validation.resource_group.action | default('not_run') }}"
+        error_count: "{{ discovery_model.derived.placement_validation.errors | default([]) | length }}"
+      validation_mode: "{{ discovery_model.derived.validation_mode }}"
+  tags:
+    - discover
+    - summary

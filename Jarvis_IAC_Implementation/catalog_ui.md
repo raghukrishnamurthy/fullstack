@@ -8,8 +8,9 @@ End-user workflow steps:
 2. Platform Context
 3. Placement Context
 4. Site Settings
-5. Device Inventory
-6. Review and Classify
+5. Baseline Resolution
+6. Device Inventory
+7. Review and Classify
 
 Stable form keys:
 
@@ -20,6 +21,9 @@ Stable form keys:
 | Platform Context | Platform YAML | textarea | yes | `platform_yaml` |
 | Placement Context | Placement YAML | textarea | yes | `placement_yaml` |
 | Site Settings | Site YAML | textarea | no | `site_yaml` |
+| Baseline Resolution | Baseline Input Source | text | no | `baseline_input_source` |
+| Baseline Resolution | Baseline Directory | text | no | `baseline_directory` |
+| Baseline Resolution | Overrides YAML | textarea | no | `overrides_yaml` |
 | Device Inventory | Inventory YAML | textarea | yes | `inventory_yaml` |
 | Device Inventory | Solution YAML | textarea | yes | `solution_yaml` |
 | Device Inventory | Validation Mode | text | no | `validation_mode` |
@@ -29,4 +33,9 @@ Notes:
 - YAML textareas are the preferred contract for nested input data in Torque.
 - The keys above should remain stable across the launch form, blueprint inputs, and Ansible extra-vars.
 - `site_yaml` is optional and is the preferred place for site-scoped settings such as location, DNS, NTP, and proxy defaults.
+- `baseline_input_source` is the higher-orchestration baseline hook and may be hidden in Quali/Torque or Cisco Zero Touch offerings.
+- `baseline_directory` is primarily for direct Ansible-style execution and should contain `baseline.yaml`.
+- provide only one customer baseline source at a time.
+- `baseline_input_source` must be an HTTP(S) URL.
+- `overrides_yaml` is the narrow deployment-specific delta layer and is merged recursively on top of the loaded customer baseline payload.
 - `validation_mode` should typically be `strict`; use `live` only when the referenced Intersight credentials are available to the grain runtime.

@@ -4,7 +4,7 @@ This directory contains a Torque-ready scaffold derived from the v2 Jarvis IAC a
 
 The current implementation focus is the first infrastructure slice:
 
-1. Collect deployment, platform, placement, site, and inventory inputs
+1. Collect deployment, platform, placement, site, baseline-resolution, and inventory inputs
 2. Normalize and validate infrastructure devices
 3. Optionally validate declared serials against Cisco Intersight
 4. Derive infrastructure classification from device facts and topology
@@ -35,6 +35,15 @@ Assumptions:
 - Torque launch-form complex inputs are passed as strings
 - YAML-shaped customer data is supplied as multiline string inputs
 - `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
+- `baseline_input_source` and `baseline_directory` are optional customer-baseline sources for higher orchestration and direct Ansible execution
+- `overrides_yaml` is the deployment-specific delta layer and is optional
+- provide only one customer baseline source at a time
+- the scaffold always starts from a built-in baseline selected by `solution.profile`
+- when `baseline_directory` is provided, the scaffold expects `baseline.yaml` in that directory
+- when `baseline_input_source` is provided, the scaffold fetches YAML from the given HTTP(S) URL
+- precedence is:
+  built-in baseline -> customer baseline -> overrides
+- `overrides_yaml` is merged recursively onto the effective baseline payload
 - `validation_mode: strict` validates the input contract only
 - `validation_mode: live` resolves env-based Intersight credential refs and queries Cisco Intersight for declared serials
 - live mode also evaluates placement targets in Intersight and reports whether the requested organization/resource group would be reused, created, or would conflict with placement policy

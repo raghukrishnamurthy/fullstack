@@ -1,0 +1,156 @@
+---
+- name: Validate inventory contains devices
+  ansible.builtin.assert:
+    that:
+      - inventory_devices | length > 0
+    fail_msg: "inventory_yaml must contain one or more devices under inventory.devices"
+  tags:
+    - always
+    - validate
+    - inventory
+
+- name: Validate allowed device categories
+  ansible.builtin.assert:
+    that:
+      - item.category in ['fabric_interconnect', 'server', 'storage', 'ethernet_switch', 'san_switch']
+      - item.id is defined
+      - item.id | string | trim | length > 0
+      - (item.serial is defined and item.serial | string | trim | length > 0) or (item.mgmt_ip is defined and item.mgmt_ip | string | trim | length > 0)
+    fail_msg: "Each device must define id, an allowed category, and at least one identity field such as serial or mgmt_ip"
+  loop: "{{ inventory_devices }}"
+  loop_control:
+    label: "{{ item.id | default('unknown-device') }}"
+  tags:
+    - always
+    - validate
+    - inventory
+
+- name: Validate device IDs are unique
+  ansible.builtin.assert:
+    that:
+      - normalized_device_ids | unique | length == normalized_device_ids | length
+    fail_msg: "Device IDs must be unique within inventory.devices"
+  tags:
+    - always
+    - validate
+    - inventory
+
+- name: Validate rack or standalone-managed servers provide mgmt_ip
+  ansible.builtin.assert:
+    that:
+      - item.mgmt_ip is defined
+      - item.mgmt_ip | string | trim | length > 0
+    fail_msg: "Standalone or IMM-managed rack servers must define mgmt_ip"
+  loop: >-
+    {{
+      inventory_devices
+      | selectattr('category', 'equalto', 'server')
+      | selectattr('attributes.form_factor', 'defined')
+      | selectattr('attributes.form_factor', 'equalto', 'rack')
+      | list
+    }}
+  loop_control:
+    label: "{{ item.id }}"
+  when: "(item.attributes.management_type | default(inventory_defaults.server_management_type | default(''))) in ['standalone', 'imm']"
+  tags:
+    - always
+    - validate
+    - inventory
+
+- name: Validate inventory domains reference known members
+  ansible.builtin.assert:
+    that:
+      - item.domain_id is defined
+      - item.domain_id | string | trim | length > 0
+      - item.type is defined
+      - item.members is defined
+      - item.members | length > 0
+      - item.members | difference(normalized_device_ids) | length == 0
+    fail_msg: "Each inventory domain must define domain_id, type, and known device members"
+  loop: "{{ inventory_domains }}"
+  loop_control:
+    label: "{{ item.domain_id | default('unknown-domain') }}"
+  tags:
+    - always
+    - validate
+    - topology
+
+- name: Validate Assist entries when provided
+  ansible.builtin.assert:
+    that:
+      - item.id is defined
+      - item.id | string | trim | length > 0
+      - item.endpoint is defined
+      - item.endpoint | string | trim | length > 0
+    fail_msg: "Each Assist entry must define id and endpoint"
+  loop: "{{ assists }}"
+  loop_control:
+    label: "{{ item.id | default('unknown-assist') }}"
+  tags:
+    - always
+    - validate
+    - platform
+
+- name: Validate site DNS server list when provided
+  ansible.builtin.assert:
+    that:
+      - site_global_settings.dns.servers is iterable
+      - site_global_settings.dns.servers | length > 0
+    fail_msg: "site.global_settings.dns.servers must be a non-empty list when provided"
+  when: site_global_settings.dns is defined and site_global_settings.dns.servers is defined
+  tags:
+    - always
+    - validate
+    - site
+
+- name: Validate site NTP server list when provided
+  ansible.builtin.assert:
+    that:
+      - site_global_settings.ntp.servers is iterable
+      - site_global_settings.ntp.servers | length > 0
+    fail_msg: "site.global_settings.ntp.servers must be a non-empty list when provided"
+  when: site_global_settings.ntp is defined and site_global_settings.ntp.servers is defined
+  tags:
+    - always
+    - validate
+    - site
+
+- name: Validate proxy certificate refs when provided
+  ansible.builtin.assert:
+    that:
+      - site_global_settings.proxy.certificates.ca_bundle_ref | string | trim | length > 0
+    fail_msg: "site.global_settings.proxy.certificates.ca_bundle_ref must be non-empty when provided"
+  when:
+    - site_global_settings.proxy is defined
+    - site_global_settings.proxy.certificates is defined
+    - site_global_settings.proxy.certificates.ca_bundle_ref is defined
+  tags:
+    - always
+    - validate
+    - site
+
+- name: Validate peer relationships reference known devices
+  ansible.builtin.assert:
+    that:
+      - item.peer in normalized_device_ids
+    fail_msg: "Device peer must reference another known device id"
+  loop: "{{ inventory_devices | selectattr('peer', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.id }}"
+  tags:
+    - always
+    - validate
+    - topology
+
+- name: Validate parent relationships reference known devices
+  ansible.builtin.assert:
+    that:
+      - item.parent in normalized_device_ids
+    fail_msg: "Device parent must reference another known device id"
+  loop: "{{ inventory_devices | selectattr('parent', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.id }}"
+  tags:
+    - always
+    - validate
+    - topology

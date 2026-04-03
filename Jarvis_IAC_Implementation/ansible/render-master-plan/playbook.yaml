@@ -43,6 +43,13 @@
             dns_server_count: "{{ discovery_model.site.global_settings.dns.servers | default([]) | length }}"
             ntp_server_count: "{{ discovery_model.site.global_settings.ntp.servers | default([]) | length }}"
             proxy_enabled: "{{ discovery_model.site.global_settings.proxy.enabled | default(false) }}"
+          baseline_resolution:
+            source_type: "{{ discovery_model.baseline_resolution.customer_baseline.source_type | default('none') }}"
+            built_in_baseline: "{{ discovery_model.baseline_resolution.selected_built_in_baseline | default('') }}"
+            built_in_baseline_file: "{{ discovery_model.baseline_resolution.built_in_baseline.baseline_file | default('') }}"
+            overrides_enabled: "{{ discovery_model.baseline_resolution.overrides.enabled | default(false) }}"
+            customer_baseline_loaded: "{{ discovery_model.baseline_resolution.customer_baseline.loaded | default(false) }}"
+            effective_baseline_key_count: "{{ discovery_model.baseline_resolution.effective_baseline | default({}) | length }}"
           inventory_summary:
             infrastructure_classification: "{{ discovery_model.derived.infrastructure_classification }}"
             device_count: "{{ discovery_model.derived.device_count }}"
@@ -79,6 +86,12 @@
           - Environment: {{ discovery_report.deployment.environment }}
           - Site ID: {{ discovery_report.site.id }}
           - Site Location: {{ discovery_report.site.location }}
+          - Baseline Source Type: {{ discovery_report.baseline_resolution.source_type }}
+          - Built-in Baseline: {{ discovery_report.baseline_resolution.built_in_baseline }}
+          - Built-in Baseline File: {{ discovery_report.baseline_resolution.built_in_baseline_file }}
+          - Overrides Enabled: {{ discovery_report.baseline_resolution.overrides_enabled }}
+          - Customer Baseline Loaded: {{ discovery_report.baseline_resolution.customer_baseline_loaded }}
+          - Effective Baseline Key Count: {{ discovery_report.baseline_resolution.effective_baseline_key_count }}
           - Infrastructure Classification: {{ discovery_report.inventory_summary.infrastructure_classification }}
           - Intersight Mode: {{ discovery_report.platform.deployment_mode }}
           - Device Count: {{ discovery_report.inventory_summary.device_count }}

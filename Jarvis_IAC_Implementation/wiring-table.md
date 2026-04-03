@@ -7,6 +7,9 @@
 | `platform_yaml` | `discover_infrastructure` | `platform_yaml` | `platform_yaml` |
 | `placement_yaml` | `discover_infrastructure` | `placement_yaml` | `placement_yaml` |
 | `site_yaml` | `discover_infrastructure` | `site_yaml` | `site_yaml` |
+| `baseline_input_source` | `discover_infrastructure` | `baseline_input_source` | `baseline_input_source` |
+| `baseline_directory` | `discover_infrastructure` | `baseline_directory` | `baseline_directory` |
+| `overrides_yaml` | `discover_infrastructure` | `overrides_yaml` | `overrides_yaml` |
 | `inventory_yaml` | `discover_infrastructure` | `inventory_yaml` | `inventory_yaml` |
 | `solution_yaml` | `discover_infrastructure` | `solution_yaml` | `solution_yaml` |
 | `validation_mode` | `discover_infrastructure` | `validation_mode` | `validation_mode` |

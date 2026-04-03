@@ -1,0 +1,289 @@
+---
+- name: Initialize live Intersight validation facts
+  ansible.builtin.set_fact:
+    device_batches: []
+    intersight_present_devices: []
+    intersight_missing_devices: []
+    intersight_not_ready_devices: []
+    fi_pair_validation_errors: []
+    placement_validation:
+      organization:
+        requested_name: "{{ placement_data.intersight.organization }}"
+        exists: false
+        action: unchecked
+        moid: ""
+      resource_group:
+        requested_name: "{{ effective_resource_group }}"
+        exists: false
+        action: unchecked
+        moid: ""
+        matches_requested_organization: true
+      ready: true
+      errors: []
+  when: intersight_live_validation_enabled
+  tags:
+    - validate
+    - intersight
+
+- name: Query requested organization by name
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ platform_data.intersight.endpoint }}"
+    validate_certs: "{{ intersight_validate_certs }}"
+    resource_path: /organization/Organizations
+    query_params:
+      $filter: "Name eq '{{ placement_data.intersight.organization }}'"
+      $top: 1
+    return_list: true
+  register: existing_org_query
+  changed_when: false
+  no_log: true
+  when: intersight_live_validation_enabled
+  tags:
+    - validate
+    - intersight
+    - placement
+
+- name: Query requested resource group by name
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ platform_data.intersight.endpoint }}"
+    validate_certs: "{{ intersight_validate_certs }}"
+    resource_path: /resource/Groups
+    query_params:
+      $filter: "Name eq '{{ effective_resource_group }}'"
+      $top: 1
+    return_list: true
+  register: existing_resource_group_query
+  changed_when: false
+  no_log: true
+  when: intersight_live_validation_enabled
+  tags:
+    - validate
+    - intersight
+    - placement
+
+- name: Build placement validation result from live Intersight queries
+  ansible.builtin.set_fact:
+    placement_validation:
+      organization:
+        requested_name: "{{ placement_data.intersight.organization }}"
+        exists: "{{ org_exists }}"
+        action: "{{ org_action }}"
+        moid: "{{ org_moid }}"
+      resource_group:
+        requested_name: "{{ effective_resource_group }}"
+        exists: "{{ resource_group_exists }}"
+        action: "{{ resource_group_action }}"
+        moid: "{{ resource_group_moid }}"
+        matches_requested_organization: "{{ resource_group_matches_org }}"
+      ready: "{{ placement_errors | length == 0 }}"
+      errors: "{{ placement_errors }}"
+  vars:
+    org_record: "{{ (existing_org_query.api_response | default([]) | first) | default({}) }}"
+    resource_group_record: "{{ (existing_resource_group_query.api_response | default([]) | first) | default({}) }}"
+    org_exists: "{{ (existing_org_query.api_response | default([]) | length) > 0 }}"
+    resource_group_exists: "{{ (existing_resource_group_query.api_response | default([]) | length) > 0 }}"
+    org_moid: "{{ org_record.Moid | default('') }}"
+    resource_group_moid: "{{ resource_group_record.Moid | default('') }}"
+    requested_reuse_org: "{{ placement_data.intersight.policy.reuse_existing_organization | default(true) | bool }}"
+    requested_reuse_resource_group: "{{ placement_data.intersight.policy.reuse_existing_resource_group | default(false) | bool }}"
+    resource_group_org_moids: >-
+      {{
+        resource_group_record.Organizations | default([])
+        | map(attribute='Moid')
+        | map('string')
+        | list
+      }}
+    resource_group_matches_org: >-
+      {{
+        (not resource_group_exists)
+        or (not org_exists)
+        or (org_moid in resource_group_org_moids)
+      }}
+    org_action: >-
+      {{
+        'existing'
+        if (org_exists and requested_reuse_org)
+        else 'conflict_existing_not_reusable'
+        if (org_exists and not requested_reuse_org)
+        else 'would_create'
+      }}
+    resource_group_action: >-
+      {{
+        'existing'
+        if (resource_group_exists and requested_reuse_resource_group)
+        else 'conflict_existing_not_reusable'
+        if (resource_group_exists and not requested_reuse_resource_group)
+        else 'would_create'
+      }}
+    placement_errors: >-
+      {%- set errors = [] -%}
+      {%- if org_exists and not requested_reuse_org -%}
+      {%- set _ = errors.append('Requested organization already exists but placement policy forbids reuse') -%}
+      {%- endif -%}
+      {%- if resource_group_exists and not requested_reuse_resource_group -%}
+      {%- set _ = errors.append('Requested resource group already exists but placement policy forbids reuse') -%}
+      {%- endif -%}
+      {%- if org_exists and resource_group_exists and not resource_group_matches_org -%}
+      {%- set _ = errors.append('Requested resource group is not associated with the requested organization') -%}
+      {%- endif -%}
+      {{ errors }}
+  when: intersight_live_validation_enabled
+  tags:
+    - validate
+    - intersight
+    - placement
+
+- name: Build blade readiness query batches
+  ansible.builtin.set_fact:
+    device_batches: "{{ device_batches + [blade_batch] }}"
+  vars:
+    blade_serials: >-
+      {{
+        inventory_devices
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('attributes.form_factor', 'defined')
+        | selectattr('attributes.form_factor', 'equalto', 'blade')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    blade_batch:
+      category: Blade
+      serial_numbers: "{{ blade_serials }}"
+      rule: "{{ intersight_query_rules.Blade }}"
+      serial_filter: "{{ blade_serials | map('regex_replace', '^(.*)$', \"Serial eq '\\1'\") | join(' or ') }}"
+  when:
+    - intersight_live_validation_enabled
+    - blade_serials | length > 0
+  tags:
+    - validate
+    - intersight
+
+- name: Build rack readiness query batches
+  ansible.builtin.set_fact:
+    device_batches: "{{ device_batches + [rack_batch] }}"
+  vars:
+    rack_serials: >-
+      {{
+        inventory_devices
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('attributes.form_factor', 'defined')
+        | selectattr('attributes.form_factor', 'equalto', 'rack')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    rack_batch:
+      category: Rack
+      serial_numbers: "{{ rack_serials }}"
+      rule: "{{ intersight_query_rules.Rack }}"
+      serial_filter: "{{ rack_serials | map('regex_replace', '^(.*)$', \"Serial eq '\\1'\") | join(' or ') }}"
+  when:
+    - intersight_live_validation_enabled
+    - rack_serials | length > 0
+  tags:
+    - validate
+    - intersight
+
+- name: Build Fabric Interconnect pair query batches from declared domains
+  ansible.builtin.set_fact:
+    device_batches: "{{ device_batches + [fi_batch] }}"
+  vars:
+    fi_serials: >-
+      {{
+        (
+          inventory_devices
+          | selectattr('serial', 'defined')
+          | list
+        )
+        | json_query("[?contains(`" ~ ((item.members | default([])) | to_json) ~ "`, id)].serial")
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    fi_batch:
+      category: FabricInterconnect
+      domain_id: "{{ item.domain_id }}"
+      serial_numbers: "{{ fi_serials }}"
+      rule: "{{ intersight_query_rules.FabricInterconnect }}"
+      serial_filter: "{{ fi_serials | map('regex_replace', '^(.*)$', \"Serial eq '\\1'\") | join(' or ') }}"
+  loop: "{{ inventory_domains | selectattr('type', 'defined') | selectattr('type', 'equalto', 'fi_pair') | list }}"
+  loop_control:
+    label: "{{ item.domain_id }}"
+  when:
+    - intersight_live_validation_enabled
+    - fi_serials | length > 0
+  tags:
+    - validate
+    - intersight
+
+- name: Query Intersight for each device batch
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ platform_data.intersight.endpoint }}"
+    validate_certs: "{{ intersight_validate_certs }}"
+    resource_path: "{{ query_batch.rule.resource_path }}"
+    return_list: true
+    query_params:
+      $filter: "{{ query_batch.serial_filter }}"
+      $top: 1000
+  register: intersight_lookup
+  loop: "{{ device_batches }}"
+  loop_control:
+    loop_var: query_batch
+    label: "{{ query_batch.category }}{{ ':' ~ query_batch.domain_id if query_batch.domain_id is defined else '' }}"
+  changed_when: false
+  no_log: true
+  when: intersight_live_validation_enabled
+  tags:
+    - validate
+    - intersight
+
+- name: Evaluate Intersight query results
+  ansible.builtin.include_tasks: evaluate_intersight_batch.yaml
+  vars:
+    response_results: "{{ readiness_query_result.api_response | default([]) }}"
+    requested_serials: "{{ readiness_query_result.query_batch.serial_numbers }}"
+    category_name: "{{ readiness_query_result.query_batch.category }}"
+    discovery_field: "{{ readiness_query_result.query_batch.rule.discovery_field | default('') }}"
+    allowed_states: "{{ readiness_query_result.query_batch.rule.allowed_discovery_states | default([]) }}"
+  loop: "{{ intersight_lookup.results | default([]) }}"
+  loop_control:
+    loop_var: readiness_query_result
+    label: "{{ readiness_query_result.query_batch.category }}"
+  when: intersight_live_validation_enabled
+  tags:
+    - validate
+    - intersight
+
+- name: Validate declared FI pairs against Intersight results
+  ansible.builtin.include_tasks: validate_fi_pair.yaml
+  loop: >-
+    {{
+      intersight_lookup.results
+      | default([])
+      | selectattr('query_batch.category', 'equalto', 'FabricInterconnect')
+      | list
+    }}
+  loop_control:
+    loop_var: fi_lookup_result
+    label: "{{ fi_lookup_result.query_batch.domain_id | default(fi_lookup_result.query_batch.serial_numbers | join(',')) }}"
+  when: intersight_live_validation_enabled
+  tags:
+    - validate
+    - intersight
