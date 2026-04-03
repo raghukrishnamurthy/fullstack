@@ -211,12 +211,12 @@ grains:
             hosts:
               localhost:
                 ansible_connection: local
-  ensure_target_context:
+  ensure_intersight_context:
     kind: ansible
     spec:
       source:
         store: automation-repo
-        path: ansible/ensure-target-context/playbook.yaml
+        path: ansible/ensure-intersight-context/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
       inventory-file:
@@ -238,7 +238,7 @@ grains:
     on-destroy:
       - source:
           store: automation-repo
-          path: ansible/ensure-target-context/teardown.yaml
+          path: ansible/ensure-intersight-context/teardown.yaml
         inventory-file:
           localhost:
             hosts:
@@ -246,7 +246,7 @@ grains:
                 ansible_connection: local
   claim_to_saas:
     kind: ansible
-    depends-on: ensure_target_context
+    depends-on: ensure_intersight_context
     spec:
       source:
         store: automation-repo
@@ -262,7 +262,7 @@ grains:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
-        - organization: '{{ .grains.ensure_target_context.outputs.org_name }}'
+        - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
         - claim_targets_json: '{{ .inputs.claim_targets_json }}'
       outputs:
@@ -326,7 +326,7 @@ outputs:
   discovery_summary_markdown:
     value: '{{ .grains.render_discovery_summary.outputs.discovery_summary_markdown }}'
   context_result_json:
-    value: '{{ .grains.ensure_target_context.outputs.context_result_json }}'
+    value: '{{ .grains.ensure_intersight_context.outputs.context_result_json }}'
   saas_claim_results_json:
     value: '{{ .grains.claim_to_saas.outputs.results_json }}'
   normalized_claim_results_json:

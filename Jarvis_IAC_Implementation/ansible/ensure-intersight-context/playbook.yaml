@@ -48,13 +48,13 @@
         - always
         - precheck
 
-    - name: Validate ensure-target-context inputs
+    - name: Validate ensure-intersight-context inputs
       ansible.builtin.assert:
         that:
           - platform_data | type_debug == 'dict'
           - resolved_api_key_id | string | trim | length > 0
           - resolved_api_private_key | string | trim | length > 0
-        fail_msg: "ensure-target-context requires platform_yaml with env-backed Intersight API credentials"
+        fail_msg: "ensure-intersight-context requires platform_yaml with env-backed Intersight API credentials"
       no_log: true
       tags:
         - always
@@ -154,7 +154,7 @@
       tags:
         - outputs
 
-    - name: Validate ensure-target-context outputs
+    - name: Validate ensure-intersight-context outputs
       ansible.builtin.assert:
         that:
           - context_status is defined
@@ -164,12 +164,12 @@
           - org_action is defined
           - org_result_json is defined
           - context_result_json is defined
-        fail_msg: "ensure-target-context did not produce the expected output contract"
+        fail_msg: "ensure-intersight-context did not produce the expected output contract"
       tags:
         - always
         - verify
 
-    - name: Export ensure-target-context outputs
+    - name: Export ensure-intersight-context outputs
       ansible.builtin.set_stats:
         data:
           context_status: "{{ context_status }}"

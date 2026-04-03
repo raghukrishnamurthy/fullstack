@@ -1,4 +1,4 @@
-# ensure-target-context
+# ensure-intersight-context
 
 Shared Jarvis grain that ensures the requested Intersight target context exists before claim.
 
