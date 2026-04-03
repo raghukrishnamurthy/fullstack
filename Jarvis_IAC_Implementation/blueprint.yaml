@@ -131,13 +131,9 @@ inputs:
       solution:
         profile: ai_pod
         delivery_scope: onboarding
-  appliance_claim_targets_json:
+  claim_targets_json:
     type: string
-    description: Optional appliance claim target list for direct reusable claim grains
-    default: '[]'
-  saas_claim_targets_json:
-    type: string
-    description: Optional SaaS claim target list for direct reusable claim grains
+    description: Optional claim target list for direct reusable claim grains
     default: '[]'
   validation_mode:
     type: string
@@ -268,7 +264,7 @@ grains:
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
-        - claim_targets_json: '{{ .inputs.saas_claim_targets_json }}'
+        - claim_targets_json: '{{ if contains .inputs.platform_yaml "intersight.com" }}{{ .inputs.claim_targets_json }}{{ else }}[]{{ end }}'
       outputs:
         - batch_status
         - successful_targets
@@ -305,7 +301,7 @@ grains:
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
-        - claim_targets_json: '{{ .inputs.appliance_claim_targets_json }}'
+        - claim_targets_json: '{{ if contains .inputs.platform_yaml "intersight.com" }}[]{{ else }}{{ .inputs.claim_targets_json }}{{ end }}'
       outputs:
         - batch_status
         - successful_targets
