@@ -208,20 +208,20 @@
 
 - name: Collect SaaS claim result for target on localhost
   ansible.builtin.set_fact:
-    claim_results: "{{ (claim_results | default([])) + [claim_result] }}"
+    claim_results: "{{ (hostvars['localhost'].claim_results | default([])) + [claim_result] }}"
     successful_result_items: >-
-      {{ (successful_result_items | default([])) + ([claim_result] if claim_result.status in ['successful', 'submitted', 'already_claimed'] else []) }}
+      {{ (hostvars['localhost'].successful_result_items | default([])) + ([claim_result] if claim_result.status in ['successful', 'submitted', 'already_claimed'] else []) }}
     failed_result_items: >-
-      {{ (failed_result_items | default([])) + ([claim_result] if claim_result.status == 'failed' else []) }}
+      {{ (hostvars['localhost'].failed_result_items | default([])) + ([claim_result] if claim_result.status == 'failed' else []) }}
     conflict_result_items: >-
-      {{ (conflict_result_items | default([])) + ([claim_result] if claim_result.status == 'conflict' else []) }}
+      {{ (hostvars['localhost'].conflict_result_items | default([])) + ([claim_result] if claim_result.status == 'conflict' else []) }}
     skipped_result_items: >-
-      {{ (skipped_result_items | default([])) + ([claim_result] if claim_result.status == 'skipped' else []) }}
+      {{ (hostvars['localhost'].skipped_result_items | default([])) + ([claim_result] if claim_result.status == 'skipped' else []) }}
     changed_result_items: >-
-      {{ (changed_result_items | default([])) + ([claim_result] if (claim_result.changed | default(false) | bool) else []) }}
+      {{ (hostvars['localhost'].changed_result_items | default([])) + ([claim_result] if (claim_result.changed | default(false) | bool) else []) }}
     seen_claim_target_map: >-
       {{
-        (seen_claim_target_map | default({}))
+        (hostvars['localhost'].seen_claim_target_map | default({}))
         | combine(
             (
               {
@@ -230,7 +230,7 @@
               if (
                 (claim_result.normalized_claim_key | default('') | string | trim | length) > 0
                 and (claim_result.status | default('')) != 'failed'
-                and ((seen_claim_target_map | default({})).get(claim_result.normalized_claim_key | default(''), '') | string | trim | length) == 0
+                and ((hostvars['localhost'].seen_claim_target_map | default({})).get(claim_result.normalized_claim_key | default(''), '') | string | trim | length) == 0
               )
               else {}
             ),

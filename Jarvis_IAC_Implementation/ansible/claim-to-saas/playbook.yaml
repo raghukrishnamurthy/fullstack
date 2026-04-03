@@ -89,6 +89,21 @@
         - precheck
 
   tasks:
+    - name: Persist SaaS claim runtime context on localhost
+      ansible.builtin.set_fact:
+        claim_api_key_id: "{{ resolved_api_key_id }}"
+        claim_api_private_key: "{{ resolved_api_private_key }}"
+        claim_api_uri: "{{ normalized_intersight_endpoint }}"
+        claim_validate_certs_runtime: "{{ claim_validate_certs }}"
+        internal_organization_runtime: "{{ internal_organization }}"
+        internal_deployment_name_runtime: "{{ internal_deployment_name }}"
+        internal_debug_enabled_runtime: "{{ internal_debug_enabled }}"
+        internal_helper_timeout_seconds_runtime: "{{ internal_helper_timeout_seconds }}"
+        debug_artifact_dir_runtime: "{{ debug_artifact_dir }}"
+      tags:
+        - always
+        - configure
+
     - name: Initialize SaaS claim aggregate outputs
       ansible.builtin.set_fact:
         claim_results: []
@@ -126,15 +141,15 @@
   any_errors_fatal: true
   serial: 1
   vars:
-    claim_api_key_id: "{{ hostvars['localhost'].resolved_api_key_id | default('') }}"
-    claim_api_private_key: "{{ hostvars['localhost'].resolved_api_private_key | default('') }}"
-    claim_api_uri: "{{ hostvars['localhost'].normalized_intersight_endpoint | default('https://intersight.com/api/v1') }}"
-    claim_validate_certs: "{{ hostvars['localhost'].claim_validate_certs | default(true) | bool }}"
-    internal_organization: "{{ hostvars['localhost'].internal_organization | default('') }}"
-    internal_deployment_name: "{{ hostvars['localhost'].internal_deployment_name | default('') }}"
-    internal_debug_enabled: "{{ hostvars['localhost'].internal_debug_enabled | default('false') }}"
-    internal_helper_timeout_seconds: "{{ hostvars['localhost'].internal_helper_timeout_seconds | default(20) }}"
-    debug_artifact_dir: "{{ hostvars['localhost'].debug_artifact_dir | default('/tmp/jarvis-debug/claim-to-saas') }}"
+    claim_api_key_id: "{{ hostvars['localhost'].claim_api_key_id | default('') }}"
+    claim_api_private_key: "{{ hostvars['localhost'].claim_api_private_key | default('') }}"
+    claim_api_uri: "{{ hostvars['localhost'].claim_api_uri | default('https://intersight.com/api/v1') }}"
+    claim_validate_certs: "{{ hostvars['localhost'].claim_validate_certs_runtime | default(true) | bool }}"
+    internal_organization: "{{ hostvars['localhost'].internal_organization_runtime | default('') }}"
+    internal_deployment_name: "{{ hostvars['localhost'].internal_deployment_name_runtime | default('') }}"
+    internal_debug_enabled: "{{ hostvars['localhost'].internal_debug_enabled_runtime | default('false') }}"
+    internal_helper_timeout_seconds: "{{ hostvars['localhost'].internal_helper_timeout_seconds_runtime | default(20) }}"
+    debug_artifact_dir: "{{ hostvars['localhost'].debug_artifact_dir_runtime | default('/tmp/jarvis-debug/claim-to-saas') }}"
   tasks:
     - name: Run SaaS claim for prepared target
       ansible.builtin.include_tasks: tasks/process_claim_target.yaml
