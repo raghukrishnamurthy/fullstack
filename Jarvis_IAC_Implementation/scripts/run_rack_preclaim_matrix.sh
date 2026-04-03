@@ -88,21 +88,29 @@ expectations = {
         "status": "preclaim_ready_not_implemented",
         "next_step": "run_password_normalization_then_claim",
         "ready": True,
+        "normalization_execution_status": "normalization_probe_not_run",
+        "normalization_probe_attempted": False,
     },
     "manufacturing_only": {
         "status": "preclaim_credentials_missing",
         "next_step": "supply_rack_credentials_for_password_normalization",
         "ready": False,
+        "normalization_execution_status": "normalization_credentials_missing",
+        "normalization_probe_attempted": False,
     },
     "target_only": {
         "status": "preclaim_credentials_missing",
         "next_step": "supply_rack_credentials_for_password_normalization",
         "ready": False,
+        "normalization_execution_status": "normalization_credentials_missing",
+        "normalization_probe_attempted": False,
     },
     "none": {
         "status": "preclaim_credentials_missing",
         "next_step": "supply_rack_credentials_for_password_normalization",
         "ready": False,
+        "normalization_execution_status": "normalization_credentials_missing",
+        "normalization_probe_attempted": False,
     },
 }
 
@@ -152,13 +160,11 @@ for rack_result in rack_results:
     assert normalization_execution["payload"]["ready"] is expected["ready"], (
         f"{case_name}: unexpected normalization execution readiness {normalization_execution['payload']['ready']}"
     )
-    expected_norm_status = (
-        "normalization_hook_ready_not_implemented"
-        if expected["ready"]
-        else "normalization_credentials_missing"
-    )
-    assert normalization_execution["status"] == expected_norm_status, (
+    assert normalization_execution["status"] == expected["normalization_execution_status"], (
         f"{case_name}: unexpected normalization execution status {normalization_execution['status']}"
+    )
+    assert normalization_execution["payload"]["probe"]["attempted"] is expected["normalization_probe_attempted"], (
+        f"{case_name}: unexpected normalization probe attempt flag {normalization_execution['payload']['probe']['attempted']}"
     )
 
     if case_name in {"both", "manufacturing_only"}:
