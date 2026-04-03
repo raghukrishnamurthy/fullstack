@@ -1,0 +1,95 @@
+---
+- name: Reset rack passwords or identify reset-ready rack targets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    deployment_root: "{{ (deployment_yaml | from_yaml) if (deployment_yaml | default('') | string | trim | length > 0) else {} }}"
+    deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
+    inventory_root: "{{ (inventory_yaml | from_yaml) if (inventory_yaml | default('') | string | trim | length > 0) else {} }}"
+    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
+    inventory_devices: "{{ inventory_data.devices | default([]) }}"
+    credential_candidates_root: "{{ (credential_candidates_yaml | from_yaml) if (credential_candidates_yaml | default('') | string | trim | length > 0) else {} }}"
+    credential_candidates_data: >-
+      {{
+        credential_candidates_root.credential_candidates
+        | default(credential_candidates_root.credentials)
+        | default([])
+      }}
+    normalized_credential_candidates: "{{ credential_candidates_data if (credential_candidates_data is sequence) else [] }}"
+  tasks:
+    - name: Validate reset-rack-password contract
+      ansible.builtin.assert:
+        that:
+          - inventory_yaml is defined
+          - inventory_yaml | string | trim | length > 0
+          - credential_candidates_yaml is defined
+          - credential_candidates_yaml | string | trim | length > 0
+          - inventory_devices is sequence
+          - normalized_credential_candidates is sequence
+        fail_msg: "reset-rack-password requires inventory_yaml and credential_candidates_yaml with a valid credential_candidates list"
+      tags:
+        - always
+        - validate
+        - precheck
+
+    - name: Initialize rack password reset outputs
+      ansible.builtin.set_fact:
+        rack_password_reset_results: []
+        password_reset_ready_targets: []
+        password_reset_pending_targets: []
+      tags:
+        - always
+        - outputs
+
+    - name: Process standalone rack reset candidates
+      ansible.builtin.include_tasks: tasks/process_reset_candidate.yaml
+      vars:
+        rack_reset_candidate: "{{ item }}"
+      loop: >-
+        {{
+          inventory_devices
+          | selectattr('category', 'equalto', 'server')
+          | selectattr('attributes.form_factor', 'defined')
+          | selectattr('attributes.form_factor', 'equalto', 'rack')
+          | selectattr('attributes.management_type', 'defined')
+          | selectattr('attributes.management_type', 'equalto', 'standalone')
+          | list
+        }}
+      loop_control:
+        label: "{{ item.id | default(item.mgmt_ip | default('rack-target')) }}"
+      tags:
+        - reset
+        - rack
+
+    - name: Export reset-rack-password outputs
+      ansible.builtin.set_fact:
+        rack_password_reset_results_json: "{{ rack_password_reset_results | to_json }}"
+        password_reset_ready_targets_json: "{{ password_reset_ready_targets | to_json }}"
+        password_reset_pending_targets_json: "{{ password_reset_pending_targets | to_json }}"
+      tags:
+        - outputs
+        - export
+
+    - name: Validate reset-rack-password output contract
+      ansible.builtin.assert:
+        that:
+          - rack_password_reset_results_json is defined
+          - password_reset_ready_targets_json is defined
+          - password_reset_pending_targets_json is defined
+        fail_msg: "reset-rack-password did not produce the expected aggregate outputs"
+      tags:
+        - always
+        - outputs
+
+    - name: Export reset-rack-password outputs to Torque
+      ansible.builtin.set_stats:
+        data:
+          rack_password_reset_results_json: "{{ rack_password_reset_results_json }}"
+          password_reset_ready_targets_json: "{{ password_reset_ready_targets_json }}"
+          password_reset_pending_targets_json: "{{ password_reset_pending_targets_json }}"
+        per_host: false
+      tags:
+        - outputs
+        - export

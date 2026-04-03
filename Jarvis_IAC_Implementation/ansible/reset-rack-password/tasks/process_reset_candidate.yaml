@@ -1,0 +1,233 @@
+---
+- name: Derive matched rack reset credentials for candidate
+  ansible.builtin.set_fact:
+    rack_reset_manufacturing_credential_candidates: >-
+      {{
+        normalized_credential_candidates
+        | default([])
+        | selectattr('credential_role', 'defined')
+        | selectattr('credential_role', 'equalto', 'manufacturing')
+        | selectattr('target_category', 'defined')
+        | selectattr('target_category', 'equalto', 'server')
+        | list
+      }}
+    rack_reset_target_credential_candidates: >-
+      {{
+        normalized_credential_candidates
+        | default([])
+        | selectattr('credential_role', 'defined')
+        | selectattr('credential_role', 'equalto', 'target')
+        | selectattr('target_category', 'defined')
+        | selectattr('target_category', 'equalto', 'server')
+        | list
+      }}
+  tags:
+    - reset
+    - rack
+
+- name: Narrow matched rack reset credentials by form factor
+  ansible.builtin.set_fact:
+    rack_reset_manufacturing_credential_candidates: >-
+      {{
+        (
+          rack_reset_manufacturing_credential_candidates
+          | rejectattr('target_form_factor', 'defined')
+          | list
+        )
+        +
+        (
+          rack_reset_manufacturing_credential_candidates
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', 'rack')
+          | list
+        )
+      }}
+    rack_reset_target_credential_candidates: >-
+      {{
+        (
+          rack_reset_target_credential_candidates
+          | rejectattr('target_form_factor', 'defined')
+          | list
+        )
+        +
+        (
+          rack_reset_target_credential_candidates
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', 'rack')
+          | list
+        )
+      }}
+  tags:
+    - reset
+    - rack
+
+- name: Narrow matched rack reset credentials by management type
+  ansible.builtin.set_fact:
+    rack_reset_manufacturing_credential_candidates: >-
+      {{
+        (
+          rack_reset_manufacturing_credential_candidates
+          | rejectattr('target_management_type', 'defined')
+          | list
+        )
+        +
+        (
+          rack_reset_manufacturing_credential_candidates
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', 'standalone')
+          | list
+        )
+      }}
+    rack_reset_target_credential_candidates: >-
+      {{
+        (
+          rack_reset_target_credential_candidates
+          | rejectattr('target_management_type', 'defined')
+          | list
+        )
+        +
+        (
+          rack_reset_target_credential_candidates
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', 'standalone')
+          | list
+        )
+      }}
+  tags:
+    - reset
+    - rack
+
+- name: Derive selected rack reset credentials
+  ansible.builtin.set_fact:
+    rack_reset_selected_manufacturing_credential: "{{ (rack_reset_manufacturing_credential_candidates | first) | default({}, true) }}"
+    rack_reset_selected_target_credential: "{{ (rack_reset_target_credential_candidates | first) | default({}, true) }}"
+    rack_reset_manufacturing_password_env_name: >-
+      {{
+        (
+          ((rack_reset_manufacturing_credential_candidates | first) | default({}, true)).password_ref | default('')
+        )
+        | regex_replace('^env://', '')
+        if (
+          ((((rack_reset_manufacturing_credential_candidates | first) | default({}, true)).password_ref | default('')) is string)
+          and ((((rack_reset_manufacturing_credential_candidates | first) | default({}, true)).password_ref | default('')).startswith('env://'))
+        )
+        else ''
+      }}
+    rack_reset_target_password_env_name: >-
+      {{
+        (
+          ((rack_reset_target_credential_candidates | first) | default({}, true)).password_ref | default('')
+        )
+        | regex_replace('^env://', '')
+        if (
+          ((((rack_reset_target_credential_candidates | first) | default({}, true)).password_ref | default('')) is string)
+          and ((((rack_reset_target_credential_candidates | first) | default({}, true)).password_ref | default('')).startswith('env://'))
+        )
+        else ''
+      }}
+  tags:
+    - reset
+    - rack
+
+- name: Resolve actual rack reset secret values
+  ansible.builtin.set_fact:
+    rack_reset_manufacturing_password: >-
+      {{
+        lookup('ansible.builtin.env', rack_reset_manufacturing_password_env_name)
+        if (rack_reset_manufacturing_password_env_name | default('') | length) > 0
+        else ''
+      }}
+    rack_reset_target_password: >-
+      {{
+        lookup('ansible.builtin.env', rack_reset_target_password_env_name)
+        if (rack_reset_target_password_env_name | default('') | length) > 0
+        else ''
+      }}
+  tags:
+    - reset
+    - rack
+
+- name: Run standalone rack password reset helper
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - "{{ playbook_dir }}/tools/run_reset_rack_password.py"
+  environment:
+    TARGET_ID: "{{ rack_reset_candidate.id | default('') }}"
+    TARGET_SERIAL: "{{ rack_reset_candidate.serial | default('') }}"
+    ENDPOINT: "{{ rack_reset_candidate.mgmt_ip | default('') }}"
+    DESIRED_CREDENTIAL_JSON: >-
+      {{
+        {
+          'username': rack_reset_selected_target_credential.username | default(''),
+          'password': rack_reset_target_password | default('')
+        } | to_json
+      }}
+    MANUFACTURING_CREDENTIAL_JSON: >-
+      {{
+        {
+          'username': rack_reset_selected_manufacturing_credential.username | default(''),
+          'password': rack_reset_manufacturing_password | default('')
+        } | to_json
+      }}
+    VALIDATE_CERTS: "{{ (validate_certs | default(false) | bool) | ternary('true', 'false') }}"
+    TIMEOUT: "{{ operation_timeout_seconds | default(20) | string }}"
+  register: rack_reset_helper_result
+  changed_when: false
+  no_log: true
+  tags:
+    - reset
+    - rack
+
+- name: Collect rack password reset result from helper output
+  ansible.builtin.set_fact:
+    current_rack_password_reset_result: "{{ rack_reset_helper_result.stdout | from_json }}"
+  tags:
+    - reset
+    - rack
+
+- name: Append rack password reset result
+  ansible.builtin.set_fact:
+    rack_password_reset_results: "{{ rack_password_reset_results + [current_rack_password_reset_result] }}"
+  tags:
+    - reset
+    - rack
+
+- name: Append reset-ready rack target
+  ansible.builtin.set_fact:
+    password_reset_ready_targets: "{{ password_reset_ready_targets + [ready_target] }}"
+  vars:
+    ready_target:
+      id: "{{ rack_reset_candidate.id | default('') }}"
+      category: server
+      serial: "{{ rack_reset_candidate.serial | default('') }}"
+      mgmt_ip: "{{ rack_reset_candidate.mgmt_ip | default('') }}"
+      form_factor: rack
+      management_type: standalone
+      credential_state: "{{ 'password_reset_completed' if (current_rack_password_reset_result.changed | default(false) | bool) else 'already_normalized' }}"
+      target_credential: "{{ rack_reset_selected_target_credential }}"
+      password_reset_result: "{{ current_rack_password_reset_result }}"
+  when: current_rack_password_reset_result.status in ['ready', 'changed']
+  tags:
+    - reset
+    - rack
+
+- name: Append failed rack target to pending outputs
+  ansible.builtin.set_fact:
+    password_reset_pending_targets: "{{ password_reset_pending_targets + [pending_target] }}"
+  vars:
+    pending_target:
+      id: "{{ rack_reset_candidate.id | default('') }}"
+      category: server
+      serial: "{{ rack_reset_candidate.serial | default('') }}"
+      mgmt_ip: "{{ rack_reset_candidate.mgmt_ip | default('') }}"
+      form_factor: rack
+      management_type: standalone
+      credential_state: failed_reset_or_login
+      manufacturing_credential: "{{ rack_reset_selected_manufacturing_credential }}"
+      target_credential: "{{ rack_reset_selected_target_credential }}"
+      password_reset_result: "{{ current_rack_password_reset_result }}"
+  when: current_rack_password_reset_result.status not in ['ready', 'changed']
+  tags:
+    - reset
+    - rack
