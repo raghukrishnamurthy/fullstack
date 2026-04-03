@@ -18,7 +18,15 @@
       {{
         (derived_intersight_mode | default('')) == 'pva'
         and ((validation_mode | default('strict') | string | lower) in ['live', 'intersight_live'])
-        and ((claim_target_payload.target_category | default('')) == 'fabric_interconnect')
+        and (
+          ((claim_target_payload.target_category | default('')) == 'fabric_interconnect')
+          or
+          (
+            (claim_target_payload.target_category | default('')) == 'server'
+            and (claim_target_payload.form_factor | default('')) == 'rack'
+            and (claim_target_payload.management_type | default('')) == 'standalone'
+          )
+        )
         and ((claim_target_payload.endpoint | default('') | string | trim | length) > 0)
         and ((claim_target_payload.selected_target_credential.username | default('') | string | trim | length) > 0)
       }}
@@ -40,7 +48,7 @@
     - action
     - prepare
 
-- name: Try UCS XML API login for FI connector prepare
+- name: Try UCS XML API login for device connector prepare
   ansible.builtin.uri:
     url: "https://{{ claim_target_payload.endpoint }}/nuova"
     method: POST
@@ -62,7 +70,7 @@
     - action
     - prepare
 
-- name: Derive UCS XML API cookie for FI connector prepare
+- name: Derive UCS XML API cookie for device connector prepare
   ansible.builtin.set_fact:
     connector_prepare_xml_cookie: >-
       {{
@@ -81,7 +89,7 @@
     - action
     - prepare
 
-- name: Query FI connector systems via UCS XML API session
+- name: Query connector systems via UCS XML API session
   ansible.builtin.uri:
     url: "https://{{ claim_target_payload.endpoint }}/connector/Systems"
     method: GET
@@ -101,7 +109,7 @@
     - action
     - prepare
 
-- name: Try IMM login for FI connector prepare when XML path is not ready
+- name: Try IMM login for device connector prepare when XML path is not ready
   ansible.builtin.uri:
     url: "https://{{ claim_target_payload.endpoint }}/Login"
     method: POST
@@ -126,7 +134,7 @@
     - action
     - prepare
 
-- name: Derive IMM session id for FI connector prepare
+- name: Derive IMM session id for device connector prepare
   ansible.builtin.set_fact:
     connector_prepare_imm_session_id: "{{ (connector_prepare_imm_login_result.json.SessionId | default('')) if (connector_prepare_imm_login_result.json is defined) else '' }}"
   when:
@@ -137,7 +145,7 @@
     - action
     - prepare
 
-- name: Query FI connector systems via IMM session
+- name: Query connector systems via IMM session
   ansible.builtin.uri:
     url: "https://{{ claim_target_payload.endpoint }}/connector/Systems"
     method: GET
@@ -157,7 +165,7 @@
     - action
     - prepare
 
-- name: Build FI connector prepare execution result
+- name: Build device connector prepare execution result
   ansible.builtin.set_fact:
     connector_prepare_execution_result:
       requested: true
@@ -202,7 +210,7 @@
     - action
     - prepare
 
-- name: Build skipped FI connector prepare execution result
+- name: Build skipped device connector prepare execution result
   ansible.builtin.set_fact:
     connector_prepare_execution_result:
       requested: false
