@@ -113,6 +113,7 @@ for rack_result in rack_results:
     preclaim = payload["preclaim_normalization"]
     plan = rack_result["preclaim_action_plan"]
     normalization_payload = rack_result["password_normalization_payload"]
+    normalization_execution = rack_result["password_normalization_execution"]
 
     assert rack_result["status"] == expected["status"], (
         f"{case_name}: unexpected status {rack_result['status']}"
@@ -138,6 +139,26 @@ for rack_result in rack_results:
     )
     assert normalization_payload["ready"] is expected["ready"], (
         f"{case_name}: unexpected normalization readiness {normalization_payload['ready']}"
+    )
+    assert normalization_execution["requested"] is True, (
+        f"{case_name}: normalization execution should be requested for rack targets"
+    )
+    assert normalization_execution["executed"] is False, (
+        f"{case_name}: normalization execution should remain non-mutating"
+    )
+    assert normalization_execution["payload"]["target_id"] == rack_result["target_id"], (
+        f"{case_name}: normalization execution target mismatch"
+    )
+    assert normalization_execution["payload"]["ready"] is expected["ready"], (
+        f"{case_name}: unexpected normalization execution readiness {normalization_execution['payload']['ready']}"
+    )
+    expected_norm_status = (
+        "normalization_hook_ready_not_implemented"
+        if expected["ready"]
+        else "normalization_credentials_missing"
+    )
+    assert normalization_execution["status"] == expected_norm_status, (
+        f"{case_name}: unexpected normalization execution status {normalization_execution['status']}"
     )
 
     if case_name in {"both", "manufacturing_only"}:
