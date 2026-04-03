@@ -148,7 +148,7 @@ grains:
     kind: ansible
     spec:
       source:
-        store: automation-repo
+        store: intersight-fullstack-repo
         path: ansible/resolve-intersight-deployment-model/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
@@ -175,7 +175,7 @@ grains:
         - discovery_summary_json
     on-destroy:
       - source:
-          store: automation-repo
+          store: intersight-fullstack-repo
           path: ansible/resolve-intersight-deployment-model/teardown.yaml
         inventory-file:
           localhost:
@@ -187,7 +187,7 @@ grains:
     depends-on: resolve_intersight_deployment_model
     spec:
       source:
-        store: automation-repo
+        store: intersight-fullstack-repo
         path: ansible/render-intersight-deployment-summary/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
@@ -204,7 +204,7 @@ grains:
         - discovery_summary_markdown
     on-destroy:
       - source:
-          store: automation-repo
+          store: intersight-fullstack-repo
           path: ansible/render-intersight-deployment-summary/teardown.yaml
         inventory-file:
           localhost:
@@ -215,7 +215,7 @@ grains:
     kind: ansible
     spec:
       source:
-        store: automation-repo
+        store: intersight-fullstack-repo
         path: ansible/ensure-intersight-context/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
@@ -237,7 +237,7 @@ grains:
         - context_result_json
     on-destroy:
       - source:
-          store: automation-repo
+          store: intersight-fullstack-repo
           path: ansible/ensure-intersight-context/teardown.yaml
         inventory-file:
           localhost:
@@ -248,7 +248,7 @@ grains:
     kind: ansible
     spec:
       source:
-        store: automation-repo
+        store: intersight-fullstack-repo
         path: ansible/resolve-claim-target-credentials/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
@@ -264,7 +264,7 @@ grains:
         - resolved_claim_targets_json
     on-destroy:
       - source:
-          store: automation-repo
+          store: intersight-fullstack-repo
           path: ansible/resolve-claim-target-credentials/teardown.yaml
         inventory-file:
           localhost:
@@ -278,7 +278,7 @@ grains:
       - resolve_claim_target_credentials
     spec:
       source:
-        store: automation-repo
+        store: intersight-fullstack-repo
         path: ansible/claim-to-saas/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
@@ -303,7 +303,7 @@ grains:
         - results_json
     on-destroy:
       - source:
-          store: automation-repo
+          store: intersight-fullstack-repo
           path: ansible/claim-to-saas/teardown.yaml
         inventory-file:
           localhost:
@@ -317,7 +317,7 @@ grains:
       - resolve_claim_target_credentials
     spec:
       source:
-        store: automation-repo
+        store: intersight-fullstack-repo
         path: ansible/claim-to-appliance/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
@@ -342,7 +342,7 @@ grains:
         - results_json
     on-destroy:
       - source:
-          store: automation-repo
+          store: intersight-fullstack-repo
           path: ansible/claim-to-appliance/teardown.yaml
         inventory-file:
           localhost:
@@ -356,7 +356,7 @@ grains:
       - claim_to_appliance
     spec:
       source:
-        store: automation-repo
+        store: intersight-fullstack-repo
         path: ansible/normalize-claim-results/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
@@ -378,7 +378,7 @@ grains:
         - normalized_claim_changed_count
     on-destroy:
       - source:
-          store: automation-repo
+          store: intersight-fullstack-repo
           path: ansible/normalize-claim-results/teardown.yaml
         inventory-file:
           localhost:

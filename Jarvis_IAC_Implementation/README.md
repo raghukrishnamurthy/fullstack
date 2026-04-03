@@ -29,8 +29,9 @@ Design requirement:
 
 Files:
 
-- `blueprint.yaml`
+- `blueprints/onboard-intersight-devices.yaml`
   Torque `spec_version: 2` blueprint
+  uses `store: intersight-fullstack-repo` for grain sources
 - `catalog_ui.md`
   End-user workflow and stable form keys
 - `wiring-table.md`
