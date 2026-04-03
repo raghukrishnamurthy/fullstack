@@ -61,9 +61,23 @@
     normalized_credential_candidates: "{{ credential_candidates_data if (credential_candidates_data is sequence and credential_candidates_data is not string) else [] }}"
     assists: "{{ platform_data.intersight.assists | default([]) }}"
     intersight_query_rules: "{{ default_intersight_query_rules_json | from_json }}"
-    derived_intersight_mode: "{{ 'saas' if ('intersight.com' in (platform_data.intersight.endpoint | default(''))) else 'pva' }}"
+    raw_intersight_endpoint: "{{ platform_data.intersight.endpoint | default('') | string | trim }}"
+    derived_intersight_mode: "{{ 'saas' if ('intersight.com' in raw_intersight_endpoint) else 'pva' }}"
+    normalized_intersight_endpoint: >-
+      {{
+        raw_intersight_endpoint
+        if (
+          derived_intersight_mode == 'saas'
+          or (raw_intersight_endpoint | regex_search('/api/v1/?$'))
+        )
+        else (raw_intersight_endpoint | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
     effective_resource_group: "{{ placement_data.intersight.resource_group | default(placement_data.intersight.organization | default('')) }}"
-    intersight_validate_certs: "{{ (platform_data.intersight.validate_certs | default('true') | string | lower) in ['true', '1', 'yes'] }}"
+    intersight_validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false' if derived_intersight_mode == 'pva' else 'true') | string | lower)
+        in ['true', '1', 'yes']
+      }}
     api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') }}"
     api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
     api_key_id_env_name: "{{ (api_key_id_ref is string and api_key_id_ref.startswith('env://')) | ternary(api_key_id_ref | regex_replace('^env://', ''), '') }}"

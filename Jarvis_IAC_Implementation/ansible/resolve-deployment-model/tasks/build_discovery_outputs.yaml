@@ -8,7 +8,7 @@
         environment: "{{ deployment_data.environment }}"
       platform:
         intersight:
-          endpoint: "{{ platform_data.intersight.endpoint }}"
+          endpoint: "{{ normalized_intersight_endpoint }}"
           deployment_mode: "{{ derived_intersight_mode }}"
           credentials: "{{ platform_data.intersight.credentials }}"
           assists: "{{ assists }}"

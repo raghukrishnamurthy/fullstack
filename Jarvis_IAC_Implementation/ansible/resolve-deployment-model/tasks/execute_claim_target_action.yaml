@@ -31,7 +31,7 @@
       normalized_claim_key: "{{ claim_target_normalized_key }}"
       connectivity_path: "{{ claim_action_item.connectivity_path | default('direct_endpoint') }}"
       deployment_name: "{{ deployment_data.id | default('') }}"
-      intersight_endpoint: "{{ platform_data.intersight.endpoint | default('') }}"
+      intersight_endpoint: "{{ normalized_intersight_endpoint | default('') }}"
       intersight_organization: "{{ placement_data.intersight.organization | default('') }}"
       intersight_resource_group: "{{ effective_resource_group | default('') }}"
       intersight_api_key_id_ref: "{{ api_key_id_ref | default('') }}"
