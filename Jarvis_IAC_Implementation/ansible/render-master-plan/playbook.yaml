@@ -148,6 +148,7 @@
           - Onboarding Action Status: {{ discovery_report.onboarding_action_execution.status }}
           - Onboarding Action Plan Count: {{ discovery_report.onboarding_action_execution.action_plan | length }}
           - Guarded Claim Hook Count: {{ discovery_report.onboarding_action_execution.claim_execution_results | length }}
+          - Guarded Claim Payload Count: {{ discovery_report.onboarding_action_execution.claim_execution_results | selectattr('claim_target_payload', 'defined') | list | length }}
           - Live Validation Enabled: {{ discovery_report.inventory_summary.live_validation_enabled }}
           - Present Device Count: {{ discovery_report.inventory_summary.present_device_count }}
           - Missing Device Count: {{ discovery_report.inventory_summary.missing_device_count }}
