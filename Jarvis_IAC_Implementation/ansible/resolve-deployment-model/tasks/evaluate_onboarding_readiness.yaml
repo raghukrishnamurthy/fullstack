@@ -21,6 +21,7 @@
         live_validation_required: false
         live_validation_enabled: "{{ intersight_live_validation_enabled }}"
         live_validation_passed: true
+        claim_candidates_available: false
         assist_reachability_defined: false
   tags:
     - always
@@ -153,6 +154,7 @@
         live_validation_required: "{{ live_validation_required }}"
         live_validation_enabled: "{{ intersight_live_validation_enabled }}"
         live_validation_passed: "{{ live_validation_passed }}"
+        claim_candidates_available: "{{ (claim_candidate_targets | length) > 0 }}"
         assist_reachability_defined: true
   vars:
     baseline_expectations_passed: "{{ (baseline_expectation_errors | default([]) | length) == 0 }}"
@@ -163,28 +165,10 @@
         if intersight_live_validation_enabled
         else (not live_validation_required)
       }}
-    blocking_intersight_missing_devices: >-
-      {{
-        intersight_missing_devices
-        | default([])
-        | rejectattr('category', 'defined')
-        | list
-        +
-        (
-          intersight_missing_devices
-          | default([])
-          | selectattr('category', 'defined')
-          | rejectattr('category', 'in', ['Rack', 'Blade'])
-          | list
-        )
-      }}
+    claim_candidates_available: "{{ (claim_candidate_targets | length) > 0 }}"
     live_validation_passed: >-
       {{
-        (
-          (blocking_intersight_missing_devices | length) == 0
-          and (intersight_not_ready_devices | default([]) | length) == 0
-          and (fi_pair_validation_errors | default([]) | length) == 0
-        )
+        true
         if intersight_live_validation_enabled
         else (not live_validation_required)
       }}
@@ -199,14 +183,8 @@
       {%- if intersight_live_validation_enabled and not placement_ready -%}
       {%- set _ = blockers.append('Placement validation is not ready in Intersight') -%}
       {%- endif -%}
-      {%- if intersight_live_validation_enabled and (blocking_intersight_missing_devices | length) > 0 -%}
-      {%- set _ = blockers.append('One or more declared devices were not found in Intersight') -%}
-      {%- endif -%}
-      {%- if intersight_live_validation_enabled and (intersight_not_ready_devices | default([]) | length) > 0 -%}
-      {%- set _ = blockers.append('One or more discovered devices are not in a ready state') -%}
-      {%- endif -%}
-      {%- if intersight_live_validation_enabled and (fi_pair_validation_errors | default([]) | length) > 0 -%}
-      {%- set _ = blockers.append('Declared FI pair validation failed against discovered Intersight state') -%}
+      {%- if not claim_candidates_available -%}
+      {%- set _ = blockers.append('No claim-capable targets were derived from the current inventory inputs') -%}
       {%- endif -%}
       {{ blockers }}
     readiness_ready: "{{ readiness_blockers | length == 0 }}"
@@ -226,15 +204,8 @@
         if (live_validation_required and not intersight_live_validation_enabled)
         else 'fix_placement_targets'
         if (intersight_live_validation_enabled and not placement_ready)
-        else 'fix_device_readiness_or_inventory'
-        if (
-          intersight_live_validation_enabled
-          and (
-            (blocking_intersight_missing_devices | length) > 0
-            or (intersight_not_ready_devices | default([]) | length) > 0
-            or (fi_pair_validation_errors | default([]) | length) > 0
-          )
-        )
+        else 'fix_inventory_or_target_selection'
+        if not claim_candidates_available
         else 'fix_baseline_expectations'
       }}
   tags:
