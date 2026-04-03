@@ -1,0 +1,63 @@
+---
+- name: Accumulate present devices returned by Intersight
+  ansible.builtin.set_fact:
+    intersight_present_devices: "{{ intersight_present_devices + ready_devices }}"
+    intersight_missing_devices: "{{ intersight_missing_devices + category_missing_devices }}"
+    intersight_not_ready_devices: "{{ intersight_not_ready_devices + category_not_ready_devices }}"
+  vars:
+    returned_serials: >-
+      {{
+        response_results
+        | map(attribute='Serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+    category_missing_devices: >-
+      {%- set result = [] -%}
+      {%- for serial_number in requested_serials | default([]) -%}
+      {%- if serial_number not in returned_serials -%}
+      {%- set _ = result.append({
+            'category': category_name,
+            'serial': serial_number,
+            'status': 'missing_in_intersight'
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+    ready_devices: >-
+      {%- set result = [] -%}
+      {%- for item in response_results | default([]) -%}
+      {%- set current_state = item[discovery_field] | default('') -%}
+      {%- if current_state in allowed_states -%}
+      {%- set _ = result.append({
+            'category': category_name,
+            'serial': item.Serial | default(''),
+            'status': 'present',
+            'discovery_field': discovery_field,
+            'actual_discovery_state': current_state
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+    category_not_ready_devices: >-
+      {%- set result = [] -%}
+      {%- for item in response_results | default([]) -%}
+      {%- set current_state = item[discovery_field] | default('') -%}
+      {%- if current_state not in allowed_states -%}
+      {%- set _ = result.append({
+            'category': category_name,
+            'serial': item.Serial | default(''),
+            'status': 'present_but_not_ready',
+            'discovery_field': discovery_field,
+            'actual_discovery_state': current_state,
+            'allowed_discovery_states': allowed_states
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+  changed_when: false
+  tags:
+    - validate
+    - intersight
