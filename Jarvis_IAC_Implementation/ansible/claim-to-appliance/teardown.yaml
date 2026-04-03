@@ -1,0 +1,9 @@
+---
+- name: Teardown for claim-to-appliance
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Explain teardown behavior
+      ansible.builtin.debug:
+        msg: "claim-to-appliance does not unclaim devices during destroy"

@@ -1,0 +1,238 @@
+---
+- name: Build dynamic inventory for Jarvis appliance claim
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    deployment_root: "{{ (deployment_yaml | from_yaml) if (deployment_yaml | default('') | string | trim | length > 0) else {} }}"
+    deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
+    platform_root: "{{ (platform_yaml | from_yaml) if (platform_yaml | default('') | string | trim | length > 0) else {} }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_root: "{{ (placement_yaml | from_yaml) if (placement_yaml | default('') | string | trim | length > 0) else {} }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    claim_targets_input: "{{ claim_targets_json | default('[]') }}"
+    claim_targets: >-
+      {{
+        claim_targets_input
+        if (claim_targets_input is not string)
+        else (
+          (claim_targets_input | from_yaml)
+          if (claim_targets_input | string | trim | length) > 0
+          else []
+        )
+      }}
+    raw_intersight_endpoint: "{{ platform_data.intersight.endpoint | default('') }}"
+    normalized_intersight_endpoint: >-
+      {{
+        raw_intersight_endpoint
+        if ((raw_intersight_endpoint | string | regex_search('/api/v1/?$')) is not none)
+        else ((raw_intersight_endpoint | string | regex_replace('/+$', '')) ~ '/api/v1')
+      }}
+    intersight_api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') }}"
+    intersight_api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
+    resolved_api_key_id: >-
+      {{
+        lookup('ansible.builtin.env', intersight_api_key_id_ref | regex_replace('^env://', ''))
+        if (
+          (intersight_api_key_id_ref | string | trim | length) > 0
+          and (intersight_api_key_id_ref | string).startswith('env://')
+        )
+        else ''
+      }}
+    resolved_api_private_key: >-
+      {{
+        lookup('ansible.builtin.env', intersight_api_private_key_ref | regex_replace('^env://', ''))
+        if (
+          (intersight_api_private_key_ref | string | trim | length) > 0
+          and (intersight_api_private_key_ref | string).startswith('env://')
+        )
+        else ''
+      }}
+    claim_validate_certs: "{{ platform_data.intersight.validate_certs | default(false) | bool }}"
+    direct_organization: "{{ organization | default('') | string | trim }}"
+    internal_organization: "{{ direct_organization if (direct_organization | length > 0) else (placement_data.intersight.organization | default('')) }}"
+    internal_deployment_name: "{{ deployment_data.id | default('') }}"
+    internal_debug_enabled: "{{ debug_enabled | default('false') }}"
+  pre_tasks:
+    - name: Install shared Python requirements
+      ansible.builtin.pip:
+        requirements: "{{ playbook_dir }}/../requirements.txt"
+      tags:
+        - always
+        - precheck
+
+    - name: Validate claim target contract
+      ansible.builtin.assert:
+        that:
+          - claim_targets | type_debug == 'list'
+          - platform_data | type_debug == 'dict'
+          - normalized_intersight_endpoint | string | trim | length > 0
+        fail_msg: "claim-to-appliance requires claim_targets_json plus valid platform_yaml"
+      tags:
+        - always
+        - validate
+        - precheck
+
+    - name: Validate appliance authentication inputs when claim targets exist
+      ansible.builtin.assert:
+        that:
+          - resolved_api_key_id | string | trim | length > 0
+          - resolved_api_private_key | string | trim | length > 0
+        fail_msg: "claim-to-appliance requires env:// Intersight API credentials in platform_yaml when claim targets are present"
+      when: (claim_targets | select('mapping') | list | length) > 0
+      no_log: true
+      tags:
+        - always
+        - validate
+        - precheck
+
+  tasks:
+    - name: Persist appliance claim runtime context on localhost
+      ansible.builtin.set_fact:
+        claim_api_key_id: "{{ resolved_api_key_id }}"
+        claim_api_private_key: "{{ resolved_api_private_key }}"
+        claim_api_uri: "{{ normalized_intersight_endpoint }}"
+        claim_validate_certs_runtime: "{{ claim_validate_certs }}"
+        internal_organization_runtime: "{{ internal_organization }}"
+        internal_deployment_name_runtime: "{{ internal_deployment_name }}"
+        internal_debug_enabled_runtime: "{{ internal_debug_enabled }}"
+      tags:
+        - always
+        - configure
+
+    - name: Initialize appliance claim aggregate outputs
+      ansible.builtin.set_fact:
+        claim_results: []
+        enriched_claim_results: []
+        successful_result_items: []
+        failed_result_items: []
+        conflict_result_items: []
+        skipped_result_items: []
+        changed_result_items: []
+      tags:
+        - always
+        - outputs
+
+    - name: Add claim targets to dynamic appliance claim group
+      ansible.builtin.add_host:
+        name: "{{ (claim_target.endpoint | default(claim_target.canonical_endpoint | default(claim_target.target_id | default('claim-target')))) | replace('.', '_') }}"
+        groups: appliance_claim_targets
+        claim_target_context: "{{ claim_target }}"
+      loop: "{{ claim_targets }}"
+      loop_control:
+        loop_var: claim_target
+        label: "{{ claim_target.endpoint | default(claim_target.target_id | default('claim-target')) }}"
+      when:
+        - claim_target is mapping
+        - (claim_target.endpoint | default(claim_target.canonical_endpoint | default('')) | string | trim | length) > 0
+      tags:
+        - configure
+        - claim
+        - aggregate
+
+- name: Claim targets to Intersight appliance
+  hosts: appliance_claim_targets
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  serial: 1
+  vars:
+    claim_api_key_id: "{{ hostvars['localhost'].claim_api_key_id | default('') }}"
+    claim_api_private_key: "{{ hostvars['localhost'].claim_api_private_key | default('') }}"
+    claim_api_uri: "{{ hostvars['localhost'].claim_api_uri | default('') }}"
+    claim_validate_certs: "{{ hostvars['localhost'].claim_validate_certs_runtime | default(false) | bool }}"
+    internal_organization: "{{ hostvars['localhost'].internal_organization_runtime | default('') }}"
+    internal_deployment_name: "{{ hostvars['localhost'].internal_deployment_name_runtime | default('') }}"
+    internal_debug_enabled: "{{ hostvars['localhost'].internal_debug_enabled_runtime | default('false') }}"
+  tasks:
+    - name: Run appliance claim for target
+      ansible.builtin.include_tasks: tasks/process_claim_target.yaml
+      tags:
+        - claim
+        - aggregate
+
+- name: Aggregate Jarvis appliance claim outputs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    submitted_claim_results: >-
+      {{
+        claim_results
+        | default([])
+        | selectattr('execution_mode', 'equalto', 'appliance_claim')
+        | selectattr('status', 'equalto', 'submitted')
+        | list
+      }}
+  tasks:
+    - name: Wait once for appliance workflows to appear after all submissions
+      ansible.builtin.pause:
+        seconds: 5
+      when: (submitted_claim_results | default([]) | length) > 0
+      tags:
+        - claim
+        - verify
+
+    - name: Enrich submitted appliance claims after aggregate submission pass
+      ansible.builtin.include_tasks: tasks/followup_claim_target.yaml
+      vars:
+        claim_result_item: "{{ item }}"
+      loop: "{{ claim_results | default([]) }}"
+      loop_control:
+        label: "{{ item.target_id | default(item.endpoint | default('claim-result')) }}"
+      tags:
+        - claim
+        - verify
+        - aggregate
+
+    - name: Replace appliance claim results with aggregate-enriched results
+      ansible.builtin.set_fact:
+        claim_results: "{{ enriched_claim_results | default(claim_results | default([])) }}"
+      tags:
+        - claim
+        - verify
+        - aggregate
+
+    - name: Build appliance claim aggregate outputs
+      ansible.builtin.set_fact:
+        batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
+        successful_targets: "{{ successful_result_items | length | string }}"
+        failed_targets: "{{ failed_result_items | length | string }}"
+        conflict_targets: "{{ conflict_result_items | length | string }}"
+        skipped_targets: "{{ skipped_result_items | length | string }}"
+        changed_targets: "{{ changed_result_items | length | string }}"
+        results_json: "{{ claim_results | to_json }}"
+      tags:
+        - outputs
+        - aggregate
+
+    - name: Validate appliance claim aggregate outputs
+      ansible.builtin.assert:
+        that:
+          - batch_status is defined
+          - successful_targets is defined
+          - failed_targets is defined
+          - conflict_targets is defined
+          - skipped_targets is defined
+          - changed_targets is defined
+          - results_json is defined
+        fail_msg: "claim-to-appliance did not produce the expected aggregate outputs"
+      tags:
+        - always
+        - verify
+
+    - name: Export claim-to-appliance outputs to Torque
+      ansible.builtin.set_stats:
+        data:
+          batch_status: "{{ batch_status }}"
+          successful_targets: "{{ successful_targets }}"
+          failed_targets: "{{ failed_targets }}"
+          conflict_targets: "{{ conflict_targets }}"
+          skipped_targets: "{{ skipped_targets }}"
+          changed_targets: "{{ changed_targets }}"
+          results_json: "{{ results_json }}"
+        per_host: false
+      tags:
+        - outputs
