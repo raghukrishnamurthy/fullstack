@@ -7,6 +7,49 @@
     - claim
     - aggregate
 
+- name: Resolve per-target SaaS claim credential inputs
+  ansible.builtin.set_fact:
+    claim_target_username: "{{ claim_target_context.claim_username | default('') | string | trim }}"
+    claim_target_password_ref: "{{ claim_target_context.claim_password_ref | default('') | string | trim }}"
+    claim_target_password_env_name: >-
+      {{
+        (claim_target_context.claim_password_ref | regex_replace('^env://', ''))
+        if (
+          (claim_target_context.claim_password_ref | default('') | string | trim | length) > 0
+          and (claim_target_context.claim_password_ref | string).startswith('env://')
+        )
+        else ''
+      }}
+  tags:
+    - claim
+    - aggregate
+
+- name: Resolve per-target SaaS claim password value
+  ansible.builtin.set_fact:
+    claim_target_password: >-
+      {{
+        lookup('ansible.builtin.env', claim_target_password_env_name)
+        if (claim_target_password_env_name | string | trim | length) > 0
+        else ''
+      }}
+  no_log: true
+  tags:
+    - claim
+    - aggregate
+
+- name: Build per-target desired credentials for inline SaaS claim readiness
+  ansible.builtin.set_fact:
+    resolved_target_desired_credentials:
+      - username: "{{ claim_target_username }}"
+        password: "{{ claim_target_password }}"
+  no_log: true
+  when:
+    - claim_target_username | string | trim | length > 0
+    - claim_target_password | string | trim | length > 0
+  tags:
+    - claim
+    - aggregate
+
 - name: Refresh SaaS claim readiness inline
   ansible.builtin.command:
     argv:
@@ -14,7 +57,7 @@
       - "/Users/rkrishn2/intersightztp/infraonboarding/ansible/claim_to_intersight/tools/run_claim_readiness.py"
   environment:
     ENDPOINT: "{{ resolved_endpoint }}"
-    DESIRED_CREDENTIALS_JSON: "{{ resolved_desired_credentials | default([]) | to_json }}"
+    DESIRED_CREDENTIALS_JSON: "{{ resolved_target_desired_credentials | default([]) | to_json }}"
     PREPARED_TARGETS_JSON: "{{ [claim_target_context] | to_json }}"
     VALIDATE_CERTS: "{{ (claim_endpoint_validate_certs | default(false) | bool) | ternary('true', 'false') }}"
     TIMEOUT: "{{ internal_helper_timeout_seconds | default(20) | string }}"
@@ -22,7 +65,7 @@
   changed_when: false
   no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
   when:
-    - (resolved_desired_credentials | default([]) | length) > 0
+    - (resolved_target_desired_credentials | default([]) | length) > 0
     - claim_target_context.device_type | default('') | string | lower in ['imc', 'imm']
   tags:
     - claim
@@ -148,6 +191,27 @@
   tags:
     - claim
     - aggregate
+
+- name: Validate per-target credentials when SaaS inline readiness is required
+  ansible.builtin.assert:
+    that:
+      - claim_target_username | string | trim | length > 0
+      - claim_target_password_ref | string | trim | length > 0
+      - claim_target_password | string | trim | length > 0
+    fail_msg: "Standalone claim-to-saas requires claim_username and env-backed claim_password_ref on each target when claim readiness must be refreshed inline"
+  when:
+    - claim_result is not defined
+    - effective_target_context.claim_submission_required | default(true) | bool
+    - claim_target_context.device_type | default('') | string | lower in ['imc', 'imm']
+    - (
+        effective_target_context.claim_serial_number is not defined
+        or effective_target_context.claim_serial_number | string | trim | length == 0
+        or effective_target_context.claim_security_token is not defined
+        or effective_target_context.claim_security_token | string | trim | length == 0
+      )
+  tags:
+    - claim
+    - verify
 
 - name: Validate SaaS claim-ready target inputs
   ansible.builtin.assert:

@@ -9,6 +9,18 @@ set -euo pipefail
 #   ./scripts/run_blueprint_claim_chain_checked.sh appliance [example_dir]
 
 mode="${1:-saas}"
+runtime_python="$(python3 -c 'import sys; print(sys.executable)')"
+
+case "${mode}" in
+  saas)
+    api_key_env_var="SAAS_INTERSIGHT_API_KEY_ID"
+    api_private_key_env_var="SAAS_INTERSIGHT_API_PRIVATE_KEY"
+    ;;
+  appliance)
+    api_key_env_var="APPLIANCE_INTERSIGHT_API_KEY_ID"
+    api_private_key_env_var="APPLIANCE_INTERSIGHT_API_PRIVATE_KEY"
+    ;;
+esac
 
 case "${mode}" in
   saas)
@@ -26,13 +38,14 @@ esac
 tmp_vars_file="/tmp/jarvis_blueprint_claim_chain_${mode}_vars.yaml"
 tmp_wrapper_playbook="/tmp/jarvis_blueprint_claim_chain_${mode}_wrapper.yaml"
 tmp_normalize_playbook="/tmp/jarvis_blueprint_claim_chain_${mode}_normalize.yaml"
+tmp_normalize_vars_file="/tmp/jarvis_blueprint_claim_chain_${mode}_normalize_vars.yaml"
 tmp_context_file="/tmp/jarvis_blueprint_claim_chain_${mode}_context.json"
 tmp_claim_file="/tmp/jarvis_blueprint_claim_chain_${mode}_claim.json"
 tmp_normalized_file="/tmp/jarvis_blueprint_claim_chain_${mode}_normalized.json"
 
 required_env_vars=(
-  INTERSIGHT_API_KEY_ID
-  INTERSIGHT_API_PRIVATE_KEY
+  "${api_key_env_var}"
+  "${api_private_key_env_var}"
   RACKSERVER_DESIRED_PASSWORD
 )
 
@@ -49,12 +62,15 @@ if [[ "${mode}" == "saas" ]]; then
 deployment_yaml: |
 $(sed 's/^/  /' "${example_dir}/deployment.yaml")
 platform_yaml: |
-$(sed 's/^/  /' "${example_dir}/platform.yaml")
+  platform:
+    intersight:
+      endpoint: https://intersight.com/api/v1
+      credentials:
+        api_key_id_ref: env://${api_key_env_var}
+        api_private_key_ref: env://${api_private_key_env_var}
 placement_yaml: |
 $(sed 's/^/  /' "${example_dir}/placement.yaml")
 organization: ai-prod
-credential_candidates_yaml: |
-$(sed 's/^/  /' "${example_dir}/credential_candidates.yaml")
 claim_targets_json: |
   [
     {
@@ -67,6 +83,8 @@ claim_targets_json: |
       "endpoint": "10.29.135.106",
       "canonical_endpoint": "10.29.135.106",
       "normalized_claim_key": "WZP270500PQ",
+      "claim_username": "admin",
+      "claim_password_ref": "env://RACKSERVER_DESIRED_PASSWORD",
       "claim_submission_required": true
     }
   ]
@@ -99,7 +117,13 @@ else
 deployment_yaml: |
 $(sed 's/^/  /' "${example_dir}/deployment.yaml")
 platform_yaml: |
-$(sed 's/^/  /' "${example_dir}/platform.yaml")
+  platform:
+    intersight:
+      endpoint: https://ucs-hci-appliance-2.cisco.com
+      validate_certs: false
+      credentials:
+        api_key_id_ref: env://${api_key_env_var}
+        api_private_key_ref: env://${api_private_key_env_var}
 placement_yaml: |
 $(sed 's/^/  /' "${example_dir}/placement.yaml")
 organization: ai-prod
@@ -168,19 +192,24 @@ ansible-playbook \
   "${tmp_wrapper_playbook}" \
   -i localhost, \
   -c local \
+  -e "ansible_python_interpreter=${runtime_python}" \
   -e "@${tmp_vars_file}" \
   > "/tmp/jarvis_blueprint_claim_chain_${mode}.log"
 
 if [[ "${mode}" == "saas" ]]; then
-  normalize_branch_args=(
-    -e "appliance_claim_results_json=[]"
-    -e "saas_claim_results_json=$(cat "${tmp_claim_file}")"
-  )
+  cat > "${tmp_normalize_vars_file}" <<EOF
+appliance_claim_results_json: |
+  []
+saas_claim_results_json: |
+$(sed 's/^/  /' "${tmp_claim_file}")
+EOF
 else
-  normalize_branch_args=(
-    -e "appliance_claim_results_json=$(cat "${tmp_claim_file}")"
-    -e "saas_claim_results_json=[]"
-  )
+  cat > "${tmp_normalize_vars_file}" <<EOF
+appliance_claim_results_json: |
+$(sed 's/^/  /' "${tmp_claim_file}")
+saas_claim_results_json: |
+  []
+EOF
 fi
 
 ANSIBLE_LOCAL_TEMP=/tmp/jarvis-ansible-local \
@@ -189,7 +218,8 @@ ansible-playbook \
   "${tmp_normalize_playbook}" \
   -i localhost, \
   -c local \
-  "${normalize_branch_args[@]}" \
+  -e "ansible_python_interpreter=${runtime_python}" \
+  -e "@${tmp_normalize_vars_file}" \
   > "/tmp/jarvis_blueprint_claim_chain_${mode}_normalize.log"
 
 python3 - "${mode}" "${tmp_context_file}" "${tmp_claim_file}" "${tmp_normalized_file}" <<'PY'

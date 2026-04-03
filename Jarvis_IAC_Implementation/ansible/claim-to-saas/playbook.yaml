@@ -11,19 +11,6 @@
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
     placement_root: "{{ (placement_yaml | from_yaml) if (placement_yaml | default('') | string | trim | length > 0) else {} }}"
     placement_data: "{{ placement_root.placement | default(placement_root) }}"
-    credential_candidates_root: "{{ (credential_candidates_yaml | from_yaml) if (credential_candidates_yaml | default('') | string | trim | length > 0) else {} }}"
-    credential_candidates: "{{ credential_candidates_root.credential_candidates | default([]) }}"
-    desired_credentials_input: "{{ desired_credentials_json | default('[]') }}"
-    desired_credentials: >-
-      {{
-        desired_credentials_input
-        if (desired_credentials_input is not string)
-        else (
-          (desired_credentials_input | from_yaml)
-          if (desired_credentials_input | string | trim | length) > 0
-          else []
-        )
-      }}
     claim_targets_input: "{{ claim_targets_json | default('[]') }}"
     claim_targets: >-
       {{
@@ -120,39 +107,6 @@
         - always
         - configure
 
-    - name: Resolve desired credentials for inline SaaS claim readiness
-      ansible.builtin.set_fact:
-        resolved_desired_credentials: >-
-          {%- set ns = namespace(items=[]) -%}
-          {%- if desired_credentials | type_debug == 'list' and (desired_credentials | length) > 0 -%}
-            {%- for item in desired_credentials -%}
-              {%- if item is mapping -%}
-                {%- set username = item.username | default('') | string | trim -%}
-                {%- set password = item.password | default('') | string | trim -%}
-                {%- if username and password -%}
-                  {%- set _ = ns.items.append({'username': username, 'password': password, 'priority': (item.priority | default(1000) | int)}) -%}
-                {%- endif -%}
-              {%- endif -%}
-            {%- endfor -%}
-          {%- else -%}
-            {%- for item in credential_candidates -%}
-              {%- if item is mapping -%}
-                {%- set role = item.credential_role | default('') | string | trim -%}
-                {%- set username = item.username | default('') | string | trim -%}
-                {%- set password_ref = item.password_ref | default('') | string | trim -%}
-                {%- set password = (lookup('ansible.builtin.env', password_ref | regex_replace('^env://', '')) if password_ref.startswith('env://') else '') | string | trim -%}
-                {%- if role == 'target' and username and password -%}
-                  {%- set _ = ns.items.append({'username': username, 'password': password, 'priority': (item.priority | default(1000) | int)}) -%}
-                {%- endif -%}
-              {%- endif -%}
-            {%- endfor -%}
-          {%- endif -%}
-          {{ ns.items | sort(attribute='priority') }}
-      no_log: true
-      tags:
-        - always
-        - configure
-
     - name: Initialize SaaS claim aggregate outputs
       ansible.builtin.set_fact:
         claim_results: []
@@ -200,7 +154,6 @@
     internal_debug_enabled: "{{ hostvars['localhost'].internal_debug_enabled_runtime | default('false') }}"
     internal_helper_timeout_seconds: "{{ hostvars['localhost'].internal_helper_timeout_seconds_runtime | default(20) }}"
     debug_artifact_dir: "{{ hostvars['localhost'].debug_artifact_dir_runtime | default('/tmp/jarvis-debug/claim-to-saas') }}"
-    resolved_desired_credentials: "{{ hostvars['localhost'].resolved_desired_credentials | default([]) }}"
   tasks:
     - name: Run SaaS claim for target
       ansible.builtin.include_tasks: tasks/process_claim_target.yaml
