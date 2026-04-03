@@ -1,0 +1,109 @@
+---
+- name: Resolve direct per-target credential presence
+  ansible.builtin.set_fact:
+    target_has_direct_claim_credentials: >-
+      {{
+        (claim_target.claim_username | default('') | string | trim | length) > 0
+        and (claim_target.claim_password_ref | default('') | string | trim | length) > 0
+      }}
+  tags:
+    - configure
+    - verify
+
+- name: Derive matching credential candidates for claim target
+  ansible.builtin.set_fact:
+    matching_target_credentials: >-
+      {{
+        credential_candidates
+        | selectattr('credential_role', 'defined')
+        | selectattr('credential_role', 'equalto', 'target')
+        | selectattr('target_category', 'defined')
+        | selectattr('target_category', 'equalto', (claim_target.target_category | default('')))
+        | list
+      }}
+  when: not (target_has_direct_claim_credentials | bool)
+  tags:
+    - configure
+    - verify
+
+- name: Narrow matching credentials by form factor when specified
+  ansible.builtin.set_fact:
+    matching_target_credentials: >-
+      {{
+        (
+          matching_target_credentials
+          | rejectattr('target_form_factor', 'defined')
+          | list
+        )
+        +
+        (
+          matching_target_credentials
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', (claim_target.form_factor | default('')))
+          | list
+        )
+      }}
+  when:
+    - not (target_has_direct_claim_credentials | bool)
+    - (claim_target.form_factor | default('') | string | trim | length) > 0
+  tags:
+    - configure
+    - verify
+
+- name: Narrow matching credentials by management type when specified
+  ansible.builtin.set_fact:
+    matching_target_credentials: >-
+      {{
+        (
+          matching_target_credentials
+          | rejectattr('target_management_type', 'defined')
+          | list
+        )
+        +
+        (
+          matching_target_credentials
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', (claim_target.management_type | default('')))
+          | list
+        )
+      }}
+  when:
+    - not (target_has_direct_claim_credentials | bool)
+    - (claim_target.management_type | default('') | string | trim | length) > 0
+  tags:
+    - configure
+    - verify
+
+- name: Resolve selected target credential for claim target
+  ansible.builtin.set_fact:
+    selected_target_credential: "{{ (matching_target_credentials | default([]) | first) | default({}, true) }}"
+  when: not (target_has_direct_claim_credentials | bool)
+  tags:
+    - configure
+    - verify
+
+- name: Append resolved claim target
+  ansible.builtin.set_fact:
+    resolved_claim_targets: >-
+      {{
+        (resolved_claim_targets | default([]))
+        + [
+            (
+              claim_target
+              | combine(
+                  (
+                    {}
+                    if (target_has_direct_claim_credentials | bool)
+                    else {
+                      'claim_username': (selected_target_credential.username | default('')),
+                      'claim_password_ref': (selected_target_credential.password_ref | default(''))
+                    }
+                  ),
+                  recursive=True
+                )
+            )
+          ]
+      }}
+  tags:
+    - configure
+    - outputs

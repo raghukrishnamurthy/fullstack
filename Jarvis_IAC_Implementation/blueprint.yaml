@@ -244,9 +244,38 @@ grains:
             hosts:
               localhost:
                 ansible_connection: local
+  resolve_claim_target_credentials:
+    kind: ansible
+    spec:
+      source:
+        store: automation-repo
+        path: ansible/resolve-claim-target-credentials/playbook.yaml
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - claim_targets_json: '{{ .inputs.claim_targets_json }}'
+        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
+      outputs:
+        - resolved_claim_targets_json
+    on-destroy:
+      - source:
+          store: automation-repo
+          path: ansible/resolve-claim-target-credentials/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
   claim_to_saas:
     kind: ansible
-    depends-on: ensure_intersight_context
+    depends-on:
+      - ensure_intersight_context
+      - resolve_claim_target_credentials
     spec:
       source:
         store: automation-repo
@@ -263,8 +292,7 @@ grains:
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
-        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
-        - claim_targets_json: '{{ if contains .inputs.platform_yaml "intersight.com" }}{{ .inputs.claim_targets_json }}{{ else }}[]{{ end }}'
+        - claim_targets_json: '{{ if contains .inputs.platform_yaml "intersight.com" }}{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}{{ else }}[]{{ end }}'
       outputs:
         - batch_status
         - successful_targets
@@ -284,7 +312,9 @@ grains:
                 ansible_connection: local
   claim_to_appliance:
     kind: ansible
-    depends-on: ensure_intersight_context
+    depends-on:
+      - ensure_intersight_context
+      - resolve_claim_target_credentials
     spec:
       source:
         store: automation-repo
@@ -301,7 +331,7 @@ grains:
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
-        - claim_targets_json: '{{ if contains .inputs.platform_yaml "intersight.com" }}[]{{ else }}{{ .inputs.claim_targets_json }}{{ end }}'
+        - claim_targets_json: '{{ if contains .inputs.platform_yaml "intersight.com" }}[]{{ else }}{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}{{ end }}'
       outputs:
         - batch_status
         - successful_targets

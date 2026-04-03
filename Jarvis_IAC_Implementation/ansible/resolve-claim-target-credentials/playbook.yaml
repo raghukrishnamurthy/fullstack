@@ -1,0 +1,74 @@
+---
+- name: Resolve claim target credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    claim_targets_input: "{{ claim_targets_json | default('[]') }}"
+    claim_targets: >-
+      {{
+        claim_targets_input
+        if (claim_targets_input is not string)
+        else (
+          (claim_targets_input | from_yaml)
+          if (claim_targets_input | string | trim | length) > 0
+          else []
+        )
+      }}
+    credential_candidates_root: "{{ (credential_candidates_yaml | from_yaml) if (credential_candidates_yaml | default('') | string | trim | length > 0) else {} }}"
+    credential_candidates: "{{ credential_candidates_root.credential_candidates | default([]) }}"
+  pre_tasks:
+    - name: Validate resolve-claim-target-credentials contract
+      ansible.builtin.assert:
+        that:
+          - claim_targets | type_debug == 'list'
+          - credential_candidates | type_debug == 'list'
+        fail_msg: "resolve-claim-target-credentials requires claim_targets_json and credential_candidates_yaml to decode to lists"
+      tags:
+        - always
+        - validate
+        - precheck
+
+  tasks:
+    - name: Initialize resolved claim targets
+      ansible.builtin.set_fact:
+        resolved_claim_targets: []
+      tags:
+        - configure
+        - outputs
+
+    - name: Resolve credentials for each claim target
+      ansible.builtin.include_tasks: tasks/process_claim_target.yaml
+      loop: "{{ claim_targets }}"
+      loop_control:
+        loop_var: claim_target
+        label: "{{ claim_target.endpoint | default(claim_target.target_id | default('claim-target')) }}"
+      when: claim_target is mapping
+      tags:
+        - configure
+        - verify
+        - outputs
+
+    - name: Build resolved claim target outputs
+      ansible.builtin.set_fact:
+        resolved_claim_targets_json: "{{ resolved_claim_targets | to_json }}"
+      tags:
+        - outputs
+
+    - name: Validate resolved claim target outputs
+      ansible.builtin.assert:
+        that:
+          - resolved_claim_targets_json is defined
+        fail_msg: "resolve-claim-target-credentials did not produce resolved_claim_targets_json"
+      tags:
+        - always
+        - verify
+
+    - name: Export resolve-claim-target-credentials outputs to Torque
+      ansible.builtin.set_stats:
+        data:
+          resolved_claim_targets_json: "{{ resolved_claim_targets_json }}"
+        per_host: false
+      tags:
+        - outputs

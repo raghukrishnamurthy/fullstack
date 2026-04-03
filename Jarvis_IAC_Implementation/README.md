@@ -19,6 +19,14 @@ Current offering shape:
 - automation shape: multi-grain Ansible blueprint
 - reference conventions: aligned to `/Users/rkrishn2/intersightztp`
 
+Design requirement:
+
+- reusable grains must remain narrow and standalone
+- reusable grains must not depend on the full `deployment_yaml` unless they are explicitly model/discovery grains
+- blueprint or one thin direct-Ansible wrapper playbook is the orchestration layer
+- credential-map resolution belongs in orchestration or in a dedicated resolver grain, not inside execution grains
+- standalone execution grains should consume per-target fields such as `claim_username` and `claim_password_ref`
+
 Files:
 
 - `blueprint.yaml`
@@ -35,6 +43,10 @@ Files:
   Optional worker bootstrap playbook that installs shared Python and collection requirements
 - `ansible/reset-rack-password/`
   Separate grain for IMC rack manufacturing-to-desired password reset before prepare-and-claim
+- `ansible/resolve-claim-target-credentials/`
+  Maps shared credential candidates onto per-target claim credential fields
+- `ansible/run-intersight-claim-chain/`
+  Thin direct-Ansible orchestration path that invokes the reusable context, credential-resolution, claim, and normalize grains
 - `examples/ai-pod-sjc01-prod/`
   Local example inputs that mirror the blueprint contract
 - `scripts/run_example_strict.sh`
@@ -67,6 +79,7 @@ Assumptions:
 - YAML-shaped customer data is supplied as multiline string inputs
 - `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
 - `credential_candidates_yaml` is the current direct-input mechanism for target credential rotation candidates
+- blueprint and direct-Ansible orchestration can accept shared `credential_candidates_yaml`, but standalone claim grains are expected to consume per-target `claim_username` and `claim_password_ref`
 - rack-server flows can use typed candidates such as:
   `manufacturing` for factory/default login and `target` for the desired post-rotation credential
 - in the main prepare-and-claim flow, standalone rack targets are expected to already use the desired credential
@@ -113,4 +126,9 @@ Current checkpoint:
   - one FI pair claim unit derived from a declared `fi_pair` domain
   - standalone rack claim targets
 - appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
+- blueprint and direct-Ansible claim orchestration now share the same reusable grain chain:
+  - `ensure-intersight-context`
+  - `resolve-claim-target-credentials`
+  - `claim-to-saas` or `claim-to-appliance`
+  - `normalize-claim-results`
 - rack password reset is split into its own grain and is no longer part of the main prepare-and-claim playbook
