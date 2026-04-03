@@ -1,0 +1,60 @@
+---
+name: torque-ready-ansible
+description: Use when building, reviewing, refactoring, or troubleshooting Ansible playbooks and Torque blueprints that must run cleanly in Quali Torque/qTorque for this repo's grain and blueprint patterns.
+---
+
+# Torque-Ready Ansible
+
+## Purpose
+Use this skill for Torque-facing Ansible work in this repo.
+
+It is optimized for:
+- `ansible/<grain-name>/playbook.yaml` grain layout
+- top-level `blueprints/`
+- scalar `depends-on`
+- `torque.collections.export_torque_outputs`
+- reusable leaf grains plus a thin blueprint or wrapper orchestrator
+- Cisco Intersight appliance and SaaS claim workflows
+
+## Working Rules
+1. Keep reusable grains narrow.
+- Leaf grains should accept only the data they truly need.
+- Broad shaping, credential mapping, or launch-form convenience belongs in a wrapper or blueprint.
+
+2. Let Torque own runtime inputs.
+- Torque passes grain inputs as extra-vars.
+- Do not assume a static inventory file or pre-existing shell environment.
+
+3. Model secrets in Torque-native ways.
+- Prefer blueprint params, inputs, or credentials for secrets.
+- Convert resolved inputs into runtime env vars only inside a wrapper when a downstream helper explicitly expects env-backed values.
+
+4. Keep blueprint wiring conservative.
+- Use scalar `depends-on: grain_name`.
+- Any `{{ .grains.<grain>.outputs.<key> }}` reference must come from a grain on the active dependency chain.
+- Avoid blueprint-side `if/else` templating when a grain can self-route or no-op.
+
+5. Export stable outputs only.
+- Export the minimum contract downstream grains need.
+- Keep output names stable once other grains or blueprint outputs depend on them.
+
+## Repo Patterns
+- Public Torque blueprint path:
+  - `blueprints/onboard-intersight-devices.yaml`
+- Reusable claim chain:
+  - `ensure_intersight_context`
+  - `resolve_claim_target_credentials`
+  - `claim_to_saas`
+  - `claim_to_appliance`
+  - `normalize_claim_results`
+- Direct non-blueprint orchestrator:
+  - `ansible/run-intersight-claim-chain/playbook.yaml`
+
+## When To Use
+- fixing blueprint load or resolution failures
+- refining grain inputs and outputs
+- making a playbook work both locally and in Torque
+- deciding whether logic belongs in a blueprint, wrapper, or leaf grain
+
+## References
+- [official-quali-guides.md](references/official-quali-guides.md)

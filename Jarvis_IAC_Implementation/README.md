@@ -36,6 +36,8 @@ Files:
   End-user workflow and stable form keys
 - `wiring-table.md`
   Form key to grain input mapping
+- `skills/`
+  Repo-local shared Torque/Codex skill guidance for blueprint and Ansible patterns used in this repo
 - `ansible/resolve-intersight-deployment-model/`
   Validates inventory, derives claim candidates, and runs prepare-and-claim flow
 - `ansible/render-intersight-deployment-summary/`
