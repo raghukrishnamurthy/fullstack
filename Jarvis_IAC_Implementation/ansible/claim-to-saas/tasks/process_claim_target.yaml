@@ -168,7 +168,7 @@
       registration_moid: ''
       messages:
         - "Skipped claim submission because this claim target resolves to the same logical target as {{ canonical_claim_endpoint }}."
-  when: claim_duplicate_detected | bool
+  when: claim_duplicate_detected | default(false) | bool
   tags:
     - claim
     - aggregate
@@ -190,7 +190,7 @@
         - "Claim target is already claimed and does not require SaaS claim submission."
   when:
     - claim_result is not defined
-    - not (claim_duplicate_detected | bool)
+    - not (claim_duplicate_detected | default(false) | bool)
     - not (effective_target_context.claim_submission_required | default(true) | bool)
   tags:
     - claim
@@ -227,7 +227,7 @@
     fail_msg: "Claim target is missing claim_serial_number or claim_security_token required for SaaS claim"
   when:
     - claim_result is not defined
-    - not (claim_duplicate_detected | bool)
+    - not (claim_duplicate_detected | default(false) | bool)
     - effective_target_context.claim_submission_required | default(true) | bool
   tags:
     - claim
@@ -247,7 +247,7 @@
   no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
   when:
     - claim_result is not defined
-    - not (claim_duplicate_detected | bool)
+    - not (claim_duplicate_detected | default(false) | bool)
     - effective_target_context.claim_submission_required | default(true) | bool
   tags:
     - claim
@@ -278,7 +278,7 @@
   no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
   when:
     - claim_result is not defined
-    - not (claim_duplicate_detected | bool)
+    - not (claim_duplicate_detected | default(false) | bool)
     - effective_target_context.claim_submission_required | default(true) | bool
     - saas_claim_result is defined
     - not (saas_claim_result.failed | default(false) | bool)
@@ -353,7 +353,7 @@
           {%- endif -%}
   when:
     - claim_result is not defined
-    - not (claim_duplicate_detected | bool)
+    - not (claim_duplicate_detected | default(false) | bool)
     - effective_target_context.claim_submission_required | default(true) | bool
   tags:
     - claim
