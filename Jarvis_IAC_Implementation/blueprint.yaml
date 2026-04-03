@@ -144,12 +144,12 @@ inputs:
     description: Execution intent (`validate_only` by default; use `apply` for supported PVA prepare-and-claim actions)
     default: validate_only
 grains:
-  discover_infrastructure:
+  resolve_intersight_deployment_model:
     kind: ansible
     spec:
       source:
         store: automation-repo
-        path: ansible/resolve-deployment-model/playbook.yaml
+        path: ansible/resolve-intersight-deployment-model/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
       inventory-file:
@@ -176,19 +176,19 @@ grains:
     on-destroy:
       - source:
           store: automation-repo
-          path: ansible/resolve-deployment-model/teardown.yaml
+          path: ansible/resolve-intersight-deployment-model/teardown.yaml
         inventory-file:
           localhost:
             hosts:
               localhost:
                 ansible_connection: local
-  render_discovery_summary:
+  render_intersight_deployment_summary:
     kind: ansible
-    depends-on: discover_infrastructure
+    depends-on: resolve_intersight_deployment_model
     spec:
       source:
         store: automation-repo
-        path: ansible/render-master-plan/playbook.yaml
+        path: ansible/render-intersight-deployment-summary/playbook.yaml
       agent:
         name: '{{ .inputs.agent }}'
       inventory-file:
@@ -197,15 +197,15 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - discovery_model_json: '{{ .grains.discover_infrastructure.outputs.discovery_model_json }}'
-        - discovery_summary_json: '{{ .grains.discover_infrastructure.outputs.discovery_summary_json }}'
+        - discovery_model_json: '{{ .grains.resolve_intersight_deployment_model.outputs.discovery_model_json }}'
+        - discovery_summary_json: '{{ .grains.resolve_intersight_deployment_model.outputs.discovery_summary_json }}'
       outputs:
         - discovery_report_json
         - discovery_summary_markdown
     on-destroy:
       - source:
           store: automation-repo
-          path: ansible/render-master-plan/teardown.yaml
+          path: ansible/render-intersight-deployment-summary/teardown.yaml
         inventory-file:
           localhost:
             hosts:
@@ -357,13 +357,13 @@ grains:
                 ansible_connection: local
 outputs:
   discovery_model_json:
-    value: '{{ .grains.discover_infrastructure.outputs.discovery_model_json }}'
+    value: '{{ .grains.resolve_intersight_deployment_model.outputs.discovery_model_json }}'
   discovery_summary_json:
-    value: '{{ .grains.discover_infrastructure.outputs.discovery_summary_json }}'
+    value: '{{ .grains.resolve_intersight_deployment_model.outputs.discovery_summary_json }}'
   discovery_report_json:
-    value: '{{ .grains.render_discovery_summary.outputs.discovery_report_json }}'
+    value: '{{ .grains.render_intersight_deployment_summary.outputs.discovery_report_json }}'
   discovery_summary_markdown:
-    value: '{{ .grains.render_discovery_summary.outputs.discovery_summary_markdown }}'
+    value: '{{ .grains.render_intersight_deployment_summary.outputs.discovery_summary_markdown }}'
   context_result_json:
     value: '{{ .grains.ensure_intersight_context.outputs.context_result_json }}'
   appliance_claim_results_json:

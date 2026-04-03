@@ -43,7 +43,7 @@ EOF
 
 cat > "${tmp_wrapper_playbook}" <<EOF
 ---
-- import_playbook: $(pwd)/ansible/resolve-deployment-model/playbook.yaml
+- import_playbook: $(pwd)/ansible/resolve-intersight-deployment-model/playbook.yaml
 
 - name: Persist live PVA example outputs
   hosts: localhost

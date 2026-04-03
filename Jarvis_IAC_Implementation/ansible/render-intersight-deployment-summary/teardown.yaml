@@ -15,7 +15,7 @@
                 "status": "skipped",
                 "reason": "noop_destroy_behavior",
                 "messages": [
-                  "render-master-plan is render-only and has no destroy-time cleanup"
+                  "render-intersight-deployment-summary is render-only and has no destroy-time cleanup"
                 ]
               }
             ] | to_json

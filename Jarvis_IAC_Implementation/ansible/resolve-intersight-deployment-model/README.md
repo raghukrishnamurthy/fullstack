@@ -1,4 +1,4 @@
-# resolve-deployment-model
+# resolve-intersight-deployment-model
 
 Purpose:
 

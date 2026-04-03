@@ -27,9 +27,9 @@ Files:
   End-user workflow and stable form keys
 - `wiring-table.md`
   Form key to grain input mapping
-- `ansible/resolve-deployment-model/`
+- `ansible/resolve-intersight-deployment-model/`
   Validates inventory, derives claim candidates, and runs prepare-and-claim flow
-- `ansible/render-master-plan/`
+- `ansible/render-intersight-deployment-summary/`
   Produces a discovery summary from the derived infrastructure view
 - `ansible/bootstrap_runtime/`
   Optional worker bootstrap playbook that installs shared Python and collection requirements
@@ -51,7 +51,7 @@ Files:
 Local test path:
 
 - `./scripts/run_example_strict.sh`
-  executes the example input set end to end against `ansible/resolve-deployment-model/playbook.yaml`
+  executes the example input set end to end against `ansible/resolve-intersight-deployment-model/playbook.yaml`
   in `validation_mode=strict` and `execution_intent=validate_only`
 - `./scripts/run_example_strict_checked.sh`
   executes the same path and verifies a few expected JSON output values for the AI Pod example
@@ -104,8 +104,8 @@ Runtime dependencies:
 - [playbook.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/bootstrap_runtime/playbook.yaml)
   can be used to prepare a worker with:
   - shared Python dependencies
-  - `resolve-deployment-model` collections
-  - `render-master-plan` collections
+  - `resolve-intersight-deployment-model` collections
+  - `render-intersight-deployment-summary` collections
 
 Current checkpoint:
 

@@ -22,14 +22,14 @@
         - bootstrap
         - python
 
-    - name: Install required Ansible collections for resolve-deployment-model
+    - name: Install required Ansible collections for resolve-intersight-deployment-model
       ansible.builtin.command:
         argv:
           - ansible-galaxy
           - collection
           - install
           - -r
-          - "{{ playbook_dir }}/../resolve-deployment-model/requirements.yaml"
+          - "{{ playbook_dir }}/../resolve-intersight-deployment-model/requirements.yaml"
           - --force
       register: resolve_collection_install_result
       changed_when: >-
@@ -39,21 +39,21 @@
         - bootstrap
         - collections
 
-    - name: Show resolve-deployment-model collection summary
+    - name: Show resolve-intersight-deployment-model collection summary
       ansible.builtin.debug:
         msg: "{{ resolve_collection_install_result.stdout_lines | default([]) }}"
       tags:
         - bootstrap
         - collections
 
-    - name: Install required Ansible collections for render-master-plan
+    - name: Install required Ansible collections for render-intersight-deployment-summary
       ansible.builtin.command:
         argv:
           - ansible-galaxy
           - collection
           - install
           - -r
-          - "{{ playbook_dir }}/../render-master-plan/requirements.yaml"
+          - "{{ playbook_dir }}/../render-intersight-deployment-summary/requirements.yaml"
           - --force
       register: render_collection_install_result
       changed_when: >-
@@ -63,7 +63,7 @@
         - bootstrap
         - collections
 
-    - name: Show render-master-plan collection summary
+    - name: Show render-intersight-deployment-summary collection summary
       ansible.builtin.debug:
         msg: "{{ render_collection_install_result.stdout_lines | default([]) }}"
       tags:

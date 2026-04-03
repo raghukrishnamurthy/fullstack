@@ -15,7 +15,7 @@
                 "status": "skipped",
                 "reason": "noop_destroy_behavior",
                 "messages": [
-                  "resolve-deployment-model does not create or mutate remote resources"
+                  "resolve-intersight-deployment-model does not create or mutate remote resources"
                 ]
               }
             ] | to_json

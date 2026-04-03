@@ -35,6 +35,6 @@ Inventory-first standalone rack password reset grain.
 
 ## Relationship to Main Claim Flow
 
-- this grain is intentionally separate from `resolve-deployment-model`
+- this grain is intentionally separate from `resolve-intersight-deployment-model`
 - the main PVA prepare-and-claim flow now assumes standalone rack devices already use the desired credential
 - use this grain first when rack devices may still be at factory/default password
