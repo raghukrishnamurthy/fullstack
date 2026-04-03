@@ -112,6 +112,7 @@ for rack_result in rack_results:
     payload = rack_result["claim_target_payload"]
     preclaim = payload["preclaim_normalization"]
     plan = rack_result["preclaim_action_plan"]
+    normalization_payload = rack_result["password_normalization_payload"]
 
     assert rack_result["status"] == expected["status"], (
         f"{case_name}: unexpected status {rack_result['status']}"
@@ -129,6 +130,33 @@ for rack_result in rack_results:
     assert plan["ready"] is expected["ready"], (
         f"{case_name}: unexpected action-plan readiness {plan['ready']}"
     )
+    assert normalization_payload["normalization_workflow"] == "rack_password_normalization", (
+        f"{case_name}: unexpected normalization workflow {normalization_payload.get('normalization_workflow')}"
+    )
+    assert normalization_payload["endpoint"] == rack_result["endpoint"], (
+        f"{case_name}: normalization endpoint mismatch"
+    )
+    assert normalization_payload["ready"] is expected["ready"], (
+        f"{case_name}: unexpected normalization readiness {normalization_payload['ready']}"
+    )
+
+    if case_name in {"both", "manufacturing_only"}:
+        assert normalization_payload["manufacturing_credential"]["username"] == "admin", (
+            f"{case_name}: missing manufacturing username"
+        )
+    else:
+        assert normalization_payload["manufacturing_credential"]["username"] == "", (
+            f"{case_name}: unexpected manufacturing username"
+        )
+
+    if case_name in {"both", "target_only"}:
+        assert normalization_payload["target_credential"]["username"] == "admin", (
+            f"{case_name}: missing target username"
+        )
+    else:
+        assert normalization_payload["target_credential"]["username"] == "", (
+            f"{case_name}: unexpected target username"
+        )
 
 print(f"Rack preclaim case passed: {case_name}")
 PY

@@ -332,6 +332,36 @@
             'reason': 'Target does not require rack password normalization before claim.'
           }
         }}
+      password_normalization_payload: >-
+        {{
+          {
+            'target_id': claim_target_payload.target_id,
+            'target_category': claim_target_payload.target_category,
+            'endpoint': claim_target_payload.endpoint,
+            'canonical_endpoint': claim_target_payload.canonical_endpoint,
+            'connectivity_path': claim_target_payload.connectivity_path,
+            'management_type': claim_target_payload.management_type,
+            'form_factor': claim_target_payload.form_factor,
+            'execution_mode': 'guarded_hook',
+            'normalization_workflow': 'rack_password_normalization',
+            'ready': (claim_target_payload.preclaim_normalization.ready | default(false) | bool),
+            'manufacturing_credential': {
+              'username': (claim_target_payload.selected_manufacturing_credential.username | default('')),
+              'password_ref': (claim_target_payload.selected_manufacturing_credential.password_ref | default(''))
+            },
+            'target_credential': {
+              'username': (claim_target_payload.selected_target_credential.username | default('')),
+              'password_ref': (claim_target_payload.selected_target_credential.password_ref | default(''))
+            },
+            'reason': (
+              'Standalone rack target has both manufacturing and target credentials and is ready for password normalization payload generation.'
+              if (claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+              else 'Standalone rack target is missing manufacturing and/or target credentials for password normalization payload generation.'
+            )
+          }
+          if (claim_target_payload.preclaim_normalization.required | default(false) | bool)
+          else {}
+        }}
       claim_target_payload: "{{ claim_target_payload }}"
   tags:
     - onboarding
