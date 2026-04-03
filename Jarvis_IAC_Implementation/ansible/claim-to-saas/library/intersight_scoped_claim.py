@@ -15,12 +15,12 @@ extends_documentation_fragment: cisco.intersight.intersight
 options:
   serial_number:
     description:
-    - Device serial number from the prepared target contract.
+    - Device serial number from the claim target contract.
     type: str
     required: true
   claim_code:
     description:
-    - Device claim code from the prepared target contract.
+    - Device claim code from the claim target contract.
     type: str
     required: true
     no_log: true

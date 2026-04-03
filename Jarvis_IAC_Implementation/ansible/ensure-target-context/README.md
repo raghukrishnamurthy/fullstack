@@ -14,13 +14,15 @@ Shared Jarvis grain that ensures the requested Intersight target context exists 
 
 ## Optional inputs
 
+- `organization`
 - `placement_yaml`
 - `debug_enabled`
 
 ## Current behavior
 
 - resolves the Intersight endpoint and env-backed API credentials from `platform_yaml`
-- reads the requested organization from `placement_yaml`
+- uses direct `organization` when supplied
+- otherwise reads the requested organization from `placement_yaml`
 - when an organization is supplied:
   - queries `/organization/Organizations`
   - creates the organization when missing

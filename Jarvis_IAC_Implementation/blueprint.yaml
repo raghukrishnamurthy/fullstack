@@ -37,6 +37,10 @@ inputs:
           policy:
             reuse_existing_organization: true
             reuse_existing_resource_group: false
+  organization:
+    type: string
+    description: Optional direct Intersight organization input for reusable context and claim grains
+    default: ai-prod
   site_yaml:
     type: string
     description: Optional site YAML payload
@@ -127,6 +131,10 @@ inputs:
       solution:
         profile: ai_pod
         delivery_scope: onboarding
+  claim_targets_json:
+    type: string
+    description: Optional claim target list for direct reusable claim grains
+    default: '[]'
   validation_mode:
     type: string
     description: Validation mode (`strict` for contract-only checks, `live` for Intersight serial validation)
@@ -203,6 +211,111 @@ grains:
             hosts:
               localhost:
                 ansible_connection: local
+  ensure_target_context:
+    kind: ansible
+    spec:
+      source:
+        store: automation-repo
+        path: ansible/ensure-target-context/playbook.yaml
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - organization: '{{ .inputs.organization }}'
+      outputs:
+        - context_status
+        - org_status
+        - org_name
+        - org_action
+        - org_result_json
+        - context_result_json
+    on-destroy:
+      - source:
+          store: automation-repo
+          path: ansible/ensure-target-context/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
+  claim_to_saas:
+    kind: ansible
+    depends-on: ensure_target_context
+    spec:
+      source:
+        store: automation-repo
+        path: ansible/claim-to-saas/playbook.yaml
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - organization: '{{ .grains.ensure_target_context.outputs.org_name }}'
+        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
+        - claim_targets_json: '{{ .inputs.claim_targets_json }}'
+      outputs:
+        - batch_status
+        - successful_targets
+        - failed_targets
+        - conflict_targets
+        - skipped_targets
+        - changed_targets
+        - results_json
+    on-destroy:
+      - source:
+          store: automation-repo
+          path: ansible/claim-to-saas/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
+  normalize_claim_results:
+    kind: ansible
+    depends-on: claim_to_saas
+    spec:
+      source:
+        store: automation-repo
+        path: ansible/normalize-claim-results/playbook.yaml
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - appliance_claim_results_json: '[]'
+        - saas_claim_results_json: '{{ .grains.claim_to_saas.outputs.results_json }}'
+      outputs:
+        - normalized_claim_results_json
+        - normalized_claim_batch_status
+        - normalized_claim_successful_count
+        - normalized_claim_failed_count
+        - normalized_claim_conflict_count
+        - normalized_claim_skipped_count
+        - normalized_claim_changed_count
+    on-destroy:
+      - source:
+          store: automation-repo
+          path: ansible/normalize-claim-results/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
 outputs:
   discovery_model_json:
     value: '{{ .grains.discover_infrastructure.outputs.discovery_model_json }}'
@@ -212,3 +325,9 @@ outputs:
     value: '{{ .grains.render_discovery_summary.outputs.discovery_report_json }}'
   discovery_summary_markdown:
     value: '{{ .grains.render_discovery_summary.outputs.discovery_summary_markdown }}'
+  context_result_json:
+    value: '{{ .grains.ensure_target_context.outputs.context_result_json }}'
+  saas_claim_results_json:
+    value: '{{ .grains.claim_to_saas.outputs.results_json }}'
+  normalized_claim_results_json:
+    value: '{{ .grains.normalize_claim_results.outputs.normalized_claim_results_json }}'

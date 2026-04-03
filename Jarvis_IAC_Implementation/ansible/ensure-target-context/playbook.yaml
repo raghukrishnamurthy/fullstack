@@ -36,7 +36,8 @@
         )
         else ''
       }}
-    requested_organization: "{{ placement_data.intersight.organization | default('') | string | trim }}"
+    direct_organization: "{{ organization | default('') | string | trim }}"
+    requested_organization: "{{ direct_organization if (direct_organization | length > 0) else (placement_data.intersight.organization | default('') | string | trim) }}"
     context_validate_certs: "{{ platform_data.intersight.validate_certs | default(true) | bool }}"
     internal_debug_enabled: "{{ debug_enabled | default('false') }}"
   pre_tasks:
