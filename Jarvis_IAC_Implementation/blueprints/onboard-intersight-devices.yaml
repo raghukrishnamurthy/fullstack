@@ -24,22 +24,10 @@ inputs:
     type: string
     description: Intersight API private key PEM content
     sensitive: true
-  validate_certs:
-    type: boolean
-    description: Validate TLS certificates for the Intersight endpoint
-    default: true
   organization:
     type: string
     description: Intersight organization
     default: ai-prod
-  reuse_existing_organization:
-    type: boolean
-    description: Reuse an existing organization when present
-    default: true
-  reuse_existing_resource_group:
-    type: boolean
-    description: Reuse an existing resource group when present
-    default: false
   fi_target_username:
     type: string
     description: Username for fabric interconnect claim readiness and appliance claim
@@ -58,7 +46,7 @@ inputs:
     sensitive: true
   claim_targets_json:
     type: string
-    description: Claim target list for reusable claim grains
+    description: JSON array of Intersight claim targets to process
     default: '[]'
 grains:
   ensure_intersight_context:
@@ -67,6 +55,7 @@ grains:
       source:
         store: intersight-fullstack-repo
         path: ansible/ensure-intersight-context/playbook.yaml
+      command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
       inventory-file:
@@ -79,7 +68,7 @@ grains:
             platform:
               intersight:
                 endpoint: {{ .inputs.intersight_endpoint }}
-                validate_certs: {{ .inputs.validate_certs }}
+                validate_certs: false
                 credentials:
                   api_key_id: |
                     {{ .inputs.intersight_api_key_id }}
@@ -90,8 +79,8 @@ grains:
               intersight:
                 organization: {{ .inputs.organization }}
                 policy:
-                  reuse_existing_organization: {{ .inputs.reuse_existing_organization }}
-                  reuse_existing_resource_group: {{ .inputs.reuse_existing_resource_group }}
+                  reuse_existing_organization: true
+                  reuse_existing_resource_group: false
         - organization: '{{ .inputs.organization }}'
       outputs:
         - context_status
@@ -116,6 +105,7 @@ grains:
       source:
         store: intersight-fullstack-repo
         path: ansible/resolve-claim-target-credentials/playbook.yaml
+      command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
       inventory-file:
@@ -157,6 +147,7 @@ grains:
       source:
         store: intersight-fullstack-repo
         path: ansible/claim-to-saas/playbook.yaml
+      command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
       inventory-file:
@@ -170,7 +161,7 @@ grains:
             platform:
               intersight:
                 endpoint: {{ .inputs.intersight_endpoint }}
-                validate_certs: {{ .inputs.validate_certs }}
+                validate_certs: false
                 credentials:
                   api_key_id: |
                     {{ .inputs.intersight_api_key_id }}
@@ -181,8 +172,8 @@ grains:
               intersight:
                 organization: {{ .inputs.organization }}
                 policy:
-                  reuse_existing_organization: {{ .inputs.reuse_existing_organization }}
-                  reuse_existing_resource_group: {{ .inputs.reuse_existing_resource_group }}
+                  reuse_existing_organization: true
+                  reuse_existing_resource_group: false
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:
@@ -209,6 +200,7 @@ grains:
       source:
         store: intersight-fullstack-repo
         path: ansible/claim-to-appliance/playbook.yaml
+      command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
       inventory-file:
@@ -222,7 +214,7 @@ grains:
             platform:
               intersight:
                 endpoint: {{ .inputs.intersight_endpoint }}
-                validate_certs: {{ .inputs.validate_certs }}
+                validate_certs: false
                 credentials:
                   api_key_id: |
                     {{ .inputs.intersight_api_key_id }}
@@ -233,8 +225,8 @@ grains:
               intersight:
                 organization: {{ .inputs.organization }}
                 policy:
-                  reuse_existing_organization: {{ .inputs.reuse_existing_organization }}
-                  reuse_existing_resource_group: {{ .inputs.reuse_existing_resource_group }}
+                  reuse_existing_organization: true
+                  reuse_existing_resource_group: false
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:
@@ -261,6 +253,7 @@ grains:
       source:
         store: intersight-fullstack-repo
         path: ansible/normalize-claim-results/playbook.yaml
+      command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
       inventory-file:

@@ -85,6 +85,33 @@
     - configure
     - verify
 
+- name: Build normalized claim target defaults
+  ansible.builtin.set_fact:
+    normalized_claim_target_defaults:
+      canonical_endpoint: >-
+        {{
+          claim_target.canonical_endpoint
+          | default(claim_target.endpoint | default(''))
+        }}
+      normalized_claim_key: >-
+        {{
+          claim_target.normalized_claim_key
+          | default(
+              claim_target.claim_serial_number
+              | default(
+                  claim_target.serial
+                  | default(
+                      claim_target.endpoint
+                      | default(claim_target.target_id | default(''))
+                    )
+                )
+            )
+        }}
+      claim_submission_required: "{{ claim_target.claim_submission_required | default(true) | bool }}"
+  tags:
+    - configure
+    - verify
+
 - name: Append resolved claim target
   ansible.builtin.set_fact:
     resolved_claim_targets: >-
@@ -93,6 +120,10 @@
         + [
             (
               claim_target
+              | combine(
+                  normalized_claim_target_defaults,
+                  recursive=True
+                )
               | combine(
                   (
                     {}

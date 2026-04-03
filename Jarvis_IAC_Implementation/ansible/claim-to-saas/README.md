@@ -25,7 +25,6 @@ Standalone Jarvis grain for claiming target contexts into Intersight SaaS.
 ## Expected claim target fields
 
 - `endpoint`
-- `normalized_claim_key`
 - one of:
   - `claim_serial_number` and `claim_security_token`
   - or `claim_username` and either:
@@ -33,6 +32,7 @@ Standalone Jarvis grain for claiming target contexts into Intersight SaaS.
     - `claim_password_ref`
 - `claim_submission_required`
 - optional:
+- `normalized_claim_key`
   - `device_type`
   - `location`
   - `canonical_endpoint`

@@ -63,7 +63,6 @@
           - resolved_api_key_id | string | trim | length > 0
           - resolved_api_private_key | string | trim | length > 0
         fail_msg: "ensure-intersight-context requires platform_yaml with direct or env-backed Intersight API credentials"
-      no_log: true
       tags:
         - always
         - validate

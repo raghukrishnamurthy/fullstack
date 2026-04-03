@@ -98,8 +98,6 @@ admin
     "device_type": "imm",
     "serial": "FDO272406DE",
     "endpoint": "10.29.135.101",
-    "canonical_endpoint": "10.29.135.101",
-    "normalized_claim_key": "FDO272406CK&FDO272406DE",
     "claim_submission_required": true
   },
   {
@@ -110,8 +108,6 @@ admin
     "management_type": "standalone",
     "serial": "WZP270500PQ",
     "endpoint": "10.29.135.106",
-    "canonical_endpoint": "10.29.135.106",
-    "normalized_claim_key": "WZP270500PQ",
     "claim_submission_required": true
   }
 ]
@@ -211,8 +207,6 @@ admin
     "device_type": "imm",
     "serial": "FDO272406DE",
     "endpoint": "10.29.135.101",
-    "canonical_endpoint": "10.29.135.101",
-    "normalized_claim_key": "FDO272406CK&FDO272406DE",
     "platform_type": "UCSFIISM",
     "claim_submission_required": true
   },
@@ -224,8 +218,6 @@ admin
     "management_type": "standalone",
     "serial": "WZP270500PQ",
     "endpoint": "10.29.135.106",
-    "canonical_endpoint": "10.29.135.106",
-    "normalized_claim_key": "WZP270500PQ",
     "platform_type": "IMCRack",
     "claim_submission_required": true
   }

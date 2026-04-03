@@ -15,6 +15,10 @@ Standalone Jarvis grain for mapping a credential-candidate pool onto claim targe
 
 ## Behavior
 
+- fills internal defaults when missing:
+  - `canonical_endpoint`
+  - `normalized_claim_key`
+  - `claim_submission_required`
 - passes through targets that already include:
   - `claim_username`
   - `claim_password_ref`

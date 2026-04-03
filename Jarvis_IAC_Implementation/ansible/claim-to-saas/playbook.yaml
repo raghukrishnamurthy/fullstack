@@ -102,7 +102,6 @@
           - resolved_api_private_key | string | trim | length > 0
         fail_msg: "claim-to-saas requires direct or env-backed Intersight API credentials in platform_yaml when claim targets are present"
       when: (claim_targets | select('mapping') | list | length) > 0
-      no_log: true
       tags:
         - always
         - validate
