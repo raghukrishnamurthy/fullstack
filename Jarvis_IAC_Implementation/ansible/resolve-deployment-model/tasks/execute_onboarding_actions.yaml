@@ -85,10 +85,12 @@
   ansible.builtin.set_fact:
     onboarding_action_execution:
       requested: "{{ onboarding_actions_requested }}"
-      executed: false
+      executed: "{{ (claim_execution_results | default([]) | selectattr('executed', 'equalto', true) | list | length) > 0 }}"
       status: >-
         {{
-          'guarded_claim_hook_ready'
+          'appliance_claim_submitted'
+          if ((claim_execution_results | default([]) | selectattr('execution_mode', 'equalto', 'appliance_claim') | selectattr('executed', 'equalto', true) | list | length) > 0)
+          else 'guarded_claim_hook_ready'
           if (claim_execution_results | default([]) | length) > 0
           else 'planned_only'
           if (onboarding_action_plan | default([]) | length) > 0
@@ -96,7 +98,9 @@
         }}
       message: >-
         {{
-          'Claim-capable targets entered the guarded claim hook, but remote mutation is still intentionally disabled.'
+          'One or more claim-capable targets were submitted to the appliance claim API.'
+          if ((claim_execution_results | default([]) | selectattr('execution_mode', 'equalto', 'appliance_claim') | selectattr('executed', 'equalto', true) | list | length) > 0)
+          else 'Claim-capable targets entered the guarded claim hook, but remote mutation is not implemented for the remaining targets.'
           if (claim_execution_results | default([]) | length) > 0
           else 'Onboarding actions are represented as a non-mutating action plan only. This scaffold stops before remote mutation.'
           if (onboarding_action_plan | default([]) | length) > 0
