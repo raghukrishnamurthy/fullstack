@@ -1,5 +1,5 @@
 spec_version: 2
-description: Jarvis IAC inventory-first prepare-and-claim scaffold for Cisco infrastructure
+description: Focused Intersight claim workflow for reusable context, credential-resolution, claim, and normalization grains
 inputs:
   agent:
     type: agent
@@ -7,7 +7,7 @@ inputs:
     description: Torque agent that runs this workflow.
   deployment_yaml:
     type: string
-    description: Deployment YAML payload
+    description: Optional deployment YAML payload for claim traceability
     default: |
       deployment:
         id: ai-pod-sjc01-prod
@@ -23,10 +23,6 @@ inputs:
           credentials:
             api_key_id_ref: env://INTERSIGHT_API_KEY_ID
             api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-          assists:
-            - id: assist-01
-              enabled: true
-              endpoint: https://assist-01.example.com
   placement_yaml:
     type: string
     description: Placement YAML payload
@@ -41,27 +37,9 @@ inputs:
     type: string
     description: Optional direct Intersight organization input for reusable context and claim grains
     default: ai-prod
-  site_yaml:
-    type: string
-    description: Optional site YAML payload
-    default: |
-      site:
-        id: sjc01
-        global_settings:
-          location: SJC01-DC
-          dns:
-            servers:
-              - 10.10.10.10
-              - 10.10.10.11
-          ntp:
-            servers:
-              - 10.20.20.10
-              - 10.20.20.11
-          proxy:
-            enabled: false
   credential_candidates_yaml:
     type: string
-    description: Optional credential-candidates YAML payload for endpoint preparation and claim
+    description: Shared credential-candidates YAML payload for claim target resolution
     default: |
       credential_candidates:
         - credential_role: target
@@ -74,143 +52,11 @@ inputs:
           target_category: fabric_interconnect
           username: admin
           password_ref: env://FI_TARGET_PASSWORD
-  baseline_input_source:
-    type: string
-    description: Optional higher-orchestration baseline input source (for Quali/Torque or Cisco Zero Touch usage)
-    default: ""
-  baseline_directory:
-    type: string
-    description: Optional local baseline directory for direct Ansible-style execution
-    default: ""
-  overrides_yaml:
-    type: string
-    description: Optional overrides YAML payload
-    default: ""
-  inventory_yaml:
-    type: string
-    description: Inventory YAML payload
-    default: |
-      inventory:
-        defaults:
-          server_management_type: standalone
-        devices:
-          - id: fi-a
-            serial: FDO272406DE
-            category: fabric_interconnect
-            mgmt_ip: 10.29.135.101
-          - id: fi-b
-            serial: FDO272406CK
-            category: fabric_interconnect
-            mgmt_ip: 10.29.135.102
-          - id: blade-01
-            serial: FCH270978FF
-            category: server
-            attributes:
-              form_factor: blade
-              management_type: fi_managed
-          - id: rack-server-01
-            serial: WZP270500PQ
-            category: server
-            mgmt_ip: 10.29.135.106
-            attributes:
-              form_factor: rack
-              management_type: standalone
-        domains:
-          - domain_id: domain-01
-            type: fi_pair
-            members:
-              - fi-a
-              - fi-b
-            summary:
-              chassis_count: 1
-              blade_count: 4
-  solution_yaml:
-    type: string
-    description: Solution YAML payload
-    default: |
-      solution:
-        profile: ai_pod
-        delivery_scope: onboarding
   claim_targets_json:
     type: string
-    description: Optional claim target list for direct reusable claim grains
+    description: Claim target list for reusable claim grains
     default: '[]'
-  validation_mode:
-    type: string
-    description: Validation mode (`strict` for contract-only checks, `live` for Intersight serial validation)
-    default: strict
-  execution_intent:
-    type: string
-    description: Execution intent (`validate_only` by default; use `apply` for supported PVA prepare-and-claim actions)
-    default: validate_only
 grains:
-  resolve_intersight_deployment_model:
-    kind: ansible
-    spec:
-      source:
-        store: intersight-fullstack-repo
-        path: ansible/resolve-intersight-deployment-model/playbook.yaml
-      agent:
-        name: '{{ .inputs.agent }}'
-      inventory-file:
-        localhost:
-          hosts:
-            localhost:
-              ansible_connection: local
-      inputs:
-        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
-        - site_yaml: '{{ .inputs.site_yaml }}'
-        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
-        - baseline_input_source: '{{ .inputs.baseline_input_source }}'
-        - baseline_directory: '{{ .inputs.baseline_directory }}'
-        - overrides_yaml: '{{ .inputs.overrides_yaml }}'
-        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
-        - solution_yaml: '{{ .inputs.solution_yaml }}'
-        - validation_mode: '{{ .inputs.validation_mode }}'
-        - execution_intent: '{{ .inputs.execution_intent }}'
-      outputs:
-        - discovery_model_json
-        - discovery_summary_json
-    on-destroy:
-      - source:
-          store: intersight-fullstack-repo
-          path: ansible/resolve-intersight-deployment-model/teardown.yaml
-        inventory-file:
-          localhost:
-            hosts:
-              localhost:
-                ansible_connection: local
-  render_intersight_deployment_summary:
-    kind: ansible
-    depends-on: resolve_intersight_deployment_model
-    spec:
-      source:
-        store: intersight-fullstack-repo
-        path: ansible/render-intersight-deployment-summary/playbook.yaml
-      agent:
-        name: '{{ .inputs.agent }}'
-      inventory-file:
-        localhost:
-          hosts:
-            localhost:
-              ansible_connection: local
-      inputs:
-        - discovery_model_json: '{{ .grains.resolve_intersight_deployment_model.outputs.discovery_model_json }}'
-        - discovery_summary_json: '{{ .grains.resolve_intersight_deployment_model.outputs.discovery_summary_json }}'
-      outputs:
-        - discovery_report_json
-        - discovery_summary_markdown
-    on-destroy:
-      - source:
-          store: intersight-fullstack-repo
-          path: ansible/render-intersight-deployment-summary/teardown.yaml
-        inventory-file:
-          localhost:
-            hosts:
-              localhost:
-                ansible_connection: local
   ensure_intersight_context:
     kind: ansible
     spec:
@@ -246,6 +92,7 @@ grains:
                 ansible_connection: local
   resolve_claim_target_credentials:
     kind: ansible
+    depends-on: ensure_intersight_context
     spec:
       source:
         store: intersight-fullstack-repo
@@ -310,7 +157,7 @@ grains:
                 ansible_connection: local
   claim_to_appliance:
     kind: ansible
-    depends-on: resolve_claim_target_credentials
+    depends-on: claim_to_saas
     spec:
       source:
         store: intersight-fullstack-repo
@@ -380,14 +227,6 @@ grains:
               localhost:
                 ansible_connection: local
 outputs:
-  discovery_model_json:
-    value: '{{ .grains.resolve_intersight_deployment_model.outputs.discovery_model_json }}'
-  discovery_summary_json:
-    value: '{{ .grains.resolve_intersight_deployment_model.outputs.discovery_summary_json }}'
-  discovery_report_json:
-    value: '{{ .grains.render_intersight_deployment_summary.outputs.discovery_report_json }}'
-  discovery_summary_markdown:
-    value: '{{ .grains.render_intersight_deployment_summary.outputs.discovery_summary_markdown }}'
   context_result_json:
     value: '{{ .grains.ensure_intersight_context.outputs.context_result_json }}'
   appliance_claim_results_json:
