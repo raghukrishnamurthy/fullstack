@@ -273,9 +273,7 @@ grains:
                 ansible_connection: local
   claim_to_saas:
     kind: ansible
-    depends-on:
-      - ensure_intersight_context
-      - resolve_claim_target_credentials
+    depends-on: resolve_claim_target_credentials
     spec:
       source:
         store: intersight-fullstack-repo
@@ -312,9 +310,7 @@ grains:
                 ansible_connection: local
   claim_to_appliance:
     kind: ansible
-    depends-on:
-      - ensure_intersight_context
-      - resolve_claim_target_credentials
+    depends-on: resolve_claim_target_credentials
     spec:
       source:
         store: intersight-fullstack-repo
@@ -351,9 +347,7 @@ grains:
                 ansible_connection: local
   normalize_claim_results:
     kind: ansible
-    depends-on:
-      - claim_to_saas
-      - claim_to_appliance
+    depends-on: claim_to_appliance
     spec:
       source:
         store: intersight-fullstack-repo
