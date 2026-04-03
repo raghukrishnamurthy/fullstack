@@ -2,22 +2,47 @@
 
 ## Purpose
 
-Define the customer-facing and automation-facing input contract for the Cisco infrastructure onboarding and solution-profile model.
+Define the current customer-facing and automation-facing input contract for Jarvis Intersight onboarding.
 
-This document provides the stable input structure used by customer input files, catalog launch flows, and downstream automation.
+This document describes:
+
+- the stable input wrappers used by blueprint launches and local YAML examples
+- the difference between broad orchestration inputs and narrow reusable-grain inputs
+- the current claim flow split across Intersight SaaS, appliance/PVA, and supporting grains
+
+## Current Architecture
+
+The implementation now has two layers of contract:
+
+- broad orchestration inputs
+  Used by the top-level Intersight model grain. Inventory-first and solution-aware.
+- narrow reusable-grain inputs
+  Used by standalone grains such as context creation, claim, reset, and result normalization.
+
+### Grain Map
+
+| Grain | Purpose | Input Style |
+| --- | --- | --- |
+| `resolve-intersight-deployment-model` | Normalize deployment, platform, placement, site, inventory, solution, baseline, and readiness | Broad wrapped model inputs |
+| `render-intersight-deployment-summary` | Render summary artifacts from the resolved model | Broad model outputs |
+| `ensure-intersight-context` | Ensure the requested Intersight organization exists | Narrow direct inputs |
+| `claim-to-saas` | Claim one or more targets into Intersight SaaS | Narrow direct inputs |
+| `claim-to-appliance` | Claim one or more targets into appliance/PVA | Narrow direct inputs |
+| `normalize-claim-results` | Merge backend-specific claim results into one output | Narrow result inputs |
+| `reset-rack-password` | Reset IMC rack password from manufacturing to desired state | Narrow endpoint-reset inputs |
 
 ## Input Design Principles
 
 - keep physical facts separate from higher-level intent
 - keep platform-management endpoints separate from infrastructure inventory
-- keep solution role assignment separate from device classification
-- keep delivery scope separate from both inventory facts and solution profile
 - keep customer-facing launch inputs simpler than automation execution inputs
-- use stable file and wrapper conventions across the model
+- use stable file and wrapper conventions for broad orchestration inputs
+- prefer narrow noun-based contracts for reusable grains
+- avoid action-opinion-based names like `prepared_*` or `ready_*` in reusable grain interfaces
 
 ## Input File Wrapper Convention
 
-Each input file should use a single top-level wrapper key matching the domain name of the file.
+Each broad input file uses a single top-level wrapper key matching its domain name.
 
 Examples:
 
@@ -26,9 +51,7 @@ Examples:
 - `placement.yaml` -> `placement:`
 - `inventory.yaml` -> `inventory:`
 - `solution.yaml` -> `solution:`
-- `pools.yaml` -> `pools:`
 - `overrides.yaml` -> `overrides:`
-- `references.yaml` -> `references:`
 
 ### Example Wrappers
 
@@ -62,254 +85,145 @@ inventory:
 ```yaml
 solution:
   profile: secure_ai_factory
-  extension: openshift
-  delivery_scope: platform_provisioning
+  delivery_scope: onboarding
 ```
 
-## Customer Input Domains
+## Broad Orchestration Input Domains
 
-Customer-provided data should be organized into these domains:
+The current top-level model grain accepts these broad wrapped inputs:
 
-- `deployment`
-- `platform`
-- `placement`
-- `inventory`
-- `pools`
-- `solution`
-- `overrides`
-- `references`
+- `deployment_yaml`
+- `platform_yaml`
+- `placement_yaml`
+- `site_yaml`
+- `inventory_yaml`
+- `solution_yaml`
+- `credential_candidates_yaml`
+- `overrides_yaml`
+- `baseline_input_source`
+- `baseline_directory`
+- `validation_mode`
+- `execution_intent`
 
-### Deployment Domain
+These are primarily consumed by:
 
-Defines the execution boundary.
+- `resolve-intersight-deployment-model`
 
-Typical fields:
+### Domain Summary
 
-- deployment ID
-- site
-- environment
-- optional customer or tenant metadata
+| Domain | Purpose | Typical Fields |
+| --- | --- | --- |
+| `deployment` | Define deployment boundary | `id`, `site`, `environment` |
+| `platform` | Define management-plane and control-plane context | endpoint, API credential refs, assists, validate-certs |
+| `placement` | Define where inventory lands inside Intersight | organization, resource group, reuse policy |
+| `site` | Define site-scoped operational defaults | location, DNS, NTP, proxy |
+| `inventory` | Define physical infrastructure facts | device ID, serial, category, mgmt IP, domains |
+| `solution` | Define intended deployment profile and scope | profile, extension, goal, delivery scope |
+| `credential_candidates` | Define candidate endpoint credentials | role, target category, narrowing, username, password ref |
+| `overrides` / baseline inputs | Define customer-specific deltas | baseline source, directory, overrides YAML |
 
-### Platform Domain
+### Credential Candidate Roles Used Today
 
-Defines management-plane and control-plane context.
+- `target`
+- `manufacturing`
 
-Typical fields:
+### Baseline Precedence
 
-- Intersight endpoint
-- credential references
-- Assist context
-- SaaS or PVA control-plane behavior
+1. built-in baseline
+2. customer baseline
+3. overrides
 
-### Placement Domain
+## Reusable Grain Inputs
 
-Defines where discovered or declared inventory should land inside Intersight.
+Reusable grains should not depend on the whole broad model unless necessary.
 
-Typical fields:
+### Shared Context Grain
 
-- organization
-- resource group
-- reuse behavior for existing organization or resource group
-- optional naming controls
+`ensure-intersight-context` currently takes:
 
-### Inventory Domain
+- `platform_yaml`
+- optional `organization`
+- optional `placement_yaml`
 
-Defines physical infrastructure facts.
+Behavior:
 
-Typical fields:
+- use direct `organization` when provided
+- otherwise fall back to `placement.intersight.organization`
+- ensure the organization exists in the active Intersight backend
 
-- device ID
-- serial number
-- category
-- management IP
-- peer relationships
-- parent relationships
-- hardware attributes
+### Shared Claim Target Contract
 
-### Pools Domain
+Current reusable claim grains use a single input name:
 
-Defines reusable allocatable resource references.
+- `claim_targets_json`
 
-Typical fields:
+This is a JSON string containing the target list for the active claim backend.
 
-- IP pool references
-- MAC pool references
-- UUID pool references
-- WWPN pool references
-- other resource pools when required
+The blueprint exposes only one `claim_targets_json` input.
 
-### Solution Domain
+Backend selection is derived from the Intersight endpoint in `platform_yaml`:
 
-Defines the intended integrated deployment profile and optional higher-layer additions.
+- SaaS endpoint -> `claim-to-saas`
+- appliance/PVA endpoint -> `claim-to-appliance`
 
-Typical fields:
+The inactive backend grain receives `[]`.
 
-- solution profile
-- extension
-- goal
-- server assignments
-- delivery scope
-- optional solution-specific parameters
+### Reusable Grain Input Summary
 
-### Overrides Domain
+| Grain | Required Inputs | Optional Inputs |
+| --- | --- | --- |
+| `ensure-intersight-context` | `platform_yaml` | `organization`, `placement_yaml` |
+| `claim-to-saas` | `claim_targets_json`, `platform_yaml` | `deployment_yaml`, `organization`, `placement_yaml`, `credential_candidates_yaml`, `desired_credentials_json` |
+| `claim-to-appliance` | `claim_targets_json`, `platform_yaml` | `deployment_yaml`, `organization`, `placement_yaml` |
+| `normalize-claim-results` | `appliance_claim_results_json`, `saas_claim_results_json` | none |
+| `reset-rack-password` | inventory-style rack and credential inputs | implementation-specific validation knobs |
 
-Defines explicit customer exceptions.
+### Claim-to-SaaS Rules
 
-### References Domain
+- endpoint claim readiness is refreshed inline during claim
+- cached claim tokens should not be treated as durable execution inputs
+- organization comes from direct input first, placement second
 
-Defines pointers to customer-managed or externally hosted values.
+### Claim-to-Appliance Rules
 
-## Deployment Input Contract
+- submission goes to `/appliance/DeviceClaims`
+- workflow and `DeviceClaims` follow-up happens in one aggregate pass after all submissions
 
-The deployment contract defines the deployment scope without encoding infrastructure classification, solution profile, extension, or delivery behavior.
+### Reset-Rack-Password Rules
 
-### Required Fields
+`reset-rack-password` remains separate from the main claim flow.
 
-- `deployment.id`
-- `deployment.site`
-- `deployment.environment`
+It is responsible for:
 
-### Optional Fields
+- selecting IMC rack targets
+- attempting manufacturing credential login
+- resetting to the desired credential when required
+- verifying the desired credential
 
-- `deployment.name`
-- `deployment.customer`
-- `deployment.tenant`
-- `deployment.description`
-- `deployment.tags`
+It should be treated as a separate lifecycle step before prepare-and-claim, not as part of the main claim grain.
 
-### Example
-
-```yaml
-deployment:
-  id: sjc01-ai-prod
-  site: sjc01
-  environment: production
-```
-
-## Platform Input Contract
-
-The platform contract defines the management-plane and control-plane context used to validate, claim, onboard, and manage the deployment.
-
-### Typical Sections
-
-- `platform.intersight`
-- `platform.intersight.credentials`
-- `platform.intersight.assists`
-- `platform.settings`
-
-### Example
-
-```yaml
-platform:
-  intersight:
-    endpoint: https://intersight.com/api/v1
-
-    credentials:
-      api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-      api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-
-    assists:
-      - id: assist-01
-        enabled: true
-        endpoint: https://assist-01.example.com
-```
-
-### Platform Rules
+## Platform Rules
 
 - keep platform context separate from inventory
-- keep Assist helpers under `platform.intersight.assists`
 - use references for credentials where possible
-- derive SaaS versus PVA behavior from the Intersight endpoint unless an override is required
+- derive SaaS versus appliance behavior from the Intersight endpoint
+- PVA/appliance endpoints normalize internally to `/api/v1` when needed
+- sandbox appliance testing may keep `validate_certs: false` hidden from customer-facing blueprint inputs
 
-## Placement Input Contract
+## Placement Rules
 
-The placement contract defines where onboarding places discovered or declared inventory inside Intersight.
+- `organization` is the main placement primitive currently used by reusable claim and context grains
+- `resource_group` remains placement-specific and optional
+- if `resource_group` is omitted, automation may use `organization`
+- placement remains useful at orchestration level even when reusable grains take direct `organization`
 
-### Typical Sections
-
-- `placement.intersight.organization`
-- `placement.intersight.resource_group`
-- `placement.intersight.policy`
-- `placement.intersight.naming`
-
-### Example
-
-```yaml
-placement:
-  intersight:
-    organization: ai-prod
-
-    policy:
-      reuse_existing_organization: true
-      reuse_existing_resource_group: false
-```
-
-### Placement Rules
-
-- `organization` is required
-- `resource_group` is optional
-- if `resource_group` is omitted, automation should use `organization`
-- default behavior is create-if-not-present
-- reuse behavior should be controlled with explicit booleans
-- naming controls are optional
-
-## Inventory Input Contract
-
-The inventory contract defines the physical infrastructure facts for a deployment.
-
-It is the primary source of truth for device presence, identity, topology, and derived infrastructure classification.
-
-### Core Section
-
-- `inventory.devices`
-- `inventory.defaults`
-- `inventory.domains`
-
-### Example
-
-```yaml
-inventory:
-  defaults:
-    server_management_type: standalone
-
-  devices:
-    - id: fi-a
-      serial: FCH000001A1
-      category: fabric_interconnect
-      mgmt_ip: 192.168.10.11
-      peer: fi-b
-
-    - id: node-01
-      serial: FOX00000101
-      category: server
-      parent: fi-a
-      attributes:
-        form_factor: blade
-
-  domains:
-    - domain_id: domain-01
-      type: fi_pair
-      members:
-        - fi-a
-        - fi-b
-      summary:
-        chassis_count: 1
-        blade_count: 4
-```
-
-### Inventory Rules
+## Inventory Rules
 
 - keep inventory factual
 - keep categories broad and stable
 - keep solution meaning out of inventory
 - use attributes for specialization
-- use solution assignments for functional role
-- do not mix service endpoints into inventory
-- explicit child blade entries are optional when a domain summary is sufficient for early validation
-
-## Device Category Taxonomy
-
-Use a small set of top-level device categories.
+- do not mix management-plane platform data into inventory
 
 ### Allowed Categories
 
@@ -319,432 +233,128 @@ Use a small set of top-level device categories.
 - `ethernet_switch`
 - `san_switch`
 
-### Taxonomy Rules
+### Device Expectations
 
-- keep categories broad
-- use attributes for specialization
-- do not encode solution profile or workload role into category names
+- FI-managed blades may omit `mgmt_ip`
+- standalone rack servers should include `mgmt_ip`
+- FI pair domains should be declared in `inventory.domains`
+- for appliance claim purposes, a declared `fi_pair` is treated as one FI claim unit
 
-## Device Input Contract
+## Blueprint-Level Current Inputs
 
-Each device entry must represent a physical infrastructure fact.
+The current blueprint still supports the broad orchestration flow and the reusable claim flow side by side.
 
-A device entry must describe what the device is, not what role it plays in a specific solution.
+### Current Blueprint Inputs
 
-### Required Fields
+| Input | Purpose |
+| --- | --- |
+| `deployment_yaml` | Deployment boundary |
+| `platform_yaml` | Intersight backend and API context |
+| `placement_yaml` | Placement and organization defaults |
+| `site_yaml` | Site-scoped operational defaults |
+| `inventory_yaml` | Physical infrastructure facts |
+| `solution_yaml` | Solution profile and delivery scope |
+| `credential_candidates_yaml` | Endpoint credential candidates |
+| `organization` | Direct organization input for reusable context/claim grains |
+| `claim_targets_json` | Narrow target contract for the active claim backend |
+| `validation_mode` | Strict vs live validation |
+| `execution_intent` | Validate-only vs apply |
 
-Each device should include:
+## Current Output Shapes
 
-- `id`
-- `category`
+### Broad Model Outputs
 
-Each device should also include at least one usable identity field such as:
+Produced by `resolve-intersight-deployment-model`:
 
-- `serial`
-- `mgmt_ip`
+- `discovery_model_json`
+- `discovery_summary_json`
 
-### Optional Fields
+Produced by `render-intersight-deployment-summary`:
 
-- `serial`
-- `mgmt_ip`
-- `peer`
-- `parent`
-- `location`
-- `attributes`
+- `discovery_report_json`
+- `discovery_summary_markdown`
 
-### Common Attribute Examples
+### Context and Claim Outputs
 
-- `form_factor`
-- `management_type`
-- `accelerator_profile`
-- `vendor`
-- `model`
-- `rack_location`
+Produced by `ensure-intersight-context`:
 
-### Example
+- `context_result_json`
 
-```yaml
-inventory:
-  devices:
-    - id: gpu-01
-      serial: GPU123
-      category: server
-      mgmt_ip: 192.168.10.21
-      attributes:
-        form_factor: rack
-        accelerator_profile: gpu
-        vendor: cisco
-        model: ucs-c480
-```
+Produced by `claim-to-appliance`:
 
-### Category-Specific Expectations
+- `results_json`
+- backend-specific counts and `batch_status`
 
-- FI-managed blades may be represented with serials and `management_type: fi_managed` and do not require `mgmt_ip`
-- standalone or IMM-managed rack servers should include `mgmt_ip`
-- `parent` is optional and may be discovered later
+Produced by `claim-to-saas`:
 
-## Inventory Domain Contract
+- `results_json`
+- backend-specific counts and `batch_status`
 
-Inventory domains describe declared infrastructure groupings used for validation, discovery scoping, and later naming.
+Produced by `normalize-claim-results`:
 
-### Example
+- `normalized_claim_results_json`
+- normalized summary counts and batch status
 
-```yaml
-inventory:
-  domains:
-    - domain_id: domain-01
-      type: fi_pair
-      members:
-        - fi-a
-        - fi-b
-      summary:
-        chassis_count: 1
-        blade_count: 4
-```
+## Current Flow Summary
 
-### Domain Rules
+The current practical flow is:
 
-- `domain_id` should be stable and unique within the deployment
-- `type` describes the declared grouping, such as `fi_pair`
-- `members` references device IDs from `inventory.devices`
-- `summary` is optional and may describe declared contents such as chassis or blade counts
-- domains support early validation even when some managed child devices are discovered later
+1. resolve Intersight deployment model
+2. render deployment/discovery summary
+3. ensure Intersight organization context
+4. run exactly one claim backend
+   - SaaS or appliance/PVA
+5. normalize claim results
 
-## Pools Input Contract
+Rack password reset remains intentionally separate and should run before claim when factory-default rack credentials are still present.
 
-The pools contract defines reusable allocatable resource references used by provisioning and policy workflows.
+## Naming Conventions
 
-Pools should be organized by pool type and then by usage name.
+### Grain Folder Names
 
-### Example
+Use `kebab-case`.
 
-```yaml
-pools:
-  ip:
-    mgmt: ip-pool-sjc01-mgmt
-    os: ip-pool-sjc01-os
-    storage: ip-pool-sjc01-storage
-
-  mac:
-    default: mac-pool-sjc01
-
-  uuid:
-    default: uuid-pool-sjc01
+Examples:
 
-  wwpn:
-    default: wwpn-pool-sjc01
-```
+- `resolve-intersight-deployment-model`
+- `render-intersight-deployment-summary`
+- `ensure-intersight-context`
+- `claim-to-saas`
+- `claim-to-appliance`
+- `normalize-claim-results`
+- `reset-rack-password`
 
-### Pools Rules
-
-- organize pools by type first
-- use named usage keys within each pool family
-- support multiple pools within the same family
-- keep pool references independent from specific solution logic
+### Blueprint Grain IDs
 
-## Solution Input Contract
+Use `snake_case`.
 
-The solution contract describes the intended base deployment profile, optional extension, delivery scope, and device-role assignments.
+Examples:
 
-The current model uses a single `solution:` object.
+- `resolve_intersight_deployment_model`
+- `render_intersight_deployment_summary`
+- `ensure_intersight_context`
+- `claim_to_saas`
+- `claim_to_appliance`
+- `normalize_claim_results`
 
-### Core Fields
+### Contract Naming
 
-- `solution.profile`
-- `solution.extension`
-- `solution.goal`
-- `solution.delivery_scope`
-- `solution.server_assignments`
-- `solution.parameters`
+Prefer noun-based, reusable names.
 
-### Example
+Examples:
 
-```yaml
-solution:
-  profile: secure_ai_factory
-  extension: openshift
-  goal: gpu_platform_deployment
-  delivery_scope: platform_provisioning
-  server_assignments:
-    - role: control_plane
-      members:
-        - node-01
-        - node-02
-        - node-03
-    - role: worker
-      usage_type: gpu
-      members:
-        - gpu-node-01
-        - gpu-node-02
-```
+- `claim_targets_json`
+- `results_json`
+- `normalized_claim_results_json`
 
-### Solution Rules
+Avoid older action-biased names in reusable grain contracts such as:
 
-- use a single `solution:` object
-- use a single `solution.extension`
-- use `solution.parameters` for profile-specific variants
-- keep `solution.goal` optional
-- keep solution meaning out of inventory
+- `prepared_targets_json`
+- `ready_targets_json`
 
-## Solution-Side Server Assignment Contract
+## Notes
 
-Server role is defined in the solution layer, not in the inventory device entry.
-
-### Assignment Fields
-
-Each assignment entry may include:
-
-- `role`
-- `members`
-- `usage_type`
-- `policy_profile`
-- `notes`
-
-### Validation Rules
-
-The automation system should validate that:
-
-- each assignment member exists in inventory
-- the role is valid for the selected solution profile
-- conflicting role assignments are rejected unless explicitly allowed
-
-### Example
-
-```yaml
-solution:
-  profile: vast_data
-  delivery_scope: os_provisioning
-  server_assignments:
-    - role: storage
-      members:
-        - vast-node-01
-        - vast-node-02
-        - vast-node-03
-        - vast-node-04
-        - vast-node-05
-```
-
-## References Input Rule
-
-References should normally remain embedded in the domain that owns them.
-
-Use `references.yaml` only for shared or externalized references that do not naturally belong to a single domain.
-
-### Preferred Rule
-
-- keep platform credential references in `platform.credentials`
-- keep pool references in `pools`
-- keep inventory-specific external references near inventory
-- use `references.yaml` only for cross-domain or external shared references
-
-### Example
-
-```yaml
-references:
-  inventory_bundle: s3://customer-a/site1/deployment1/
-  shared_vault_namespace: vault://customer-a/prod/
-```
-
-## Overrides Input Rule
-
-Overrides should normally remain embedded in the domain that owns them.
-
-Use `overrides.yaml` only for explicit deployment-level exceptions.
-
-### Preferred Rule
-
-- keep domain-local overrides in their owning domain
-- use `overrides.yaml` only for true exceptions to normal baseline or catalog-driven behavior
-
-### Example
-
-```yaml
-overrides:
-  port_layout:
-    fi-a:
-      "1/1": uplink
-      "1/2": storage
-  validation:
-    skip_reachability_check: true
-```
-
-## Baseline Resolution Model
-
-The automation model should support both built-in baselines and customer-supplied baseline layers.
-
-This is important because the same data model may be used through a curated Torque catalog flow or directly as an Ansible-driven workflow.
-
-### Built-In Baselines
-
-The default path should use automation-owned baselines selected from the built-in `baselines/` and `catalog/` content.
-
-These baselines are selected based on:
-
-- inventory
-- platform context
-- placement behavior
-- solution profile
-- delivery scope
-
-### Customer Baseline Layer
-
-An optional customer baseline layer may be provided on top of the built-in baseline selection.
-
-This layer is intended for advanced customers or direct Ansible use cases where baseline customization is required beyond narrow overrides.
-
-Examples include:
-
-- a local baseline directory when running directly with Ansible
-- an HTTPS input-source when running through Torque
-
-### Overrides Layer
-
-`overrides.yaml` remains the narrow exception layer on top of the selected baselines.
-
-This layer should be used for small explicit deltas, not broad baseline replacement.
-
-### Resolution Order
-
-The recommended precedence order is:
-
-1. deployment-specific overrides
-2. customer baseline source
-3. selected built-in baseline
-4. automation defaults
-
-### Torque Path
-
-In Torque or catalog-driven workflows:
-
-- the selected solution profile typically chooses the built-in baseline
-- a customer baseline source may be provided as an input-source, for example over HTTPS
-- narrow customer exceptions may still be applied with overrides
-
-### Direct Ansible Path
-
-In direct Ansible workflows:
-
-- built-in baselines remain the default
-- advanced users may provide a local customer baseline directory
-- narrow overrides may still be applied on top
-
-### Design Rules
-
-- keep built-in baselines automation-owned
-- treat customer baseline layers as optional advanced inputs
-- treat `overrides.yaml` as the lightweight and preferred customization path
-- do not require customers to edit the built-in baseline tree directly
-- preserve the same logical resolution model across Torque and direct Ansible execution
-
-## Minimum Required Fields by Workflow Stage
-
-Different workflow stages require different minimum inputs.
-
-The automation system should validate only the fields required for the requested workflow path and delivery scope.
-
-### Stage 1: Inventory Classification
-
-Minimum required inputs:
-
-- `deployment.id`
-- `deployment.site`
-- `deployment.environment`
-
-For each device:
-
-- `id`
-- `category`
-- at least one of:
-  - `serial`
-  - `mgmt_ip`
-
-### Stage 2: Onboarding and Discovery
-
-Minimum required inputs:
-
-- deployment scope fields
-- device identity sufficient for the onboarding method
-- platform context required by the onboarding workflow
-- required Assist or equivalent platform helpers
-- required credential references
-
-### Stage 3: Infrastructure Provisioning
-
-Minimum required inputs:
-
-- deployment scope fields
-- required topology relationships
-- required platform context
-- solution profile when policy selection depends on it
-- required pool references
-
-### Stage 4: OS Provisioning
-
-Minimum required inputs:
-
-- deployment scope fields
-- inventory with required server identity
-- platform context
-- `solution.profile`
-- `solution.delivery_scope`
-- `solution.server_assignments`
-
-### Stage 5: Platform or Application Provisioning
-
-Minimum required inputs:
-
-- deployment scope fields
-- inventory
-- platform context
-- `solution.profile`
-- `solution.extension` when applicable
-- `solution.delivery_scope`
-- `solution.server_assignments`
-- extension-specific parameters when required
-
-## Inventory Input Modes
-
-The model should support more than one inventory input mode.
-
-### Declared Inventory Mode
-
-Customer or ordering systems provide explicit inventory input.
-
-This mode is best when strong early validation matters.
-
-### Scan Inventory Mode
-
-Customer provides discovery targets and automation builds the effective inventory.
-
-This mode is best when the customer does not want to enumerate systems manually.
-
-Both modes should normalize into the same effective inventory structure before solution-profile validation proceeds.
-
-## Scan Input Contract
-
-The scan input contract defines discovery targets used to build inventory when the customer does not want to provide a fully declared inventory file.
-
-### Example
-
-```yaml
-scan:
-  targets:
-    - type: single
-      endpoint: 10.29.135.101
-      management_type_hint: fi
-
-    - type: single
-      endpoint: 10.29.135.102
-      management_type_hint: fi
-
-    - type: range
-      start_ip: 10.29.135.106
-      end_ip: 10.29.135.109
-      management_type_hint: standalone
-```
-
-### Scan Rules
-
-- scan mode is an alternative input path, not a different architecture
-- scan results must normalize into the common inventory model
-- scan input should stay discovery-focused and should not include solution semantics
+- the current implementation is intentionally Intersight-specific
+- backend-specific claim behavior lives in separate grains
+- broad orchestration and narrow reusable-grain contracts now coexist by design
+- documentation should prefer the current grain split over the earlier monolithic claim model
