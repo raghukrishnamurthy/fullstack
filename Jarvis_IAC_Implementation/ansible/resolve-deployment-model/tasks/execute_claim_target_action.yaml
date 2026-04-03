@@ -67,6 +67,60 @@
           | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
           | list
         }}
+      selected_manufacturing_credential: >-
+        {{
+          (
+            normalized_credential_candidates
+            | default([])
+            | selectattr('credential_role', 'defined')
+            | selectattr('credential_role', 'equalto', 'manufacturing')
+            | selectattr('target_category', 'defined')
+            | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+            | selectattr('target_form_factor', 'defined')
+            | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+            | selectattr('target_management_type', 'defined')
+            | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+            | list
+            | first
+          )
+          | default({}, true)
+        }}
+      selected_target_credential: >-
+        {{
+          (
+            normalized_credential_candidates
+            | default([])
+            | selectattr('credential_role', 'defined')
+            | selectattr('credential_role', 'equalto', 'target')
+            | selectattr('target_category', 'defined')
+            | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+            | selectattr('target_form_factor', 'defined')
+            | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+            | selectattr('target_management_type', 'defined')
+            | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+            | list
+            | first
+          )
+          | default({}, true)
+        }}
+      preclaim_workflow: >-
+        {{
+          'rack_password_normalization_then_claim'
+          if (
+            (claim_action_item.target_category | default('')) == 'server'
+            and (claim_action_item.form_factor | default('')) == 'rack'
+            and (claim_action_item.management_type | default('')) == 'standalone'
+          )
+          else 'direct_claim_preparation'
+        }}
+      password_normalization_required: >-
+        {{
+          (
+            (claim_action_item.target_category | default('')) == 'server'
+            and (claim_action_item.form_factor | default('')) == 'rack'
+            and (claim_action_item.management_type | default('')) == 'standalone'
+          )
+        }}
       prepared_targets:
         - target_id: "{{ claim_action_item.target_id | default('') }}"
           target_category: "{{ claim_action_item.target_category | default('unknown') }}"

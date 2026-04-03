@@ -36,6 +36,10 @@ Files:
   Safe local runner for the example inputs in strict non-mutating mode
 - `scripts/run_example_strict_checked.sh`
   Safe local runner plus lightweight assertions for expected strict-mode outputs
+- `scripts/run_example_live.sh`
+  Local runner for live Intersight validation mode using the same example input set
+- `scripts/run_example_live_checked.sh`
+  Live-mode runner plus lightweight assertions for expected live-validation outputs
 
 Local test path:
 
@@ -44,6 +48,11 @@ Local test path:
   in `validation_mode=strict` and `execution_intent=validate_only`
 - `./scripts/run_example_strict_checked.sh`
   executes the same path and verifies a few expected JSON output values for the AI Pod example
+- `./scripts/run_example_live.sh`
+  executes the example input set in `validation_mode=live`; requires the referenced env-based Intersight credentials
+- `./scripts/run_example_live_checked.sh`
+  executes the live path and verifies a few expected live-validation output values
+  both live scripts fail fast when `INTERSIGHT_API_KEY_ID` or `INTERSIGHT_API_PRIVATE_KEY` are not present
 
 Assumptions:
 
