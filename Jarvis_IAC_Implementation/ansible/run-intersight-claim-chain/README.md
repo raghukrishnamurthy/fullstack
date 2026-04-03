@@ -32,3 +32,10 @@ Thin direct-Ansible orchestration playbook for the reusable Intersight claim gra
 - routes to SaaS when the platform endpoint contains `intersight.com`
 - routes to appliance otherwise
 - normalizes results into the same final contract the blueprint uses
+
+## Examples
+
+- orchestration target example for SaaS:
+  [claim_targets.json](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/examples/ai-pod-sjc01-prod/claim_targets.json)
+- orchestration target example for appliance:
+  [claim_targets.json](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/examples/ai-pod-pva-sjc01-prod/claim_targets.json)

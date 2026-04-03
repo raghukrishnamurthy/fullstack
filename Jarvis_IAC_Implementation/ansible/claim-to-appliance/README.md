@@ -57,3 +57,8 @@ Standalone Jarvis grain for claiming claim-target contexts into an Intersight ap
 - `skipped_targets`
 - `changed_targets`
 - `results_json`
+
+## Example
+
+- standalone target example:
+  [standalone_appliance_claim_targets.json](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/examples/ai-pod-pva-sjc01-prod/standalone_appliance_claim_targets.json)

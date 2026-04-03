@@ -54,3 +54,8 @@ Standalone Jarvis grain for claiming target contexts into Intersight SaaS.
 - `skipped_targets`
 - `changed_targets`
 - `results_json`
+
+## Example
+
+- standalone target example:
+  [standalone_saas_claim_targets.json](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/examples/ai-pod-sjc01-prod/standalone_saas_claim_targets.json)
