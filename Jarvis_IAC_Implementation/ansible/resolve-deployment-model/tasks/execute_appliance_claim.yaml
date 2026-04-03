@@ -172,6 +172,156 @@
     - action
     - claim
 
+- name: Wait briefly for appliance workflow visibility
+  ansible.builtin.pause:
+    seconds: 5
+  when:
+    - pva_claim_execution_result is defined
+    - (pva_claim_execution_result.status | default('')) == 'submitted'
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
+- name: Query appliance workflow records for submitted claim
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ normalized_intersight_endpoint }}"
+    validate_certs: "{{ intersight_validate_certs | default(false) | bool }}"
+    resource_path: /workflow/WorkflowInfos
+    query_params:
+      $filter: >-
+        Name eq 'Device registration request'
+        and WorkflowCtx/InitiatorCtx/InitiatorName eq '{{ claim_target_payload.endpoint }}'
+      $top: 5
+    return_list: true
+  register: pva_claim_workflow_lookup
+  failed_when: false
+  no_log: true
+  when:
+    - pva_claim_execution_result is defined
+    - (pva_claim_execution_result.status | default('')) == 'submitted'
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
+- name: Query appliance DeviceClaims records for submitted claim
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ normalized_intersight_endpoint }}"
+    validate_certs: "{{ intersight_validate_certs | default(false) | bool }}"
+    resource_path: /appliance/DeviceClaims
+    query_params:
+      $filter: "Hostname eq '{{ claim_target_payload.endpoint }}'"
+      $orderby: CreateTime desc
+      $top: 5
+    return_list: true
+  register: pva_claim_device_claim_lookup
+  failed_when: false
+  no_log: true
+  when:
+    - pva_claim_execution_result is defined
+    - (pva_claim_execution_result.status | default('')) == 'submitted'
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
+- name: Build workflow and device-claim summaries
+  ansible.builtin.set_fact:
+    pva_claim_workflow_results: "{{ pva_claim_workflow_lookup.api_response | default([]) }}"
+    pva_claim_device_claim_results: "{{ pva_claim_device_claim_lookup.api_response | default([]) }}"
+    pva_claim_latest_workflow: >-
+      {{
+        (
+          (pva_claim_workflow_lookup.api_response | default([]))
+          | sort(attribute='CreateTime', reverse=true)
+          | first
+        ) | default({})
+      }}
+    pva_claim_latest_device_claim: >-
+      {{
+        (
+          (pva_claim_device_claim_lookup.api_response | default([]))
+          | sort(attribute='CreateTime', reverse=true)
+          | first
+        ) | default({})
+      }}
+  when:
+    - pva_claim_execution_result is defined
+    - (pva_claim_execution_result.status | default('')) == 'submitted'
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
+- name: Enrich normalized appliance claim execution result with workflow state
+  ansible.builtin.set_fact:
+    pva_claim_execution_result: >-
+      {{
+        pva_claim_execution_result
+        | combine(
+            {
+              'status': enriched_claim_status,
+              'reason': enriched_claim_reason,
+              'payload': (
+                pva_claim_execution_result.payload
+                | combine(
+                    {
+                      'workflow_found': ((pva_claim_workflow_results | default([])) | length) > 0,
+                      'workflow_count': (pva_claim_workflow_results | default([]) | length),
+                      'latest_workflow_status': (pva_claim_latest_workflow.Status | default('')),
+                      'latest_workflow_moid': (pva_claim_latest_workflow.Moid | default('')),
+                      'latest_workflow_name': (pva_claim_latest_workflow.Name | default('')),
+                      'latest_workflow_progress': (pva_claim_latest_workflow.Progress | default(0)),
+                      'device_claim_found': ((pva_claim_device_claim_results | default([])) | length) > 0,
+                      'device_claim_count': (pva_claim_device_claim_results | default([]) | length),
+                      'latest_device_claim_status': (pva_claim_latest_device_claim.Status | default('')),
+                      'latest_device_claim_moid': (pva_claim_latest_device_claim.Moid | default('')),
+                      'latest_device_claim_message': (pva_claim_latest_device_claim.Message | default(''))
+                    },
+                    recursive=True
+                  )
+              )
+            },
+            recursive=True
+          )
+      }}
+  vars:
+    latest_workflow_status: "{{ pva_claim_latest_workflow.Status | default('') | string | upper }}"
+    latest_device_claim_status: "{{ pva_claim_latest_device_claim.Status | default('') | string | lower }}"
+    enriched_claim_status: >-
+      {%- if latest_device_claim_status in ['failed', 'error'] -%}
+      failed
+      {%- elif latest_workflow_status in ['FAILED', 'FAILURE', 'ERROR', 'CANCELED', 'CANCELLED'] -%}
+      failed
+      {%- else -%}
+      {{ pva_claim_execution_result.status }}
+      {%- endif -%}
+    enriched_claim_reason: >-
+      {%- if latest_device_claim_status in ['failed', 'error'] -%}
+      device_claim_failed
+      {%- elif latest_workflow_status in ['FAILED', 'FAILURE', 'ERROR', 'CANCELED', 'CANCELLED'] -%}
+      workflow_failed
+      {%- else -%}
+      {{ pva_claim_execution_result.reason }}
+      {%- endif -%}
+  when:
+    - pva_claim_execution_result is defined
+    - (pva_claim_execution_result.status | default('')) == 'submitted'
+  tags:
+    - onboarding
+    - action
+    - claim
+    - verify
+
 - name: Build skipped appliance claim execution result
   ansible.builtin.set_fact:
     pva_claim_execution_result:

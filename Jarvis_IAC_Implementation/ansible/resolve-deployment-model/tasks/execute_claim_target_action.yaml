@@ -237,6 +237,8 @@
         {{
           pva_claim_execution_result.status
           if ((pva_claim_execution_result.status | default('not_applicable')) != 'not_applicable')
+          else connector_prepare_execution_result.status
+          if ((connector_prepare_execution_result.status | default('not_applicable')) != 'not_applicable')
           else
           'preclaim_ready_not_implemented'
           if (
@@ -254,6 +256,8 @@
         {{
           pva_claim_execution_result.reason
           if ((pva_claim_execution_result.status | default('not_applicable')) != 'not_applicable')
+          else connector_prepare_execution_result.reason
+          if ((connector_prepare_execution_result.status | default('not_applicable')) != 'not_applicable')
           else
           'Standalone rack target has the required manufacturing and target credentials for password normalization, but the reset workflow is not wired yet.'
           if (
