@@ -1,10 +1,10 @@
 # reset-rack-password
 
-Inventory-first standalone rack password reset grain.
+Standalone rack password reset grain.
 
 ## Intent
 
-- consume the same wrapped inventory and credential inputs used elsewhere in Jarvis
+- consume a simple JSON target list plus credential inputs
 - identify standalone rack targets
 - perform manufacturing-to-desired password transition for IMC rack devices when required
 - emit stable outputs that a later `prepare-endpoints` grain can consume
@@ -18,7 +18,7 @@ Inventory-first standalone rack password reset grain.
 
 ## Required inputs
 
-- `inventory_yaml`
+- `targets_json`
 - `credential_candidates_yaml`
 
 ## Optional inputs
@@ -34,6 +34,12 @@ Inventory-first standalone rack password reset grain.
 - `password_reset_pending_targets_json`
 
 These outputs are exported to Torque with `torque.collections.export_torque_outputs`.
+
+When `targets_json` is used, each target should supply:
+
+- `id` or `target_id`
+- `endpoint` or `mgmt_ip`
+- optionally `serial`
 
 Common per-target reset reasons include:
 
@@ -57,4 +63,4 @@ Common per-target reset reasons include:
 - this grain is intentionally separate from `resolve-intersight-deployment-model`
 - the main PVA prepare-and-claim flow now assumes standalone rack devices already use the desired credential
 - use this grain first when rack devices may still be at factory/default password
-- the focused `reset-rack-password.yaml` blueprint wraps this grain with direct manufacturing and target credential inputs and builds the internal `credential_candidates_yaml` on behalf of the grain
+- the focused `reset-rack-password.yaml` blueprint wraps this grain with direct manufacturing and target credential inputs and passes `targets_json` directly

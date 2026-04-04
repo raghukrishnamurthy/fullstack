@@ -7,9 +7,7 @@
   vars:
     deployment_root: "{{ (deployment_yaml | from_yaml) if (deployment_yaml | default('') | string | trim | length > 0) else {} }}"
     deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
-    inventory_root: "{{ (inventory_yaml | from_yaml) if (inventory_yaml | default('') | string | trim | length > 0) else {} }}"
-    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
-    inventory_devices: "{{ inventory_data.devices | default([]) }}"
+    reset_targets_data: "{{ (targets_json | from_json) if (targets_json | default('') | string | trim | length > 0) else [] }}"
     credential_candidates_root: "{{ (credential_candidates_yaml | from_yaml) if (credential_candidates_yaml | default('') | string | trim | length > 0) else {} }}"
     credential_candidates_data: >-
       {{
@@ -22,17 +20,36 @@
     - name: Validate reset-rack-password contract
       ansible.builtin.assert:
         that:
-          - inventory_yaml is defined
-          - inventory_yaml | string | trim | length > 0
+          - targets_json is defined
+          - targets_json | string | trim | length > 0
           - credential_candidates_yaml is defined
           - credential_candidates_yaml | string | trim | length > 0
-          - inventory_devices is sequence
+          - reset_targets_data is sequence
           - normalized_credential_candidates is sequence
-        fail_msg: "reset-rack-password requires inventory_yaml and credential_candidates_yaml with a valid credential_candidates list"
+        fail_msg: "reset-rack-password requires targets_json plus credential_candidates_yaml with a valid credential_candidates list"
       tags:
         - always
         - validate
         - precheck
+
+    - name: Build effective reset candidate list from targets_json
+      ansible.builtin.set_fact:
+        effective_reset_targets: "{{ (effective_reset_targets | default([])) + [normalized_target] }}"
+      vars:
+        normalized_target:
+          id: "{{ item.id | default(item.target_id | default(item.endpoint | default('rack-target'))) }}"
+          serial: "{{ item.serial | default('') }}"
+          category: server
+          mgmt_ip: "{{ item.mgmt_ip | default(item.endpoint | default('')) }}"
+          attributes:
+            form_factor: rack
+            management_type: standalone
+      loop: "{{ reset_targets_data }}"
+      loop_control:
+        label: "{{ item.id | default(item.target_id | default(item.endpoint | default('rack-target'))) }}"
+      tags:
+        - always
+        - normalize
 
     - name: Initialize rack password reset outputs
       ansible.builtin.set_fact:
@@ -49,7 +66,7 @@
         rack_reset_candidate: "{{ item }}"
       loop: >-
         {{
-          inventory_devices
+          effective_reset_targets
           | selectattr('category', 'equalto', 'server')
           | selectattr('attributes.form_factor', 'defined')
           | selectattr('attributes.form_factor', 'equalto', 'rack')

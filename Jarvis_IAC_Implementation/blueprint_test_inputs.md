@@ -185,18 +185,16 @@ admin
 
 Use this for the focused rack password reset blueprint with standalone rack inventory entries.
 
-### `inventory_yaml`
+### `targets_json`
 
-```yaml
-inventory:
-  devices:
-    - id: rack-server-01
-      serial: WZP270500PQ
-      category: server
-      mgmt_ip: 10.29.135.106
-      attributes:
-        form_factor: rack
-        management_type: standalone
+```json
+[
+  {
+    "id": "rack-server-01",
+    "serial": "WZP270500PQ",
+    "endpoint": "10.29.135.106"
+  }
+]
 ```
 
 ### `manufacturing_username`
@@ -227,4 +225,4 @@ admin
 
 - The focused reset blueprint does not expose `credential_candidates_yaml`; it builds the internal candidate list from direct manufacturing and target credential inputs.
 - The focused reset blueprint does not expose `deployment_yaml`.
-- The reset grain currently expects rack inventory in the same wrapped `inventory.devices` shape used elsewhere in this repo.
+- The public reset blueprint now accepts `targets_json` instead of wrapped inventory YAML.

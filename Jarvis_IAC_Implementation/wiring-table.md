@@ -62,7 +62,7 @@ Blueprint file:
 | Form Key | Grain | Automation Variable | Torque Grain Input |
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
-| `inventory_yaml` | `reset_rack_password` | `inventory_yaml` | `inventory_yaml` |
+| `targets_json` | `reset_rack_password` | `targets_json` | `targets_json` |
 | `manufacturing_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
 | `manufacturing_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
 | `target_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
