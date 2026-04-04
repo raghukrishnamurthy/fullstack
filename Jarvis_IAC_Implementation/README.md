@@ -36,7 +36,7 @@ Blueprint naming convention in this repo:
 - use descriptive `kebab-case` file names
 - use focused action names for grain-level blueprints, for example:
   - `claim-intersight-devices.yaml`
-  - `reset-rack-password.yaml`
+  - `cisco-standalone-rack-reset-password.yaml`
 - reserve broader names such as `onboard-*` for true end-to-end orchestration blueprints, not focused operational wrappers
 - keep the file name scope-accurate even when the Torque catalog display name later becomes more user-friendly
 
@@ -45,7 +45,7 @@ Files:
 - `blueprints/claim-intersight-devices.yaml`
   Torque `spec_version: 2` blueprint
   uses `store: intersight-fullstack-repo` for grain sources
-- `blueprints/reset-rack-password.yaml`
+- `blueprints/cisco-standalone-rack-reset-password.yaml`
   Focused standalone rack password reset blueprint
   wraps the reusable `reset-rack-password` grain with direct credential inputs
 - `catalog_ui.md`

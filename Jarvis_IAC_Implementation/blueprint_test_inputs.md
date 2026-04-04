@@ -3,7 +3,7 @@
 Reusable first-run inputs for the current Torque blueprint:
 
 - [claim-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-intersight-devices.yaml)
-- [reset-rack-password.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/reset-rack-password.yaml)
+- [cisco-standalone-rack-reset-password.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/cisco-standalone-rack-reset-password.yaml)
 
 ## SaaS Small Mixed Test
 

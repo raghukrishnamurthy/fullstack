@@ -63,4 +63,4 @@ Common per-target reset reasons include:
 - this grain is intentionally separate from `resolve-intersight-deployment-model`
 - the main PVA prepare-and-claim flow now assumes standalone rack devices already use the desired credential
 - use this grain first when rack devices may still be at factory/default password
-- the focused `reset-rack-password.yaml` blueprint wraps this grain with direct manufacturing and target credential inputs and passes `targets_json` directly
+- the focused `cisco-standalone-rack-reset-password.yaml` blueprint wraps this grain with direct manufacturing and target credential inputs and passes `targets_json` directly
