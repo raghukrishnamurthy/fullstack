@@ -48,7 +48,7 @@ Files:
   uses `store: intersight-fullstack-repo` for grain sources
 - `blueprints/cisco-standalone-rack-reset-password.yaml`
   Focused standalone rack password reset blueprint
-  wraps the reusable `reset-rack-password` grain with direct credential inputs
+  wraps the reusable `cisco-standalone-rack-reset-password` grain with direct credential inputs
 - `catalog_ui.md`
   End-user workflow and stable form keys
 - `wiring-table.md`
@@ -61,7 +61,7 @@ Files:
   Produces a discovery summary from the derived infrastructure view
 - `ansible/bootstrap_runtime/`
   Optional worker bootstrap playbook that installs shared Python and collection requirements
-- `ansible/reset-rack-password/`
+- `ansible/cisco-standalone-rack-reset-password/`
   Separate grain for IMC rack manufacturing-to-desired password reset before prepare-and-claim
 - `ansible/resolve-claim-target-credentials/`
   Maps shared credential candidates onto per-target claim credential fields
@@ -110,7 +110,7 @@ Assumptions:
 - rack-server flows can use typed candidates such as:
   `manufacturing` for factory/default login and `target` for the desired post-rotation credential
 - in the main prepare-and-claim flow, standalone rack targets are expected to already use the desired credential
-- manufacturing/default rack credentials now belong in the separate `reset-rack-password` grain
+- manufacturing/default rack credentials now belong in the separate `cisco-standalone-rack-reset-password` grain
 - `baseline_input_source` and `baseline_directory` are optional customer-baseline sources for higher orchestration and direct Ansible execution
 - `overrides_yaml` is the deployment-specific delta layer and is optional
 - provide only one customer baseline source at a time
@@ -153,7 +153,7 @@ Python helpers and custom modules:
   Repo-local helper that retrieves per-target claim-readiness data from device connector endpoints before SaaS claim submission inside the unified claim grain.
 - [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-devices-to-intersight/library/intersight_scoped_claim.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-devices-to-intersight/library/intersight_scoped_claim.py)
   Custom Ansible module used by the unified claim grain to submit scoped SaaS claims and return a stable result payload.
-- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py)
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/cisco-standalone-rack-reset-password/tools/run_cisco_standalone_rack_reset_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/cisco-standalone-rack-reset-password/tools/run_cisco_standalone_rack_reset_password.py)
   Repo-local helper for manufacturing-to-desired IMC rack password rotation used by the separate reset grain.
 
 Current checkpoint:

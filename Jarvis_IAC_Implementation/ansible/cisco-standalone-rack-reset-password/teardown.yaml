@@ -1,5 +1,5 @@
 ---
-- name: reset-rack-password teardown
+- name: cisco-standalone-rack-reset-password teardown
   hosts: localhost
   connection: local
   gather_facts: false

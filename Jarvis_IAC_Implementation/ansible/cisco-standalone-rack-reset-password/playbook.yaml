@@ -17,7 +17,7 @@
       }}
     normalized_credential_candidates: "{{ credential_candidates_data if (credential_candidates_data is sequence) else [] }}"
   tasks:
-    - name: Validate reset-rack-password contract
+    - name: Validate cisco-standalone-rack-reset-password contract
       ansible.builtin.assert:
         that:
           - targets_json is defined
@@ -26,7 +26,7 @@
           - credential_candidates_yaml | string | trim | length > 0
           - reset_targets_data is sequence
           - normalized_credential_candidates is sequence
-        fail_msg: "reset-rack-password requires targets_json plus credential_candidates_yaml with a valid credential_candidates list"
+        fail_msg: "cisco-standalone-rack-reset-password requires targets_json plus credential_candidates_yaml with a valid credential_candidates list"
       tags:
         - always
         - validate
@@ -80,7 +80,7 @@
         - reset
         - rack
 
-    - name: Export reset-rack-password outputs
+    - name: Export cisco-standalone-rack-reset-password outputs
       ansible.builtin.set_fact:
         rack_password_reset_results_json: "{{ rack_password_reset_results | to_json }}"
         password_reset_ready_targets_json: "{{ password_reset_ready_targets | to_json }}"
@@ -89,18 +89,18 @@
         - outputs
         - export
 
-    - name: Validate reset-rack-password output contract
+    - name: Validate cisco-standalone-rack-reset-password output contract
       ansible.builtin.assert:
         that:
           - rack_password_reset_results_json is defined
           - password_reset_ready_targets_json is defined
           - password_reset_pending_targets_json is defined
-        fail_msg: "reset-rack-password did not produce the expected aggregate outputs"
+        fail_msg: "cisco-standalone-rack-reset-password did not produce the expected aggregate outputs"
       tags:
         - always
         - outputs
 
-    - name: Export reset-rack-password outputs to Torque
+    - name: Export cisco-standalone-rack-reset-password outputs to Torque
       torque.collections.export_torque_outputs:
         outputs:
           rack_password_reset_results_json: "{{ rack_password_reset_results_json }}"

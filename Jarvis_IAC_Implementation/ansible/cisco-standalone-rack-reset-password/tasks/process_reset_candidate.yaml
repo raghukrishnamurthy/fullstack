@@ -151,7 +151,7 @@
   ansible.builtin.command:
     argv:
       - "{{ ansible_playbook_python }}"
-      - "{{ playbook_dir }}/tools/run_reset_rack_password.py"
+      - "{{ playbook_dir }}/tools/run_cisco_standalone_rack_reset_password.py"
   environment:
     TARGET_ID: "{{ rack_reset_candidate.id | default('') }}"
     TARGET_SERIAL: "{{ rack_reset_candidate.serial | default('') }}"

@@ -62,16 +62,16 @@ Blueprint file:
 | Form Key | Grain | Automation Variable | Torque Grain Input |
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
-| `targets_json` | `reset_rack_password` | `targets_json` | `targets_json` |
-| `manufacturing_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `manufacturing_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `target_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `target_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `targets_json` | `cisco_standalone_rack_reset_password` | `targets_json` | `targets_json` |
+| `manufacturing_username` | `cisco_standalone_rack_reset_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `manufacturing_password` | `cisco_standalone_rack_reset_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `target_username` | `cisco_standalone_rack_reset_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `target_password` | `cisco_standalone_rack_reset_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
 
 ## Reset Blueprint Exported Outputs
 
 | Grain | Output |
 | --- | --- |
-| `reset_rack_password` | `rack_password_reset_results_json` |
-| `reset_rack_password` | `password_reset_ready_targets_json` |
-| `reset_rack_password` | `password_reset_pending_targets_json` |
+| `cisco_standalone_rack_reset_password` | `rack_password_reset_results_json` |
+| `cisco_standalone_rack_reset_password` | `password_reset_ready_targets_json` |
+| `cisco_standalone_rack_reset_password` | `password_reset_pending_targets_json` |

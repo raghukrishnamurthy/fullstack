@@ -1,4 +1,4 @@
-# reset-rack-password
+# cisco-standalone-rack-reset-password
 
 Standalone rack password reset grain.
 
@@ -55,7 +55,7 @@ Common per-target reset reasons include:
 
 ## Internal Python Components
 
-- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py)
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/cisco-standalone-rack-reset-password/tools/run_cisco_standalone_rack_reset_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/cisco-standalone-rack-reset-password/tools/run_cisco_standalone_rack_reset_password.py)
   Repo-local helper used to validate current credentials, detect password-change-required state, and rotate standalone rack IMC passwords.
 
 ## Relationship to Main Claim Flow
