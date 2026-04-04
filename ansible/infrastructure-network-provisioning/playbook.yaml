@@ -1,0 +1,139 @@
+---
+- name: Plan infrastructure network provisioning
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    discovery_model: "{{ discovery_model_json | from_json }}"
+    discovery_summary: "{{ discovery_summary_json | from_json }}"
+    requested_execution_intent: "{{ execution_intent | default('validate_only') | string | trim | lower }}"
+    infrastructure_classification: "{{ discovery_model.derived.infrastructure_classification | default('unknown') }}"
+    fabric_interconnect_count: "{{ discovery_model.derived.fabric_interconnect_count | default(0) | int }}"
+    domain_count: "{{ discovery_model.derived.domain_count | default(0) | int }}"
+    fi_managed_foundation_applicable: "{{ fabric_interconnect_count > 0 }}"
+    declared_domains: "{{ discovery_model.inventory.domains | default([]) }}"
+    declared_devices: "{{ discovery_model.inventory.devices | default([]) }}"
+
+  pre_tasks:
+    - name: Validate network phase input contract
+      ansible.builtin.assert:
+        that:
+          - discovery_model_json is defined
+          - discovery_model_json | string | trim | length > 0
+          - discovery_summary_json is defined
+          - discovery_summary_json | string | trim | length > 0
+        fail_msg: "discovery_model_json and discovery_summary_json are required"
+      tags:
+        - always
+        - validate
+        - precheck
+
+  tasks:
+    - name: Build shared network foundation object plan
+      ansible.builtin.set_fact:
+        shared_network_foundation_objects: >-
+          {{
+            [
+              {
+                'object_type': 'switch_control_policy',
+                'intent': 'shared_switch_control_defaults'
+              },
+              {
+                'object_type': 'system_qos_policy',
+                'intent': 'shared_system_qos_defaults'
+              },
+              {
+                'object_type': 'ntp_policy',
+                'intent': 'shared_time_sync_defaults'
+              },
+              {
+                'object_type': 'network_connectivity_policy',
+                'intent': 'shared_network_connectivity_defaults'
+              },
+              {
+                'object_type': 'port_policy',
+                'intent': 'shared_port_policy_realization'
+              },
+              {
+                'object_type': 'switch_cluster_profile',
+                'intent': 'shared_fi_domain_foundation'
+              },
+              {
+                'object_type': 'switch_profile',
+                'intent': 'shared_switch_profile_realization'
+              }
+            ]
+            if fi_managed_foundation_applicable else []
+          }}
+      tags:
+        - plan
+
+    - name: Build infrastructure network provisioning result
+      ansible.builtin.set_fact:
+        network_foundation_plan:
+          infrastructure_domain:
+            deployment_id: "{{ discovery_model.deployment.id | default('') }}"
+            site: "{{ discovery_model.deployment.site | default('') }}"
+            environment: "{{ discovery_model.deployment.environment | default('') }}"
+            classification: "{{ infrastructure_classification }}"
+          applicability:
+            fi_managed_foundation_applicable: "{{ fi_managed_foundation_applicable }}"
+            fabric_interconnect_count: "{{ fabric_interconnect_count }}"
+            domain_count: "{{ domain_count }}"
+          inventory_scope:
+            domains: "{{ declared_domains }}"
+            device_count: "{{ declared_devices | length }}"
+          shared_network_foundation_objects: "{{ shared_network_foundation_objects }}"
+          phase_execution:
+            requested_execution_intent: "{{ requested_execution_intent }}"
+            implementation_state: "{{ 'planned_only' if fi_managed_foundation_applicable else 'not_applicable' }}"
+            mutation_supported: false
+          next_phase_hint:
+            next_phase: "{{ 'infrastructure-resource-provisioning' if fi_managed_foundation_applicable else 'solution-network-provisioning' }}"
+            reason: "{{ 'Shared FI and fabric foundation must be provisioned before resource-layer infrastructure.' if fi_managed_foundation_applicable else 'No FI-managed foundation was detected, so this phase is not applicable for the current infrastructure domain.' }}"
+        phase_status: "{{ 'planned_only' if fi_managed_foundation_applicable else 'not_applicable' }}"
+        phase_ready: "{{ (not fi_managed_foundation_applicable) | bool }}"
+        phase_readiness:
+          phase: infrastructure-network-provisioning
+          ready: "{{ (not fi_managed_foundation_applicable) | bool }}"
+          status: "{{ 'planned_only' if fi_managed_foundation_applicable else 'not_applicable' }}"
+          message: "{{ 'Shared FI and fabric foundation planning is available, but remote mutation is not implemented in this first working slice.' if fi_managed_foundation_applicable else 'Shared FI and fabric foundation is not applicable because the current infrastructure domain does not include fabric interconnect-managed network foundation.' }}"
+          blockers: >-
+            {{
+              ['Shared FI and fabric foundation mutation is not implemented yet in this phase.']
+              if fi_managed_foundation_applicable else []
+            }}
+          summary:
+            fabric_interconnect_count: "{{ fabric_interconnect_count }}"
+            domain_count: "{{ domain_count }}"
+            required_shared_objects: "{{ shared_network_foundation_objects | length }}"
+      tags:
+        - plan
+        - summary
+
+  post_tasks:
+    - name: Validate network phase output contract
+      ansible.builtin.assert:
+        that:
+          - network_foundation_plan is defined
+          - phase_status is defined
+          - phase_readiness is defined
+        fail_msg: "infrastructure-network-provisioning did not produce the expected output contract"
+      tags:
+        - always
+        - verify
+
+    - name: Export outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          phase_ready: "{{ 'true' if (phase_ready | bool) else 'false' }}"
+          phase_status: "{{ phase_status }}"
+          phase_readiness_json: "{{ phase_readiness | to_json }}"
+          network_foundation_plan_json: "{{ network_foundation_plan | to_json }}"
+          network_foundation_summary_json: "{{ {'phase_status': phase_status, 'shared_object_count': (shared_network_foundation_objects | length), 'fabric_interconnect_count': fabric_interconnect_count, 'domain_count': domain_count} | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

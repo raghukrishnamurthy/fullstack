@@ -60,6 +60,8 @@ Planned stack architecture:
   Draft phase boundary for reusable chassis and management-plane resource foundation, kept separate from later solution-specific resource consumption.
 - [blueprints/infrastructure-onboard-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-onboard-devices.yaml)
   First working phase blueprint for all-YAML device onboarding, currently backed by the integrated model/discovery grain plus summary rendering.
+- [blueprints/infrastructure-network-provisioning.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-network-provisioning.yaml)
+  First working phase blueprint for shared FI and fabric/network foundation planning, currently implemented as planning and validation only.
 
 Blueprint naming convention in this repo:
 
@@ -82,6 +84,8 @@ Files:
   wraps the reusable `cisco-standalone-rack-reset-password` grain with direct credential inputs
 - `blueprints/infrastructure-onboard-devices.yaml`
   First working infrastructure phase blueprint using shared YAML context to discover, validate, and optionally apply onboarding actions
+- `blueprints/infrastructure-network-provisioning.yaml`
+  First working infrastructure network phase blueprint using shared YAML context and a reusable planning grain for shared FI and fabric/network foundation
 - `catalog_ui.md`
   End-user workflow and stable form keys
 - `wiring-table.md`
@@ -100,6 +104,8 @@ Files:
   Maps shared credential candidates onto per-target claim credential fields
 - `ansible/claim-devices-to-intersight/`
   Unified claim grain that routes internally to SaaS or appliance logic and exports one stable final claim contract
+- `ansible/infrastructure-network-provisioning/`
+  First working planning grain for shared FI and fabric/network foundation under the infrastructure stack model
 - `examples/ai-pod-sjc01-prod/`
   Local example inputs that mirror the blueprint contract
 - `scripts/run_example_strict.sh`
@@ -120,6 +126,7 @@ Published automation sources:
 | `blueprints/claim-devices-to-intersight.yaml` | `intersight-fullstack-repo` | Public blueprint | Focused claim workflow |
 | `blueprints/cisco-standalone-rack-reset-password.yaml` | `intersight-fullstack-repo` | Public blueprint | Focused standalone rack reset workflow |
 | `blueprints/infrastructure-onboard-devices.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working infrastructure onboarding phase |
+| `blueprints/infrastructure-network-provisioning.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working infrastructure network phase |
 | `ansible/claim-devices-to-intersight/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Unified claim execution |
 | `ansible/claim-devices-to-intersight/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
 | `ansible/cisco-standalone-rack-reset-password/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Standalone rack password reset |

@@ -1,0 +1,14 @@
+---
+- name: Teardown infrastructure network provisioning
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Export no-op destroy outputs
+      torque.collections.export_torque_outputs:
+        outputs:
+          destroy_status: not_applicable
+          destroy_results_json: '{"status":"not_applicable","message":"Infrastructure network provisioning teardown is intentionally a no-op in this implementation."}'
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true

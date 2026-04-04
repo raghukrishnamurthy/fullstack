@@ -39,7 +39,13 @@ Configuration model:
 - this phase should consume the effective infrastructure model assembled from baselines, inventory-context-derived facts, model defaults, and default policies
 - FI model-specific defaults and policy composition should be derived by the model-building side rather than embedded ad hoc in the deployment phase
 - shared port, switch, and fabric policy expectations belong here when they are solution-agnostic
-- concrete examples include shared domain profiles, switch profiles, shared port policy realization, and other reusable FI-managed fabric-side policy objects
+- concrete examples include switch control policy, system QoS policy, NTP policy, shared network connectivity policy, shared port policy realization, switch cluster profiles, switch profiles, and other reusable FI-managed fabric-side policy objects
+
+Initial implementation note:
+
+- the first working implementation of this phase is planning and validation only
+- it reuses `resolve-intersight-deployment-model` to build shared context, then uses a dedicated `infrastructure-network-provisioning` grain to publish a reusable shared-network foundation plan
+- this slice does not mutate Intersight network objects yet; it exists to make the phase boundary executable and testable
 
 Planned internal behavior:
 

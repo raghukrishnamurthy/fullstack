@@ -1,0 +1,139 @@
+spec_version: 2
+description: Infrastructure network provisioning phase blueprint that plans shared FI and fabric/network foundation from shared YAML context
+inputs:
+  agent:
+    type: agent
+    title: Torque Agent
+    description: Torque agent that runs this workflow.
+  deployment_yaml:
+    type: string
+    description: YAML deployment context for the infrastructure domain
+  platform_yaml:
+    type: string
+    description: YAML platform context including Intersight endpoint and credential refs
+  placement_yaml:
+    type: string
+    description: YAML placement context for Intersight organization and related settings
+  inventory_yaml:
+    type: string
+    description: YAML inventory context for the infrastructure domain
+  solution_yaml:
+    type: string
+    description: YAML solution profile context used to resolve built-in baseline selection
+  credential_candidates_yaml:
+    type: string
+    description: Optional YAML credential-candidate contract used by the integrated model grain
+    default: ''
+  site_yaml:
+    type: string
+    description: Optional YAML site context for shared operational defaults
+    default: ''
+  baseline_input_source:
+    type: string
+    description: Optional HTTP(S) customer baseline source
+    default: ''
+  baseline_directory:
+    type: string
+    description: Optional local customer baseline directory
+    default: ''
+  overrides_yaml:
+    type: string
+    description: Optional YAML overrides applied after baseline resolution
+    default: ''
+  validation_mode:
+    type: string
+    description: Validation mode for discovery and optional live Intersight validation
+    default: strict
+  execution_intent:
+    type: string
+    description: Execution intent for the network phase
+    default: validate_only
+grains:
+  build_infrastructure_domain_model:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/resolve-intersight-deployment-model/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
+        - solution_yaml: '{{ .inputs.solution_yaml }}'
+        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
+        - site_yaml: '{{ .inputs.site_yaml }}'
+        - baseline_input_source: '{{ .inputs.baseline_input_source }}'
+        - baseline_directory: '{{ .inputs.baseline_directory }}'
+        - overrides_yaml: '{{ .inputs.overrides_yaml }}'
+        - validation_mode: '{{ .inputs.validation_mode }}'
+        - execution_intent: validate_only
+      outputs:
+        - discovery_model_json
+        - discovery_summary_json
+    on-destroy:
+      - source:
+          store: intersight-fullstack-repo
+          path: ansible/resolve-intersight-deployment-model/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
+  infrastructure_network_provisioning:
+    kind: ansible
+    depends-on: build_infrastructure_domain_model
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/infrastructure-network-provisioning/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - discovery_model_json: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_model_json }}'
+        - discovery_summary_json: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_summary_json }}'
+        - execution_intent: '{{ .inputs.execution_intent }}'
+      outputs:
+        - phase_ready
+        - phase_status
+        - phase_readiness_json
+        - network_foundation_plan_json
+        - network_foundation_summary_json
+    on-destroy:
+      - source:
+          store: intersight-fullstack-repo
+          path: ansible/infrastructure-network-provisioning/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
+outputs:
+  phase_ready:
+    value: '{{ .grains.infrastructure_network_provisioning.outputs.phase_ready }}'
+  phase_status:
+    value: '{{ .grains.infrastructure_network_provisioning.outputs.phase_status }}'
+  phase_readiness_json:
+    value: '{{ .grains.infrastructure_network_provisioning.outputs.phase_readiness_json }}'
+  network_foundation_plan_json:
+    value: '{{ .grains.infrastructure_network_provisioning.outputs.network_foundation_plan_json }}'
+  network_foundation_summary_json:
+    value: '{{ .grains.infrastructure_network_provisioning.outputs.network_foundation_summary_json }}'
+  discovery_model_json:
+    value: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_model_json }}'
+  discovery_summary_json:
+    value: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_summary_json }}'
