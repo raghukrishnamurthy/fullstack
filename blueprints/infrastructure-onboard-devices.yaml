@@ -116,9 +116,6 @@ grains:
               ansible_connection: local
       inputs:
         - platform_yaml: |
-            {{ if ne .inputs.platform_yaml "" -}}
-            {{ .inputs.platform_yaml }}
-            {{- else -}}
             platform:
               intersight:
                 endpoint: {{ .inputs.api_uri }}
@@ -126,7 +123,6 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-            {{- end }}
         - placement_yaml: '{{ .inputs.placement_yaml }}'
       outputs:
         - context_status
@@ -197,9 +193,6 @@ grains:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
         - targets_json: '{{ .grains.build_infrastructure_onboarding_targets.outputs.reset_targets_json }}'
         - credential_candidates_yaml: |
-            {{ if ne .inputs.credential_candidates_yaml "" -}}
-            {{ .inputs.credential_candidates_yaml }}
-            {{- else -}}
             credential_candidates:
               - credential_role: manufacturing
                 target_category: server
@@ -213,7 +206,6 @@ grains:
                 target_management_type: standalone
                 username: {{ .inputs.rack_target_username }}
                 password_ref: env://RACK_TARGET_PASSWORD
-            {{- end }}
         - validation_mode: '{{ .inputs.validation_mode }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:
@@ -251,9 +243,6 @@ grains:
       inputs:
         - claim_targets_json: '{{ .grains.build_infrastructure_onboarding_targets.outputs.claim_targets_json }}'
         - credential_candidates_yaml: |
-            {{ if ne .inputs.credential_candidates_yaml "" -}}
-            {{ .inputs.credential_candidates_yaml }}
-            {{- else -}}
             credential_candidates:
               - credential_role: target
                 target_category: server
@@ -265,7 +254,6 @@ grains:
                 target_category: fabric_interconnect
                 username: {{ .inputs.fi_target_username }}
                 password_ref: env://FI_TARGET_PASSWORD
-            {{- end }}
       outputs:
         - resolved_claim_targets_json
     on-destroy:
@@ -296,9 +284,6 @@ grains:
       inputs:
         - claim_targets_json: '{{ .grains.prepare_claim_target_credentials.outputs.resolved_claim_targets_json }}'
         - platform_yaml: |
-            {{ if ne .inputs.platform_yaml "" -}}
-            {{ .inputs.platform_yaml }}
-            {{- else -}}
             platform:
               intersight:
                 endpoint: {{ .inputs.api_uri }}
@@ -306,7 +291,6 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-            {{- end }}
         - validation_mode: '{{ .inputs.validation_mode }}'
       outputs:
         - connector_prep_results_json
@@ -344,9 +328,6 @@ grains:
       inputs:
         - claim_targets_json: '{{ .grains.prepare_device_connector.outputs.prepared_claim_targets_json }}'
         - platform_yaml: |
-            {{ if ne .inputs.platform_yaml "" -}}
-            {{ .inputs.platform_yaml }}
-            {{- else -}}
             platform:
               intersight:
                 endpoint: {{ .inputs.api_uri }}
@@ -354,7 +335,6 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-            {{- end }}
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
         - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
       outputs:
@@ -393,9 +373,6 @@ grains:
               ansible_connection: local
       inputs:
         - platform_yaml: |
-            {{ if ne .inputs.platform_yaml "" -}}
-            {{ .inputs.platform_yaml }}
-            {{- else -}}
             platform:
               intersight:
                 endpoint: {{ .inputs.api_uri }}
@@ -403,7 +380,6 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-            {{- end }}
         - inventory_yaml: '{{ .inputs.inventory_yaml }}'
         - claim_execution_results_json: '{{ .grains.claim_devices_to_intersight.outputs.results_json }}'
         - wait_for_completion: '{{ .inputs.wait_for_completion }}'
