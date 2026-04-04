@@ -28,17 +28,22 @@ Design requirement:
 - credential-map resolution belongs in orchestration or in a dedicated resolver grain, not inside execution grains
 - standalone execution grains should consume per-target fields such as `claim_username` and `claim_password_ref`
 - the public Torque blueprint should prefer direct inputs for endpoints, organizations, and secrets, then translate them into internal YAML or env-shaped contracts as needed
-- focused operational blueprints should prefer small JSON target contracts, while higher-level full-stack orchestration should continue to use normalized `inventory_yaml` as the shared source of truth
+- focused operational blueprints should prefer small JSON target contracts, while higher-level stack orchestration should continue to use normalized `inventory_yaml` as the shared source of truth
 
 Higher-level orchestration blueprint boundary:
 
-- the higher-level full-stack blueprint is intentionally not the same as the focused operational blueprints
+- the higher-level stack blueprint is intentionally not the same as the focused operational blueprints
 - it should own normalized `inventory_yaml` as the shared source of truth across discovery, preparation, claim, and reporting workflows
 - it is the right place for optional scan or discovery-driven target selection before those targets are normalized
 - it should own context preparation concerns such as organization or resource-group preparation before downstream claim execution
 - it should orchestrate focused operational workflows such as `cisco-standalone-rack-reset-password` and `claim-devices-to-intersight` rather than re-implementing their endpoint logic
 - it should continue to use reusable grains such as `resolve-intersight-deployment-model`, `prepare-intersight-context`, and `render-intersight-deployment-summary` for broader flow composition
 - focused operational blueprints should remain narrow wrappers for a single operational task, while the higher-level blueprint becomes the place where sequencing, policy, and shared inventory normalization are expressed
+
+Planned stack architecture:
+
+- [infrastructure-stack-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-stack-architecture.md)
+  Draft architecture for the higher-level `deploy-infrastructure-stack` blueprint and its phase boundaries.
 
 Blueprint naming convention in this repo:
 
@@ -104,7 +109,7 @@ Published automation sources:
 | `ansible/resolve-claim-target-credentials/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 | `ansible/prepare-intersight-context/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Higher-level org/context preparation |
 | `ansible/prepare-intersight-context/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
-| `ansible/resolve-intersight-deployment-model/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Full-stack discovery and derived model |
+| `ansible/resolve-intersight-deployment-model/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Stack discovery and derived model |
 | `ansible/resolve-intersight-deployment-model/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 | `ansible/render-intersight-deployment-summary/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Discovery summary rendering |
 | `ansible/render-intersight-deployment-summary/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
