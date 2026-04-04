@@ -39,6 +39,7 @@ Configuration model:
 - this phase should consume the effective infrastructure model assembled from baselines, inventory-context-derived facts, model defaults, and default policies
 - FI model-specific defaults and policy composition should be derived by the model-building side rather than embedded ad hoc in the deployment phase
 - shared port, switch, and fabric policy expectations belong here when they are solution-agnostic
+- concrete examples include shared domain profiles, switch profiles, shared port policy realization, and other reusable FI-managed fabric-side policy objects
 
 Planned internal behavior:
 
@@ -69,6 +70,7 @@ What belongs here:
 - FI-managed shared network foundation
 - common switch or domain profile realization
 - shared fabric-side policy composition and validation
+- shared domain-profile-level policy realization when it is reusable across later solutions
 - stability checks around profile attachment and deployment
 
 What does not belong here:

@@ -10,7 +10,7 @@ Phase boundary:
 
 - this phase provisions shared resource-layer infrastructure for the infrastructure-domain
 - it includes chassis-oriented provisioning and shared management-plane resource setup
-- it may include shared server-side management defaults such as DNS, NTP, or other solution-agnostic settings
+- it may include shared server-side management defaults such as DNS, NTP, syslog, SNMP, IMC access, or other solution-agnostic settings
 - it should not own solution-specific server consumption, role assignment, or policies that depend on which subset of resources a later solution uses
 
 Input model:
@@ -69,7 +69,8 @@ What belongs here:
 
 - chassis-oriented provisioning for the reusable infrastructure-domain
 - shared management-plane resource configuration
-- shared server-side defaults such as common DNS, NTP, and similar solution-agnostic settings
+- shared server-side defaults such as common DNS, NTP, syslog, SNMP, IMC access, and similar solution-agnostic settings
+- concrete reusable chassis-profile and management-policy realization that later solution phases can depend on
 - reusable resource-layer validation that later solution phases can depend on
 
 What does not belong here:
