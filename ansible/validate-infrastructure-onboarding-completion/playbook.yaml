@@ -13,9 +13,13 @@
     placement_validation: "{{ discovery_model.derived.placement_validation | default({}) }}"
     baseline_expectation_validation: "{{ discovery_model.derived.baseline_expectation_validation | default({}) }}"
     claim_candidate_targets: "{{ onboarding_readiness.claim_candidate_targets | default([]) }}"
+    reachability_only_targets: "{{ onboarding_readiness.reachability_only_targets | default([]) }}"
     claim_execution_results: "{{ onboarding_action_execution.claim_execution_results | default([]) }}"
+    baseline_expectation_results: "{{ baseline_expectation_validation.results | default([]) }}"
+    baseline_expectation_errors: "{{ baseline_expectation_validation.errors | default([]) }}"
     missing_devices: "{{ intersight_validation.missing_devices | default([]) }}"
     not_ready_devices: "{{ intersight_validation.not_ready_devices | default([]) }}"
+    present_devices: "{{ intersight_validation.present_devices | default([]) }}"
     live_validation_enabled: "{{ discovery_model.derived.intersight_live_validation_enabled | default(false) | bool }}"
 
   pre_tasks:
@@ -51,6 +55,23 @@
         - validate
         - completion
 
+    - name: Build onboarding completeness lists
+      ansible.builtin.set_fact:
+        onboarding_present_devices: "{{ present_devices }}"
+        onboarding_missing_devices: "{{ missing_devices }}"
+        onboarding_not_ready_devices: "{{ not_ready_devices }}"
+        onboarding_completeness_checks:
+          expected_claimable_target_count: "{{ claim_candidate_targets | length }}"
+          expected_reachability_only_target_count: "{{ reachability_only_targets | length }}"
+          present_device_count: "{{ present_devices | length }}"
+          missing_device_count: "{{ missing_devices | length }}"
+          not_ready_device_count: "{{ not_ready_devices | length }}"
+          baseline_expectation_error_count: "{{ baseline_expectation_errors | length }}"
+          baseline_expectation_result_count: "{{ baseline_expectation_results | length }}"
+      tags:
+        - validate
+        - completion
+
     - name: Build onboarding completion result
       ansible.builtin.set_fact:
         onboarding_completion:
@@ -58,28 +79,43 @@
           status: "{{ completion_status }}"
           next_action: "{{ completion_next_action }}"
           blockers: "{{ completion_blockers }}"
+          readiness_success: "{{ completion_ready }}"
           summary:
             claim_candidate_count: "{{ claim_candidate_targets | length }}"
+            reachability_only_target_count: "{{ reachability_only_targets | length }}"
             successful_claim_result_count: "{{ successful_claim_results | length }}"
             blocking_claim_result_count: "{{ blocking_claim_results | length }}"
             live_validation_enabled: "{{ live_validation_enabled }}"
-            missing_device_count: "{{ missing_devices | length }}"
-            not_ready_device_count: "{{ not_ready_devices | length }}"
+            present_device_count: "{{ onboarding_present_devices | length }}"
+            missing_device_count: "{{ onboarding_missing_devices | length }}"
+            not_ready_device_count: "{{ onboarding_not_ready_devices | length }}"
+            baseline_expectation_error_count: "{{ baseline_expectation_errors | length }}"
+          device_readiness:
+            present_devices: "{{ onboarding_present_devices }}"
+            missing_devices: "{{ onboarding_missing_devices }}"
+            not_ready_devices: "{{ onboarding_not_ready_devices }}"
+          baseline_expectation_validation:
+            results: "{{ baseline_expectation_results }}"
+            errors: "{{ baseline_expectation_errors }}"
           source_checks:
             preflight_status: "{{ onboarding_readiness.status | default('unknown') }}"
             preflight_ready: "{{ onboarding_readiness.ready | default(false) | bool }}"
             action_requested: "{{ onboarding_action_execution.requested | default(false) | bool }}"
             action_status: "{{ onboarding_action_execution.status | default('not_requested') }}"
             placement_ready: "{{ placement_validation.ready | default(true) | bool }}"
-            baseline_expectation_error_count: "{{ baseline_expectation_validation.errors | default([]) | length }}"
+            baseline_expectation_error_count: "{{ baseline_expectation_errors | length }}"
+            device_readiness_available: "{{ live_validation_enabled }}"
+            completeness_check_summary: "{{ onboarding_completeness_checks }}"
       vars:
         preflight_ready: "{{ onboarding_readiness.ready | default(false) | bool }}"
         action_requested: "{{ onboarding_action_execution.requested | default(false) | bool }}"
+        baseline_expectations_passed: "{{ (baseline_expectation_errors | length) == 0 }}"
         live_completion_ready: >-
           {{
             live_validation_enabled
-            and (missing_devices | length == 0)
-            and (not_ready_devices | length == 0)
+            and (onboarding_missing_devices | length == 0)
+            and (onboarding_not_ready_devices | length == 0)
+            and baseline_expectations_passed
             and preflight_ready
           }}
         claim_submission_succeeded: >-
@@ -96,11 +132,22 @@
           {%- set _ = blockers.append(blocker) -%}
           {%- endfor -%}
           {%- endif -%}
+          {%- if baseline_expectation_errors | length > 0 -%}
+          {%- for blocker in baseline_expectation_errors -%}
+          {%- set _ = blockers.append(blocker.message | default(blocker | string)) -%}
+          {%- endfor -%}
+          {%- endif -%}
           {%- if action_requested and (blocking_claim_results | length > 0) -%}
           {%- set _ = blockers.append('One or more onboarding claim actions ended in a blocking state') -%}
           {%- endif -%}
           {%- if action_requested and (blocking_claim_results | length == 0) and (successful_claim_results | length == 0) and ((claim_candidate_targets | length) > 0) -%}
           {%- set _ = blockers.append('Onboarding apply was requested, but no successful claim-capable action results were produced') -%}
+          {%- endif -%}
+          {%- if live_validation_enabled and (onboarding_missing_devices | length > 0) -%}
+          {%- set _ = blockers.append('One or more expected devices are still missing from the Intersight readiness view') -%}
+          {%- endif -%}
+          {%- if live_validation_enabled and (onboarding_not_ready_devices | length > 0) -%}
+          {%- set _ = blockers.append('One or more discovered devices are present but not yet ready in Intersight') -%}
           {%- endif -%}
           {%- if (not action_requested) and preflight_ready and (not live_completion_ready) -%}
           {%- set _ = blockers.append('Onboarding actions have not been executed or verified complete for all claim-capable targets') -%}
