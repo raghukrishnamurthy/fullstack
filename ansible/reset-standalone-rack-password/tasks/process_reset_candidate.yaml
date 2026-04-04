@@ -174,7 +174,7 @@
     TIMEOUT: "{{ operation_timeout_seconds | default(20) | string }}"
   register: rack_reset_helper_result
   changed_when: false
-  no_log: true
+  no_log: false
   tags:
     - reset
     - rack

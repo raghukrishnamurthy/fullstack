@@ -80,7 +80,7 @@
         if (pva_claim_password_env_name | string | trim | length) > 0
         else ''
       }}
-  no_log: true
+  no_log: false
   tags:
     - claim
     - aggregate
@@ -142,7 +142,7 @@
       Username: "{{ pva_claim_username }}"
       Password: "{{ pva_claim_password }}"
       PlatformType: "{{ pva_claim_platform_type }}"
-  no_log: true
+  no_log: false
   when: claim_result is not defined
   tags:
     - claim
@@ -159,7 +159,7 @@
     api_body: "{{ pva_claim_request_body }}"
   register: pva_appliance_claim_result
   failed_when: false
-  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  no_log: false
   when: claim_result is not defined
   tags:
     - claim
@@ -263,7 +263,7 @@
           username: "{{ pva_claim_username }}"
           api_response: "{{ pva_appliance_claim_result.api_response | default({}) }}"
           changed: "{{ pva_appliance_claim_result.changed | default(false) | bool }}"
-  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  no_log: false
   when: claim_result is not defined
   tags:
     - claim

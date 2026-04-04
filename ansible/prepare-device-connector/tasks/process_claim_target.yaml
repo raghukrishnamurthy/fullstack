@@ -23,7 +23,7 @@
             recursive=True
           )
       }}
-  no_log: true
+  no_log: false
   tags:
     - prepare
     - verify

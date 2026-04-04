@@ -38,7 +38,7 @@
     loop_var: query_batch
     label: "{{ query_batch.category }}{{ ':' ~ query_batch.domain_id if query_batch.domain_id is defined else '' }}"
   changed_when: false
-  no_log: true
+  no_log: false
   tags:
     - validate
     - completion

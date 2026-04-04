@@ -15,7 +15,7 @@
     return_list: true
   register: pva_claim_workflow_lookup
   failed_when: false
-  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  no_log: false
   when:
     - (claim_result_item.execution_mode | default('')) == 'appliance_claim'
     - (claim_result_item.status | default('')) == 'submitted'
@@ -38,7 +38,7 @@
     return_list: true
   register: pva_claim_device_claim_lookup
   failed_when: false
-  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  no_log: false
   when:
     - (claim_result_item.execution_mode | default('')) == 'appliance_claim'
     - (claim_result_item.status | default('')) == 'submitted'

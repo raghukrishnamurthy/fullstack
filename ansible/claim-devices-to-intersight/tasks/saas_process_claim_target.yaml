@@ -36,7 +36,7 @@
         if (claim_target_password_env_name | string | trim | length) > 0
         else ''
       }}
-  no_log: true
+  no_log: false
   tags:
     - claim
     - aggregate
@@ -46,7 +46,7 @@
     resolved_target_desired_credentials:
       - username: "{{ claim_target_username }}"
         password: "{{ claim_target_password }}"
-  no_log: true
+  no_log: false
   when:
     - claim_target_username | string | trim | length > 0
     - claim_target_password | string | trim | length > 0
@@ -67,7 +67,7 @@
     TIMEOUT: "{{ internal_helper_timeout_seconds | default(20) | string }}"
   register: claim_readiness_helper_result
   changed_when: false
-  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  no_log: false
   when:
     - (resolved_target_desired_credentials | default([]) | length) > 0
     - claim_target_context.device_type | default('') | string | lower in ['imc', 'imm']
@@ -244,7 +244,7 @@
     organization: "{{ internal_organization | default('') }}"
   register: saas_claim_result
   failed_when: false
-  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  no_log: false
   when:
     - claim_result is not defined
     - not (claim_duplicate_detected | default(false) | bool)
@@ -275,7 +275,7 @@
     return_list: true
   register: saas_registration_result
   failed_when: false
-  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  no_log: false
   when:
     - claim_result is not defined
     - not (claim_duplicate_detected | default(false) | bool)

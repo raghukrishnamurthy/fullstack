@@ -112,7 +112,7 @@
           $top: 1
         return_list: true
       register: existing_org_query
-      no_log: "{{ not (internal_debug_enabled | bool) }}"
+      no_log: false
       when: requested_organization | length > 0
       tags:
         - configure
@@ -129,7 +129,7 @@
         api_body:
           Name: "{{ requested_organization }}"
       register: created_org
-      no_log: "{{ not (internal_debug_enabled | bool) }}"
+      no_log: false
       when:
         - requested_organization | length > 0
         - (existing_org_query.api_response | default([]) | length) == 0
