@@ -63,6 +63,7 @@ Planned infrastructure phases:
    - validate that network-side infrastructure is ready for broader resource provisioning
 
 3. `infrastructure-resource-provisioning`
+   - see [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-resource-provisioning-architecture.md) for the current phase boundary draft
    - provision shared resource-layer infrastructure for the infrastructure-domain
    - include chassis-oriented provisioning and shared management-plane resource setup
    - include only solution-agnostic server-side settings such as common DNS, NTP, and shared management defaults

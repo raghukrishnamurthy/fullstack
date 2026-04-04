@@ -56,6 +56,8 @@ Planned stack architecture:
   Draft phase boundary for the first infrastructure onboarding phase, including discovery, optional rack reset, claim, and validation.
 - [infrastructure-network-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-network-provisioning-architecture.md)
   Draft phase boundary for shared FI and fabric/network foundation, kept separate from later solution-specific logical network provisioning.
+- [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-resource-provisioning-architecture.md)
+  Draft phase boundary for reusable chassis and management-plane resource foundation, kept separate from later solution-specific resource consumption.
 
 Blueprint naming convention in this repo:
 
