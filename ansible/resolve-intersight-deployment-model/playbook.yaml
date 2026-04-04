@@ -159,6 +159,13 @@
         outputs:
           discovery_model_json: "{{ discovery_model | to_json }}"
           discovery_summary_json: "{{ discovery_summary | to_json }}"
+          phase_ready: "{{ 'true' if (onboarding_readiness.ready | default(false) | bool) else 'false' }}"
+          phase_status: "{{ onboarding_readiness.status | default('unknown') }}"
+          phase_readiness_json: "{{ onboarding_readiness | default({}) | to_json }}"
+          claim_candidate_targets_json: "{{ onboarding_readiness.claim_candidate_targets | default([]) | to_json }}"
+          reachability_only_targets_json: "{{ onboarding_readiness.reachability_only_targets | default([]) | to_json }}"
+          onboarding_action_execution_json: "{{ onboarding_action_execution | default({}) | to_json }}"
+          claim_execution_results_json: "{{ onboarding_action_execution.claim_execution_results | default([]) | to_json }}"
       delegate_to: localhost
       run_once: true
       tags: always

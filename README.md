@@ -58,6 +58,8 @@ Planned stack architecture:
   Draft phase boundary for shared FI and fabric/network foundation, kept separate from later solution-specific logical network provisioning.
 - [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-resource-provisioning-architecture.md)
   Draft phase boundary for reusable chassis and management-plane resource foundation, kept separate from later solution-specific resource consumption.
+- [blueprints/infrastructure-onboard-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-onboard-devices.yaml)
+  First working phase blueprint for all-YAML device onboarding, currently backed by the integrated model/discovery grain plus summary rendering.
 
 Blueprint naming convention in this repo:
 
@@ -78,6 +80,8 @@ Files:
 - `blueprints/cisco-standalone-rack-reset-password.yaml`
   Focused standalone rack password reset blueprint
   wraps the reusable `cisco-standalone-rack-reset-password` grain with direct credential inputs
+- `blueprints/infrastructure-onboard-devices.yaml`
+  First working infrastructure phase blueprint using shared YAML context to discover, validate, and optionally apply onboarding actions
 - `catalog_ui.md`
   End-user workflow and stable form keys
 - `wiring-table.md`
@@ -115,6 +119,7 @@ Published automation sources:
 | --- | --- | --- | --- |
 | `blueprints/claim-devices-to-intersight.yaml` | `intersight-fullstack-repo` | Public blueprint | Focused claim workflow |
 | `blueprints/cisco-standalone-rack-reset-password.yaml` | `intersight-fullstack-repo` | Public blueprint | Focused standalone rack reset workflow |
+| `blueprints/infrastructure-onboard-devices.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working infrastructure onboarding phase |
 | `ansible/claim-devices-to-intersight/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Unified claim execution |
 | `ansible/claim-devices-to-intersight/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
 | `ansible/cisco-standalone-rack-reset-password/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Standalone rack password reset |

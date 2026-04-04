@@ -38,6 +38,11 @@ Credential inputs:
 - standalone rack manufacturing/default credentials remain part of the optional rack reset path
 - internal orchestration should translate those direct inputs into the grain contracts already used by the reusable reset and claim grains
 
+Initial implementation note:
+
+- the first working implementation of this phase reuses `resolve-intersight-deployment-model` directly together with summary rendering
+- standalone rack reset remains available through the separate focused `cisco-standalone-rack-reset-password` workflow until inventory-to-reset-target derivation is promoted into this phase
+
 Planned internal grain composition:
 
 1. `resolve-intersight-deployment-model`

@@ -29,6 +29,13 @@ Exported outputs:
 
 - `discovery_model_json`
 - `discovery_summary_json`
+- `phase_ready`
+- `phase_status`
+- `phase_readiness_json`
+- `claim_candidate_targets_json`
+- `reachability_only_targets_json`
+- `onboarding_action_execution_json`
+- `claim_execution_results_json`
 
 Execution notes:
 
@@ -58,6 +65,7 @@ Execution notes:
 - `validation_mode: live` resolves `env://` Intersight credential refs and queries Intersight for declared serials
 - live mode also queries the requested Intersight organization and resource group and reports placement reuse/create/conflict outcomes
 - `execution_intent` defaults to `validate_only`
+- the first `infrastructure-onboard-devices` phase blueprint uses this grain directly as its current working onboarding implementation while the later reset and claim decomposition continues
 - `execution_intent: apply` currently supports:
   - one PVA claim candidate per declared Fabric Interconnect `fi_pair` domain
   - standalone rack claims with target credentials
