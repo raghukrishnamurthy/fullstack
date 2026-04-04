@@ -3,6 +3,7 @@
 Blueprint file:
 
 - [claim-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-intersight-devices.yaml)
+- [reset-rack-password.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/reset-rack-password.yaml)
 
 ## Launch Inputs
 
@@ -55,3 +56,22 @@ Blueprint file:
 | `claim_intersight_devices` | `normalized_claim_conflict_count` |
 | `claim_intersight_devices` | `normalized_claim_skipped_count` |
 | `claim_intersight_devices` | `normalized_claim_changed_count` |
+
+## Reset Blueprint Launch Inputs
+
+| Form Key | Grain | Automation Variable | Torque Grain Input |
+| --- | --- | --- | --- |
+| `agent` | blueprint runtime | `agent` | `agent` |
+| `inventory_yaml` | `reset_rack_password` | `inventory_yaml` | `inventory_yaml` |
+| `manufacturing_rack_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `manufacturing_rack_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `rack_target_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `rack_target_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+
+## Reset Blueprint Exported Outputs
+
+| Grain | Output |
+| --- | --- |
+| `reset_rack_password` | `rack_password_reset_results_json` |
+| `reset_rack_password` | `password_reset_ready_targets_json` |
+| `reset_rack_password` | `password_reset_pending_targets_json` |

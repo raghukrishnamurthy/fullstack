@@ -84,12 +84,14 @@
         - outputs
 
     - name: Export reset-rack-password outputs to Torque
-      ansible.builtin.set_stats:
-        data:
+      torque.collections.export_torque_outputs:
+        outputs:
           rack_password_reset_results_json: "{{ rack_password_reset_results_json }}"
           password_reset_ready_targets_json: "{{ password_reset_ready_targets_json }}"
           password_reset_pending_targets_json: "{{ password_reset_pending_targets_json }}"
-        per_host: false
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
       tags:
         - outputs
         - export

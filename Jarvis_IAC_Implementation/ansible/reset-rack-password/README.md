@@ -33,6 +33,8 @@ Inventory-first standalone rack password reset grain.
 - `password_reset_ready_targets_json`
 - `password_reset_pending_targets_json`
 
+These outputs are exported to Torque with `torque.collections.export_torque_outputs`.
+
 ## Internal Python Components
 
 - [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py)
@@ -43,3 +45,4 @@ Inventory-first standalone rack password reset grain.
 - this grain is intentionally separate from `resolve-intersight-deployment-model`
 - the main PVA prepare-and-claim flow now assumes standalone rack devices already use the desired credential
 - use this grain first when rack devices may still be at factory/default password
+- the focused `reset-rack-password.yaml` blueprint wraps this grain with direct manufacturing and target credential inputs and builds the internal `credential_candidates_yaml` on behalf of the grain

@@ -28,11 +28,24 @@ Design requirement:
 - standalone execution grains should consume per-target fields such as `claim_username` and `claim_password_ref`
 - the public Torque blueprint should prefer direct inputs for endpoints, organizations, and secrets, then translate them into internal YAML or env-shaped contracts as needed
 
+Blueprint naming convention in this repo:
+
+- keep blueprint files under top-level `blueprints/` and use `.yaml`
+- use descriptive `kebab-case` file names
+- use focused action names for grain-level blueprints, for example:
+  - `claim-intersight-devices.yaml`
+  - `reset-rack-password.yaml`
+- reserve broader names such as `onboard-*` for true end-to-end orchestration blueprints, not focused operational wrappers
+- keep the file name scope-accurate even when the Torque catalog display name later becomes more user-friendly
+
 Files:
 
 - `blueprints/claim-intersight-devices.yaml`
   Torque `spec_version: 2` blueprint
   uses `store: intersight-fullstack-repo` for grain sources
+- `blueprints/reset-rack-password.yaml`
+  Focused standalone rack password reset blueprint
+  wraps the reusable `reset-rack-password` grain with direct credential inputs
 - `catalog_ui.md`
   End-user workflow and stable form keys
 - `wiring-table.md`
@@ -162,6 +175,13 @@ Current checkpoint:
   - `rack_target_password`
   - `claim_targets_json`
 - the focused claim blueprint no longer exposes `deployment_yaml`; it uses a fixed internal deployment label for traceability
+- the focused rack reset blueprint now exposes:
+  - `inventory_yaml`
+  - `manufacturing_rack_username`
+  - `manufacturing_rack_password`
+  - `rack_target_username`
+  - `rack_target_password`
+- the focused rack reset blueprint builds internal `credential_candidates_yaml` for the reusable reset grain and exports Torque-native outputs directly from that grain
 - `api_uri` is the backend selector for the focused claim blueprint and should be the real API base URI, for example:
   - `https://intersight.com/api/v1`
   - `https://ucs-hci-appliance-2.cisco.com/api/v1`

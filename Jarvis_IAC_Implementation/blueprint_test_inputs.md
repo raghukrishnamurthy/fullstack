@@ -3,6 +3,7 @@
 Reusable first-run inputs for the current Torque blueprint:
 
 - [claim-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-intersight-devices.yaml)
+- [reset-rack-password.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/reset-rack-password.yaml)
 
 ## SaaS Small Mixed Test
 
@@ -179,3 +180,51 @@ admin
 - `validate_certs` and reuse-policy values are intentionally fixed inside the blueprint during development and are not exposed in the launch form.
 - `ensure_intersight_context` owns org/context setup before either claim grain runs.
 - `claim_intersight_devices` assumes the `organization` it receives is already prepared.
+
+## Rack Reset Small Test
+
+Use this for the focused rack password reset blueprint with standalone rack inventory entries.
+
+### `inventory_yaml`
+
+```yaml
+inventory:
+  devices:
+    - id: rack-server-01
+      serial: WZP270500PQ
+      category: server
+      mgmt_ip: 10.29.135.106
+      attributes:
+        form_factor: rack
+        management_type: standalone
+```
+
+### `manufacturing_rack_username`
+
+```text
+admin
+```
+
+### `manufacturing_rack_password`
+
+```text
+<manufacturing-or-factory-password>
+```
+
+### `rack_target_username`
+
+```text
+admin
+```
+
+### `rack_target_password`
+
+```text
+<desired-rack-password>
+```
+
+## Reset Blueprint Notes
+
+- The focused reset blueprint does not expose `credential_candidates_yaml`; it builds the internal candidate list from direct manufacturing and target credential inputs.
+- The focused reset blueprint does not expose `deployment_yaml`.
+- The reset grain currently expects rack inventory in the same wrapped `inventory.devices` shape used elsewhere in this repo.

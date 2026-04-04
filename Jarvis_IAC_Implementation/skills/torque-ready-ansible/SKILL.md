@@ -39,9 +39,15 @@ It is optimized for:
 - Export the minimum contract downstream grains need.
 - Keep output names stable once other grains or blueprint outputs depend on them.
 
+6. Keep blueprint names aligned to scope.
+- Use descriptive `kebab-case` names under `blueprints/`.
+- Focused leaf-workflow blueprints should use narrow action names.
+- Reserve broader names such as `onboard-*` for true end-to-end orchestration flows.
+
 ## Repo Patterns
 - Public Torque blueprint path:
   - `blueprints/claim-intersight-devices.yaml`
+  - `blueprints/reset-rack-password.yaml`
 - Reusable claim chain:
   - `ensure_intersight_context`
   - `resolve_claim_target_credentials`
