@@ -1,0 +1,9 @@
+---
+- name: Prepare target context teardown
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Report no-op teardown behavior
+      ansible.builtin.debug:
+        msg: "prepare-intersight-context does not delete organizations during destroy"

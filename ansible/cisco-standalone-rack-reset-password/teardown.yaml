@@ -1,0 +1,12 @@
+---
+- name: cisco-standalone-rack-reset-password teardown
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Export no-op destroy outputs
+      ansible.builtin.set_stats:
+        data:
+          destroy_status: successful
+          destroy_results_json: "[]"
+        per_host: false

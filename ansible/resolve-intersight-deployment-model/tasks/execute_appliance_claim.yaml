@@ -1,0 +1,201 @@
+---
+- name: Resolve target credential secret refs for appliance claim
+  ansible.builtin.set_fact:
+    pva_claim_target_password_ref: "{{ claim_target_payload.selected_target_credential.password_ref | default('') }}"
+    pva_claim_target_password_env_name: >-
+      {{
+        (
+          claim_target_payload.selected_target_credential.password_ref | default('')
+        )
+        | regex_replace('^env://', '')
+        if (
+          (claim_target_payload.selected_target_credential.password_ref | default('')) is string
+          and (claim_target_payload.selected_target_credential.password_ref | default('')).startswith('env://')
+        )
+        else ''
+      }}
+    pva_claim_submission_supported: >-
+      {{
+        (derived_intersight_mode | default('')) == 'pva'
+        and ((validation_mode | default('strict') | string | lower) in ['live', 'intersight_live'])
+        and ((claim_target_payload.preclaim_workflow | default('')) == 'direct_claim_preparation')
+        and (
+          (
+            (claim_target_payload.target_category | default('')) == 'server'
+            and (claim_target_payload.form_factor | default('')) == 'rack'
+            and (claim_target_payload.management_type | default('')) == 'standalone'
+          )
+          or
+          (
+            (claim_target_payload.target_category | default('')) == 'fabric_interconnect'
+          )
+        )
+        and ((claim_target_payload.endpoint | default('') | string | trim | length) > 0)
+        and ((claim_target_payload.selected_target_credential.username | default('') | string | trim | length) > 0)
+        and (
+          (
+            (claim_target_payload.target_category | default('')) != 'fabric_interconnect'
+          )
+          or
+          (
+            (connector_prepare_execution_result.status | default('not_applicable')) == 'ready_for_claim'
+          )
+        )
+      }}
+    pva_claim_platform_type: >-
+      {{
+        'IMCRack'
+        if (
+          (claim_target_payload.target_category | default('')) == 'server'
+          and (claim_target_payload.form_factor | default('')) == 'rack'
+          and (claim_target_payload.management_type | default('')) == 'standalone'
+        )
+        else (
+          'UCSFIISM'
+          if ((claim_target_payload.target_category | default('')) == 'fabric_interconnect')
+          else ''
+        )
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Resolve target credential secret value for appliance claim
+  ansible.builtin.set_fact:
+    pva_claim_target_password: >-
+      {{
+        lookup('ansible.builtin.env', pva_claim_target_password_env_name)
+        if (pva_claim_target_password_env_name | default('') | length > 0)
+        else ''
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Build appliance claim request body
+  ansible.builtin.set_fact:
+    pva_claim_request_body:
+      Hostname: "{{ claim_target_payload.endpoint }}"
+      Username: "{{ claim_target_payload.selected_target_credential.username | default('') }}"
+      Password: "{{ pva_claim_target_password | default('') }}"
+      PlatformType: "{{ pva_claim_platform_type }}"
+  no_log: true
+  when:
+    - pva_claim_submission_supported | default(false) | bool
+    - (pva_claim_target_password | default('') | string | trim | length) > 0
+    - (pva_claim_platform_type | default('') | string | trim | length) > 0
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Submit appliance claim request
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ normalized_intersight_endpoint }}"
+    validate_certs: "{{ intersight_validate_certs | default(false) | bool }}"
+    resource_path: /appliance/DeviceClaims
+    update_method: post
+    api_body: "{{ pva_claim_request_body }}"
+  register: pva_appliance_claim_result
+  failed_when: false
+  no_log: true
+  when:
+    - pva_claim_submission_supported | default(false) | bool
+    - (pva_claim_target_password | default('') | string | trim | length) > 0
+    - (pva_claim_platform_type | default('') | string | trim | length) > 0
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Derive appliance claim error text
+  ansible.builtin.set_fact:
+    pva_claim_error_text: "{{ (pva_appliance_claim_result.msg | default('')) ~ ' ' ~ (pva_appliance_claim_result.api_response | default({}) | to_json) }}"
+    pva_claim_error_text_lower: "{{ (((pva_appliance_claim_result.msg | default('')) ~ ' ' ~ (pva_appliance_claim_result.api_response | default({}) | to_json)) | lower) }}"
+  when:
+    - pva_claim_submission_supported | default(false) | bool
+    - pva_appliance_claim_result is defined
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Build normalized appliance claim execution result
+  ansible.builtin.set_fact:
+    pva_claim_execution_result:
+      requested: true
+      executed: true
+      execution_mode: appliance_claim
+      status: >-
+        {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
+        already_claimed
+        {%- elif 'already exists' in pva_claim_error_text_lower -%}
+        already_claimed
+        {%- elif 'conflict' in pva_claim_error_text_lower -%}
+        conflict
+        {%- elif (pva_appliance_claim_result.failed | default(false) | bool) -%}
+        failed
+        {%- else -%}
+        submitted
+        {%- endif -%}
+      reason: >-
+        {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
+        already_compliant
+        {%- elif 'already exists' in pva_claim_error_text_lower -%}
+        already_compliant
+        {%- elif 'conflict' in pva_claim_error_text_lower -%}
+        conflict
+        {%- elif (pva_appliance_claim_result.failed | default(false) | bool) -%}
+        claim_submission_failed
+        {%- else -%}
+        claimed_and_configured
+        {%- endif -%}
+      payload:
+        endpoint: "{{ claim_target_payload.endpoint }}"
+        canonical_endpoint: "{{ claim_target_payload.canonical_endpoint }}"
+        normalized_claim_key: "{{ claim_target_payload.normalized_claim_key }}"
+        platform_type: "{{ pva_claim_platform_type }}"
+        username: "{{ claim_target_payload.selected_target_credential.username | default('') }}"
+        request_body: "{{ pva_claim_request_body | default({}) }}"
+        api_response: "{{ pva_appliance_claim_result.api_response | default({}) }}"
+        changed: "{{ pva_appliance_claim_result.changed | default(false) | bool }}"
+  no_log: true
+  when:
+    - pva_claim_submission_supported | default(false) | bool
+    - pva_appliance_claim_result is defined
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Build skipped appliance claim execution result
+  ansible.builtin.set_fact:
+    pva_claim_execution_result:
+      requested: false
+      executed: false
+      execution_mode: guarded_hook
+      status: not_applicable
+      reason: >-
+        {{
+          'Target is not eligible for appliance claim submission in the current execution mode.'
+          if not (pva_claim_submission_supported | default(false) | bool)
+          else 'Fabric Interconnect endpoint-side connector preparation did not succeed.'
+          if (
+            (claim_target_payload.target_category | default('')) == 'fabric_interconnect'
+            and ((connector_prepare_execution_result.status | default('not_applicable')) != 'ready_for_claim')
+          )
+          else 'Target credential data was not available for appliance claim submission.'
+        }}
+      payload: {}
+  when:
+    - not (pva_claim_submission_supported | default(false) | bool)
+      or (pva_claim_target_password | default('') | string | trim | length) == 0
+      or (pva_claim_platform_type | default('') | string | trim | length) == 0
+  tags:
+    - onboarding
+    - action
+    - claim

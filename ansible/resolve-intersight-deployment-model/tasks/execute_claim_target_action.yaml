@@ -1,0 +1,412 @@
+---
+- name: Build guarded claim payload facts for target
+  ansible.builtin.set_fact:
+    current_claim_target_endpoint: >-
+      {{
+        claim_action_item.mgmt_ip
+        | default('')
+        if (claim_action_item.mgmt_ip | default('') | string | trim | length) > 0
+        else (
+          claim_action_item.endpoint_hint
+          | default(claim_action_item.claim_key | default(''))
+        )
+      }}
+    current_claim_target_normalized_key: >-
+      {{
+        claim_action_item.claim_key
+        | default(current_claim_target_endpoint)
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Derive claim-preparation facts for target
+  ansible.builtin.set_fact:
+    current_claim_target_is_standalone_rack: >-
+      {{
+        (claim_action_item.target_category | default('')) == 'server'
+        and (claim_action_item.form_factor | default('')) == 'rack'
+        and (claim_action_item.management_type | default('')) == 'standalone'
+      }}
+    current_matching_manufacturing_credentials: >-
+      {{
+        normalized_credential_candidates
+        | default([])
+        | selectattr('credential_role', 'defined')
+        | selectattr('credential_role', 'equalto', 'manufacturing')
+        | selectattr('target_category', 'defined')
+        | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+        | list
+      }}
+    current_matching_target_credentials: >-
+      {{
+        normalized_credential_candidates
+        | default([])
+        | selectattr('credential_role', 'defined')
+        | selectattr('credential_role', 'equalto', 'target')
+        | selectattr('target_category', 'defined')
+        | selectattr('target_category', 'equalto', claim_action_item.target_category | default(''))
+        | list
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Derive matched credential candidates for target
+  ansible.builtin.set_fact:
+    current_manufacturing_credential_candidates: >-
+      {{
+        (
+          current_matching_manufacturing_credentials
+          | rejectattr('target_form_factor', 'defined')
+          | list
+        )
+        +
+        (
+          current_matching_manufacturing_credentials
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+          | list
+        )
+      }}
+    current_target_credential_candidates: >-
+      {{
+        (
+          current_matching_target_credentials
+          | rejectattr('target_form_factor', 'defined')
+          | list
+        )
+        +
+        (
+          current_matching_target_credentials
+          | selectattr('target_form_factor', 'defined')
+          | selectattr('target_form_factor', 'equalto', claim_action_item.form_factor | default(''))
+          | list
+        )
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Narrow matched credential candidates by management type when specified
+  ansible.builtin.set_fact:
+    current_manufacturing_credential_candidates: >-
+      {{
+        (
+          current_manufacturing_credential_candidates
+          | rejectattr('target_management_type', 'defined')
+          | list
+        )
+        +
+        (
+          current_manufacturing_credential_candidates
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+          | list
+        )
+      }}
+    current_target_credential_candidates: >-
+      {{
+        (
+          current_target_credential_candidates
+          | rejectattr('target_management_type', 'defined')
+          | list
+        )
+        +
+        (
+          current_target_credential_candidates
+          | selectattr('target_management_type', 'defined')
+          | selectattr('target_management_type', 'equalto', claim_action_item.management_type | default(''))
+          | list
+        )
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Derive matched claim credentials for target
+  ansible.builtin.set_fact:
+    current_selected_manufacturing_credential: "{{ (current_manufacturing_credential_candidates | first) | default({}, true) }}"
+    current_selected_target_credential: "{{ (current_target_credential_candidates | first) | default({}, true) }}"
+    current_manufacturing_credential_present: "{{ (current_manufacturing_credential_candidates | length) > 0 }}"
+    current_target_credential_present: "{{ (current_target_credential_candidates | length) > 0 }}"
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Derive claim-preparation state for target
+  ansible.builtin.set_fact:
+    current_claim_target_already_normalized: >-
+      {{
+        current_claim_target_is_standalone_rack
+        and not (current_manufacturing_credential_candidates | length > 0)
+        and (current_target_credential_candidates | length > 0)
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Derive claim-preparation mode for target
+  ansible.builtin.set_fact:
+    current_claim_target_requires_password_normalization: >-
+      {{
+        current_claim_target_is_standalone_rack
+        and not current_claim_target_already_normalized
+      }}
+    current_claim_target_ready_for_password_normalization: >-
+      {{
+        current_claim_target_is_standalone_rack
+        and (current_manufacturing_credential_candidates | length > 0)
+        and (current_target_credential_candidates | length > 0)
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Derive claim-preparation workflow for target
+  ansible.builtin.set_fact:
+    current_claim_target_preclaim_workflow: >-
+      {{
+        'rack_password_normalization_then_claim'
+        if current_claim_target_requires_password_normalization
+        else 'direct_claim_preparation'
+      }}
+    current_claim_target_preclaim_next_step: >-
+      {{
+        'run_password_normalization_then_claim'
+        if current_claim_target_ready_for_password_normalization
+        else 'supply_rack_credentials_for_password_normalization'
+        if current_claim_target_requires_password_normalization
+        else 'proceed_to_claim_preparation'
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Build guarded claim payload object for target
+  ansible.builtin.set_fact:
+    current_claim_target_payload:
+      target_id: "{{ claim_action_item.target_id | default('') }}"
+      target_category: "{{ claim_action_item.target_category | default('unknown') }}"
+      serial: "{{ claim_action_item.serial | default('') }}"
+      mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
+      form_factor: "{{ claim_action_item.form_factor | default('') }}"
+      management_type: "{{ claim_action_item.management_type | default('') }}"
+      claim_key: "{{ claim_action_item.claim_key | default('') }}"
+      endpoint: "{{ current_claim_target_endpoint }}"
+      canonical_endpoint: "{{ current_claim_target_endpoint }}"
+      normalized_claim_key: "{{ current_claim_target_normalized_key }}"
+      connectivity_path: "{{ claim_action_item.connectivity_path | default('direct_endpoint') }}"
+      deployment_name: "{{ deployment_data.id | default('') }}"
+      intersight_endpoint: "{{ normalized_intersight_endpoint | default('') }}"
+      intersight_organization: "{{ placement_data.intersight.organization | default('') }}"
+      intersight_resource_group: "{{ effective_resource_group | default('') }}"
+      intersight_api_key_id_ref: "{{ api_key_id_ref | default('') }}"
+      intersight_api_private_key_ref: "{{ api_private_key_ref | default('') }}"
+      intersight_validate_certs: "{{ intersight_validate_certs | default(true) }}"
+      endpoint_validate_certs: false
+      credential_candidates: "{{ normalized_credential_candidates | default([]) }}"
+      manufacturing_credential_candidates: "{{ current_manufacturing_credential_candidates }}"
+      target_credential_candidates: "{{ current_target_credential_candidates }}"
+      selected_manufacturing_credential: "{{ current_selected_manufacturing_credential }}"
+      selected_target_credential: "{{ current_selected_target_credential }}"
+      preclaim_workflow: "{{ current_claim_target_preclaim_workflow }}"
+      password_normalization_required: "{{ current_claim_target_requires_password_normalization }}"
+      preclaim_normalization:
+        required: "{{ current_claim_target_requires_password_normalization }}"
+        ready: >-
+          {{
+            (
+              current_claim_target_ready_for_password_normalization
+              or current_claim_target_already_normalized
+            )
+            if current_claim_target_is_standalone_rack
+            else true
+          }}
+        manufacturing_credential_present: "{{ current_manufacturing_credential_present }}"
+        target_credential_present: "{{ current_target_credential_present }}"
+        next_step: "{{ current_claim_target_preclaim_next_step }}"
+      prepared_targets:
+        - target_id: "{{ claim_action_item.target_id | default('') }}"
+          target_category: "{{ claim_action_item.target_category | default('unknown') }}"
+          serial: "{{ claim_action_item.serial | default('') }}"
+          mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
+          form_factor: "{{ claim_action_item.form_factor | default('') }}"
+          management_type: "{{ claim_action_item.management_type | default('') }}"
+          endpoint: "{{ current_claim_target_endpoint }}"
+          canonical_endpoint: "{{ current_claim_target_endpoint }}"
+          normalized_claim_key: "{{ current_claim_target_normalized_key }}"
+          connectivity_path: "{{ claim_action_item.connectivity_path | default('direct_endpoint') }}"
+      assist_context: "{{ assist_reachability | default({}) }}"
+      readiness_status: "{{ onboarding_readiness.status | default('unknown') }}"
+      validation_mode: "{{ validation_mode | default('strict') }}"
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Build rack password normalization execution stub
+  ansible.builtin.include_tasks: execute_rack_password_normalization.yaml
+  vars:
+    claim_target_payload: "{{ current_claim_target_payload }}"
+  tags:
+    - onboarding
+    - action
+    - normalization
+
+- name: Execute FI device connector prepare gate
+  ansible.builtin.include_tasks: execute_device_connector_prepare.yaml
+  vars:
+    claim_target_payload: "{{ current_claim_target_payload }}"
+  tags:
+    - onboarding
+    - action
+    - prepare
+
+- name: Execute appliance claim for direct-preparation targets
+  ansible.builtin.include_tasks: execute_appliance_claim.yaml
+  vars:
+    claim_target_payload: "{{ current_claim_target_payload }}"
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Record guarded claim hook result for target
+  ansible.builtin.set_fact:
+    claim_execution_results: "{{ (claim_execution_results | default([])) + [claim_execution_result] }}"
+  vars:
+    claim_execution_result:
+      target_id: "{{ claim_action_item.target_id | default('') }}"
+      target_category: "{{ claim_action_item.target_category | default('unknown') }}"
+      serial: "{{ claim_action_item.serial | default('') }}"
+      mgmt_ip: "{{ claim_action_item.mgmt_ip | default('') }}"
+      form_factor: "{{ claim_action_item.form_factor | default('') }}"
+      management_type: "{{ claim_action_item.management_type | default('') }}"
+      claim_key: "{{ claim_action_item.claim_key | default('') }}"
+      endpoint: "{{ current_claim_target_endpoint }}"
+      canonical_endpoint: "{{ current_claim_target_endpoint }}"
+      normalized_claim_key: "{{ current_claim_target_normalized_key }}"
+      connectivity_path: "{{ claim_action_item.connectivity_path | default('direct_endpoint') }}"
+      action_type: "{{ claim_action_item.action_type | default('claim_and_onboard') }}"
+      execution_mode: "{{ pva_claim_execution_result.execution_mode | default('guarded_hook') }}"
+      executed: "{{ pva_claim_execution_result.executed | default(false) | bool }}"
+      status: >-
+        {{
+          pva_claim_execution_result.status
+          if ((pva_claim_execution_result.status | default('not_applicable')) != 'not_applicable')
+          else connector_prepare_execution_result.status
+          if ((connector_prepare_execution_result.status | default('not_applicable')) != 'not_applicable')
+          else
+          'preclaim_ready_not_implemented'
+          if (
+            (current_claim_target_payload.preclaim_normalization.required | default(false) | bool)
+            and (current_claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+          )
+          else 'preclaim_credentials_missing'
+          if (
+            (current_claim_target_payload.preclaim_normalization.required | default(false) | bool)
+            and not (current_claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+          )
+          else 'hook_ready_not_implemented'
+        }}
+      reason: >-
+        {{
+          pva_claim_execution_result.reason
+          if ((pva_claim_execution_result.status | default('not_applicable')) != 'not_applicable')
+          else connector_prepare_execution_result.reason
+          if ((connector_prepare_execution_result.status | default('not_applicable')) != 'not_applicable')
+          else
+          'Standalone rack target has the required manufacturing and target credentials for password normalization, but the reset workflow is not wired yet.'
+          if (
+            (current_claim_target_payload.preclaim_normalization.required | default(false) | bool)
+            and (current_claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+          )
+          else 'Standalone rack target requires manufacturing and target credentials before password normalization can run.'
+          if (
+            (current_claim_target_payload.preclaim_normalization.required | default(false) | bool)
+            and not (current_claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+          )
+          else 'Target passed readiness and entered the guarded claim hook, but real claim/onboarding mutation is not wired yet.'
+        }}
+      preclaim_action_plan: >-
+        {{
+          {
+            'action_type': 'password_normalization_then_claim',
+            'execution_mode': 'would_execute',
+            'ready': (current_claim_target_payload.preclaim_normalization.ready | default(false) | bool),
+            'endpoint': current_claim_target_payload.endpoint,
+            'connectivity_path': current_claim_target_payload.connectivity_path,
+            'reason': (
+              'Standalone rack target has both manufacturing and target credentials and would enter password normalization before claim.'
+              if (current_claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+              else 'Standalone rack target is missing manufacturing and/or target credentials for password normalization.'
+            )
+          }
+          if (current_claim_target_payload.preclaim_normalization.required | default(false) | bool)
+          else {
+            'action_type': 'direct_claim_preparation',
+            'execution_mode': 'would_execute',
+            'ready': (
+              (connector_prepare_execution_result.status | default('not_applicable')) == 'ready_for_claim'
+              if ((current_claim_target_payload.target_category | default('')) == 'fabric_interconnect')
+              else true
+            ),
+            'endpoint': current_claim_target_payload.endpoint,
+            'connectivity_path': current_claim_target_payload.connectivity_path,
+            'reason': (
+              'Fabric Interconnect endpoint-side connector preparation succeeded and claim may continue.'
+              if ((current_claim_target_payload.target_category | default('')) == 'fabric_interconnect')
+              and ((connector_prepare_execution_result.status | default('not_applicable')) == 'ready_for_claim')
+              else 'Fabric Interconnect endpoint-side connector preparation must succeed before claim.'
+              if ((current_claim_target_payload.target_category | default('')) == 'fabric_interconnect')
+              else 'Target does not require rack password normalization before claim.'
+            )
+          }
+        }}
+      password_normalization_payload: >-
+        {{
+          {
+            'target_id': current_claim_target_payload.target_id,
+            'target_category': current_claim_target_payload.target_category,
+            'endpoint': current_claim_target_payload.endpoint,
+            'canonical_endpoint': current_claim_target_payload.canonical_endpoint,
+            'connectivity_path': current_claim_target_payload.connectivity_path,
+            'management_type': current_claim_target_payload.management_type,
+            'form_factor': current_claim_target_payload.form_factor,
+            'execution_mode': 'guarded_hook',
+            'normalization_workflow': 'rack_password_normalization',
+            'ready': (current_claim_target_payload.preclaim_normalization.ready | default(false) | bool),
+            'manufacturing_credential': {
+              'username': (current_claim_target_payload.selected_manufacturing_credential.username | default('')),
+              'password_ref': (current_claim_target_payload.selected_manufacturing_credential.password_ref | default(''))
+            },
+            'target_credential': {
+              'username': (current_claim_target_payload.selected_target_credential.username | default('')),
+              'password_ref': (current_claim_target_payload.selected_target_credential.password_ref | default(''))
+            },
+            'reason': (
+              'Standalone rack target has both manufacturing and target credentials and is ready for password normalization payload generation.'
+              if (current_claim_target_payload.preclaim_normalization.ready | default(false) | bool)
+              else 'Standalone rack target is missing manufacturing and/or target credentials for password normalization payload generation.'
+            )
+          }
+          if (current_claim_target_payload.preclaim_normalization.required | default(false) | bool)
+          else {}
+        }}
+      password_normalization_execution: "{{ rack_password_normalization_execution_result }}"
+      connector_prepare_execution: "{{ connector_prepare_execution_result }}"
+      appliance_claim_execution: "{{ pva_claim_execution_result }}"
+      claim_target_payload: "{{ current_claim_target_payload }}"
+  tags:
+    - onboarding
+    - action
+    - claim

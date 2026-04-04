@@ -1,0 +1,193 @@
+---
+- name: Prepare target context
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    platform_root: "{{ (platform_yaml | from_yaml) if (platform_yaml | default('') | string | trim | length > 0) else {} }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_root: "{{ (placement_yaml | from_yaml) if (placement_yaml | default('') | string | trim | length > 0) else {} }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    raw_intersight_endpoint: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') }}"
+    normalized_intersight_endpoint: >-
+      {{
+        raw_intersight_endpoint
+        if ((raw_intersight_endpoint | string | regex_search('/api/v1/?$')) is not none)
+        else ((raw_intersight_endpoint | string | regex_replace('/+$', '')) ~ '/api/v1')
+      }}
+    intersight_api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    intersight_api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    intersight_api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') }}"
+    intersight_api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
+    resolved_api_key_id: >-
+      {{
+        intersight_api_key_id_direct
+        if (intersight_api_key_id_direct | length) > 0
+        else
+        lookup('ansible.builtin.env', intersight_api_key_id_ref | regex_replace('^env://', ''))
+        if (
+          (intersight_api_key_id_ref | string | trim | length) > 0
+          and (intersight_api_key_id_ref | string).startswith('env://')
+        )
+        else ''
+      }}
+    resolved_api_private_key: >-
+      {{
+        intersight_api_private_key_direct
+        if (intersight_api_private_key_direct | trim | length) > 0
+        else
+        lookup('ansible.builtin.env', intersight_api_private_key_ref | regex_replace('^env://', ''))
+        if (
+          (intersight_api_private_key_ref | string | trim | length) > 0
+          and (intersight_api_private_key_ref | string).startswith('env://')
+        )
+        else ''
+      }}
+    direct_organization: "{{ organization | default('') | string | trim }}"
+    requested_organization: "{{ direct_organization if (direct_organization | length > 0) else (placement_data.intersight.organization | default('') | string | trim) }}"
+    context_validate_certs: "{{ platform_data.intersight.validate_certs | default(true) | bool }}"
+    internal_debug_enabled: "{{ debug_enabled | default('false') }}"
+  pre_tasks:
+    - name: Install shared Python requirements
+      ansible.builtin.pip:
+        requirements: "{{ playbook_dir }}/../requirements.txt"
+      tags:
+        - always
+        - precheck
+
+    - name: Validate prepare-intersight-context inputs
+      ansible.builtin.assert:
+        that:
+          - platform_data | type_debug == 'dict'
+          - resolved_api_key_id | string | trim | length > 0
+          - resolved_api_private_key | string | trim | length > 0
+        fail_msg: "prepare-intersight-context requires platform_yaml with direct or env-backed Intersight API credentials"
+      tags:
+        - always
+        - validate
+        - precheck
+
+  tasks:
+    - name: Use default org behavior when no organization is requested
+      ansible.builtin.set_fact:
+        org_status: ready
+        org_name: ""
+        org_action: default_org_used
+        org_result_json: >-
+          {{
+            {
+              "requested_org_name": requested_organization,
+              "effective_org_name": "",
+              "org_action": "default_org_used",
+              "implementation_state": "validated_default_behavior"
+            } | to_json
+          }}
+      when: requested_organization | length == 0
+      tags:
+        - configure
+        - verify
+
+    - name: Query requested organization by name
+      cisco.intersight.intersight_rest_api:
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_uri: "{{ normalized_intersight_endpoint }}"
+        validate_certs: "{{ context_validate_certs }}"
+        resource_path: /organization/Organizations
+        query_params:
+          $filter: "Name eq '{{ requested_organization }}'"
+          $top: 1
+        return_list: true
+      register: existing_org_query
+      no_log: "{{ not (internal_debug_enabled | bool) }}"
+      when: requested_organization | length > 0
+      tags:
+        - configure
+        - verify
+
+    - name: Create requested organization when missing
+      cisco.intersight.intersight_rest_api:
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_uri: "{{ normalized_intersight_endpoint }}"
+        validate_certs: "{{ context_validate_certs }}"
+        resource_path: /organization/Organizations
+        update_method: post
+        api_body:
+          Name: "{{ requested_organization }}"
+      register: created_org
+      no_log: "{{ not (internal_debug_enabled | bool) }}"
+      when:
+        - requested_organization | length > 0
+        - (existing_org_query.api_response | default([]) | length) == 0
+      tags:
+        - configure
+        - verify
+
+    - name: Build ensured target context result
+      ansible.builtin.set_fact:
+        org_status: ready
+        org_name: "{{ requested_organization }}"
+        org_action: "{{ 'existing' if (existing_org_query.api_response | default([]) | length) > 0 else 'created' }}"
+        org_result_json: >-
+          {{
+            {
+              "requested_org_name": requested_organization,
+              "effective_org_name": requested_organization,
+              "org_action": ('existing' if (existing_org_query.api_response | default([]) | length) > 0 else 'created'),
+              "existing_match_count": (existing_org_query.api_response | default([]) | length),
+              "implementation_state": "validated_with_cisco_intersight_collection"
+            } | to_json
+          }}
+      when: requested_organization | length > 0
+      tags:
+        - configure
+        - verify
+
+    - name: Build shared context outputs
+      ansible.builtin.set_fact:
+        context_status: ready
+        context_result_json: >-
+          {{
+            {
+              "platform_endpoint": normalized_intersight_endpoint,
+              "organization": (org_name | default('')),
+              "org_status": (org_status | default('ready')),
+              "org_action": (org_action | default('default_org_used')),
+              "validate_certs": context_validate_certs
+            } | to_json
+          }}
+      tags:
+        - outputs
+
+    - name: Validate prepare-intersight-context outputs
+      ansible.builtin.assert:
+        that:
+          - context_status is defined
+          - context_status == 'ready'
+          - org_status is defined
+          - org_name is defined
+          - org_action is defined
+          - org_result_json is defined
+          - context_result_json is defined
+        fail_msg: "prepare-intersight-context did not produce the expected output contract"
+      tags:
+        - always
+        - verify
+
+    - name: Export prepare-intersight-context outputs
+      torque.collections.export_torque_outputs:
+        outputs:
+          context_status: "{{ context_status }}"
+          org_status: "{{ org_status }}"
+          org_name: "{{ org_name }}"
+          org_action: "{{ org_action }}"
+          org_result_json: "{{ org_result_json }}"
+          context_result_json: "{{ context_result_json }}"
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
+      tags:
+        - always
+        - outputs

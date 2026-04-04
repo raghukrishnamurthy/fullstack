@@ -1,0 +1,169 @@
+---
+- name: Initialize baseline resolution facts
+  ansible.builtin.set_fact:
+    built_in_baseline_data: {}
+    built_in_baseline_file: ""
+    customer_baseline_data: {}
+    effective_baseline_payload: {}
+    customer_baseline_loaded: false
+    customer_baseline_file: ""
+    customer_baseline_location: ""
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Check for built-in solution baseline file
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../baselines/solution_profiles/{{ solution_data.profile }}/baseline.yaml"
+  register: built_in_baseline_file_stat
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Validate built-in solution baseline file exists
+  ansible.builtin.assert:
+    that:
+      - built_in_baseline_file_stat.stat.exists
+      - built_in_baseline_file_stat.stat.isreg
+    fail_msg: "No built-in baseline.yaml found for solution.profile={{ solution_data.profile }}"
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Load built-in solution baseline file
+  ansible.builtin.slurp:
+    path: "{{ playbook_dir }}/../../baselines/solution_profiles/{{ solution_data.profile }}/baseline.yaml"
+  register: built_in_baseline_slurp
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Parse built-in solution baseline payload
+  ansible.builtin.set_fact:
+    built_in_baseline_root: "{{ built_in_baseline_slurp.content | b64decode | from_yaml }}"
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Normalize built-in solution baseline payload
+  ansible.builtin.set_fact:
+    built_in_baseline_data: "{{ built_in_baseline_root.baseline | default(built_in_baseline_root) }}"
+    built_in_baseline_file: "{{ playbook_dir }}/../../baselines/solution_profiles/{{ solution_data.profile }}/baseline.yaml"
+    effective_baseline_payload: "{{ built_in_baseline_root.baseline | default(built_in_baseline_root) }}"
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Fetch customer baseline from input source
+  ansible.builtin.uri:
+    url: "{{ normalized_baseline_input_source }}"
+    method: GET
+    return_content: true
+    validate_certs: true
+  register: customer_baseline_uri_result
+  when: normalized_baseline_input_source | length > 0
+  changed_when: false
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Parse customer baseline payload from input source
+  ansible.builtin.set_fact:
+    customer_baseline_root: "{{ customer_baseline_uri_result.content | from_yaml }}"
+  when: normalized_baseline_input_source | length > 0
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Normalize input-source baseline payload and merge overrides
+  ansible.builtin.set_fact:
+    customer_baseline_data: "{{ customer_baseline_root.baseline | default(customer_baseline_root) }}"
+    effective_baseline_payload: "{{ effective_baseline_payload | combine(customer_baseline_root.baseline | default(customer_baseline_root), recursive=True) }}"
+    customer_baseline_loaded: true
+    customer_baseline_location: "{{ normalized_baseline_input_source }}"
+  when: normalized_baseline_input_source | length > 0
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Check for baseline.yaml in local baseline directory
+  ansible.builtin.stat:
+    path: "{{ normalized_baseline_directory }}/baseline.yaml"
+  register: customer_baseline_file_stat
+  when:
+    - normalized_baseline_input_source | length == 0
+    - normalized_baseline_directory | length > 0
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Validate local baseline directory contains baseline.yaml
+  ansible.builtin.assert:
+    that:
+      - customer_baseline_file_stat.stat.exists
+      - customer_baseline_file_stat.stat.isreg
+    fail_msg: "baseline_directory must contain a readable baseline.yaml file"
+  when:
+    - normalized_baseline_input_source | length == 0
+    - normalized_baseline_directory | length > 0
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Load customer baseline file from local directory
+  ansible.builtin.slurp:
+    path: "{{ normalized_baseline_directory }}/baseline.yaml"
+  register: customer_baseline_slurp
+  when:
+    - normalized_baseline_input_source | length == 0
+    - normalized_baseline_directory | length > 0
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Parse customer baseline payload
+  ansible.builtin.set_fact:
+    customer_baseline_root: "{{ customer_baseline_slurp.content | b64decode | from_yaml }}"
+  when:
+    - normalized_baseline_input_source | length == 0
+    - normalized_baseline_directory | length > 0
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Normalize customer baseline payload and merge overrides
+  ansible.builtin.set_fact:
+    customer_baseline_data: "{{ customer_baseline_root.baseline | default(customer_baseline_root) }}"
+    effective_baseline_payload: "{{ effective_baseline_payload | combine(customer_baseline_root.baseline | default(customer_baseline_root), recursive=True) }}"
+    customer_baseline_loaded: true
+    customer_baseline_file: "{{ normalized_baseline_directory }}/baseline.yaml"
+    customer_baseline_location: "{{ normalized_baseline_directory }}/baseline.yaml"
+  when:
+    - normalized_baseline_input_source | length == 0
+    - normalized_baseline_directory | length > 0
+  tags:
+    - always
+    - validate
+    - baseline
+
+- name: Merge deployment overrides onto effective baseline
+  ansible.builtin.set_fact:
+    effective_baseline_payload: "{{ effective_baseline_payload | combine(overrides_data | default({}), recursive=True) }}"
+  when: overrides_enabled
+  tags:
+    - always
+    - validate
+    - baseline

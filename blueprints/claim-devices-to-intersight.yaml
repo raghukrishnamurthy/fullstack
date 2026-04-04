@@ -1,0 +1,162 @@
+spec_version: 2
+description: Focused Intersight claim workflow for reusable context, credential-resolution, claim, and normalization grains
+inputs:
+  agent:
+    type: agent
+    title: Torque Agent
+    description: Torque agent that runs this workflow.
+  api_uri:
+    type: string
+    description: Intersight SaaS or appliance API base URI
+    default: https://intersight.com/api/v1
+  intersight_api_key_id:
+    type: string
+    description: Intersight API key id
+  intersight_api_private_key:
+    type: string
+    description: Intersight API private key PEM content
+    sensitive: true
+  organization:
+    type: string
+    description: Intersight organization
+    default: ai-prod
+  fi_target_username:
+    type: string
+    description: Username for fabric interconnect claim readiness and appliance claim
+    default: admin
+  fi_target_password:
+    type: string
+    description: Password for fabric interconnect claim readiness and appliance claim
+    sensitive: true
+  rack_target_username:
+    type: string
+    description: Username for standalone rack claim readiness and appliance claim
+    default: admin
+  rack_target_password:
+    type: string
+    description: Password for standalone rack claim readiness and appliance claim
+    sensitive: true
+  claim_targets_json:
+    type: string
+    description: JSON array of Intersight claim targets to process
+    default: '[]'
+grains:
+  resolve_claim_target_credentials:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/resolve-claim-target-credentials/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      env-vars:
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - claim_targets_json: '{{ .inputs.claim_targets_json }}'
+        - internal_debug_enabled: 'true'
+        - credential_candidates_yaml: |
+            credential_candidates:
+              - credential_role: target
+                target_category: server
+                target_form_factor: rack
+                target_management_type: standalone
+                username: {{ .inputs.rack_target_username }}
+                password_ref: env://RACK_TARGET_PASSWORD
+              - credential_role: target
+                target_category: fabric_interconnect
+                username: {{ .inputs.fi_target_username }}
+                password_ref: env://FI_TARGET_PASSWORD
+      outputs:
+        - resolved_claim_targets_json
+    on-destroy:
+      - source:
+          store: intersight-fullstack-repo
+          path: ansible/resolve-claim-target-credentials/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
+  claim_devices_to_intersight:
+    kind: ansible
+    depends-on: resolve_claim_target_credentials
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/claim-devices-to-intersight/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: |
+            deployment:
+              id: claim-devices-to-intersight
+        - internal_debug_enabled: 'true'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+        - organization: '{{ .inputs.organization }}'
+        - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
+      outputs:
+        - batch_status
+        - successful_targets
+        - failed_targets
+        - conflict_targets
+        - skipped_targets
+        - changed_targets
+        - results_json
+        - normalized_claim_results_json
+        - normalized_claim_batch_status
+        - normalized_claim_successful_count
+        - normalized_claim_failed_count
+        - normalized_claim_conflict_count
+        - normalized_claim_skipped_count
+        - normalized_claim_changed_count
+    on-destroy:
+      - source:
+          store: intersight-fullstack-repo
+          path: ansible/claim-devices-to-intersight/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
+outputs:
+  claim_results_json:
+    value: '{{ .grains.claim_devices_to_intersight.outputs.results_json }}'
+  normalized_claim_results_json:
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_results_json }}'
+  normalized_claim_batch_status:
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_batch_status }}'
+  normalized_claim_successful_count:
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_successful_count }}'
+  normalized_claim_failed_count:
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_failed_count }}'
+  normalized_claim_conflict_count:
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_conflict_count }}'
+  normalized_claim_skipped_count:
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_skipped_count }}'
+  normalized_claim_changed_count:
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_changed_count }}'

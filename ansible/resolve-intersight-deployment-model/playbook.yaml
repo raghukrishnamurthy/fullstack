@@ -1,0 +1,165 @@
+---
+- name: Discover Jarvis infrastructure
+  hosts: "{{ group | default('localhost') }}"
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    default_intersight_query_rules_json: |
+      {
+        "Blade": {
+          "resource_path": "/compute/PhysicalSummaries",
+          "serial_field": "Serial",
+          "discovery_field": "Lifecycle",
+          "allowed_discovery_states": ["Active"]
+        },
+        "Rack": {
+          "resource_path": "/compute/PhysicalSummaries",
+          "serial_field": "Serial",
+          "discovery_field": "ManagementMode",
+          "allowed_discovery_states": ["IMM", "IntersightStandalone"]
+        },
+        "FabricInterconnect": {
+          "resource_path": "/network/Elements",
+          "serial_field": "Serial",
+          "discovery_field": "Operability",
+          "allowed_discovery_states": ["online"],
+          "pair_validation": true
+        }
+      }
+    deployment_root: "{{ (deployment_yaml | default('') | trim | length > 0) | ternary(deployment_yaml | from_yaml, {}) }}"
+    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    site_root: "{{ (site_yaml | default('') | trim | length > 0) | ternary(site_yaml | from_yaml, {}) }}"
+    credential_candidates_root: "{{ (credential_candidates_yaml | default('') | trim | length > 0) | ternary(credential_candidates_yaml | from_yaml, {}) }}"
+    overrides_root: "{{ (overrides_yaml | default('') | trim | length > 0) | ternary(overrides_yaml | from_yaml, {}) }}"
+    inventory_root: "{{ (inventory_yaml | default('') | trim | length > 0) | ternary(inventory_yaml | from_yaml, {}) }}"
+    solution_root: "{{ (solution_yaml | default('') | trim | length > 0) | ternary(solution_yaml | from_yaml, {}) }}"
+    deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    site_data: "{{ site_root.site | default(site_root) }}"
+    credential_candidates_data: >-
+      {{
+        credential_candidates_root.credential_candidates
+        | default(credential_candidates_root.credentials
+        | default(credential_candidates_root))
+      }}
+    overrides_data: "{{ overrides_root.overrides | default(overrides_root) }}"
+    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
+    solution_data: "{{ solution_root.solution | default(solution_root) }}"
+    site_global_settings: "{{ site_data.global_settings | default({}) }}"
+    normalized_baseline_input_source: "{{ baseline_input_source | default('') | string | trim }}"
+    normalized_baseline_directory: "{{ baseline_directory | default('') | string | trim }}"
+    overrides_enabled: "{{ overrides_data | default({}) | length > 0 }}"
+    customer_baseline_data: {}
+    effective_baseline_payload: {}
+    inventory_defaults: "{{ inventory_data.defaults | default({}) }}"
+    inventory_devices: "{{ inventory_data.devices | default([]) }}"
+    inventory_domains: "{{ inventory_data.domains | default([]) }}"
+    normalized_credential_candidates: "{{ credential_candidates_data if (credential_candidates_data is sequence and credential_candidates_data is not string) else [] }}"
+    assists: "{{ platform_data.intersight.assists | default([]) }}"
+    intersight_query_rules: "{{ default_intersight_query_rules_json | from_json }}"
+    raw_intersight_endpoint: "{{ platform_data.intersight.endpoint | default('') | string | trim }}"
+    derived_intersight_mode: "{{ 'saas' if ('intersight.com' in raw_intersight_endpoint) else 'pva' }}"
+    normalized_intersight_endpoint: >-
+      {{
+        raw_intersight_endpoint
+        if (
+          derived_intersight_mode == 'saas'
+          or (raw_intersight_endpoint | regex_search('/api/v1/?$'))
+        )
+        else (raw_intersight_endpoint | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
+    effective_resource_group: "{{ placement_data.intersight.resource_group | default(placement_data.intersight.organization | default('')) }}"
+    intersight_validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false' if derived_intersight_mode == 'pva' else 'true') | string | lower)
+        in ['true', '1', 'yes']
+      }}
+    api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') }}"
+    api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
+    api_key_id_env_name: "{{ (api_key_id_ref is string and api_key_id_ref.startswith('env://')) | ternary(api_key_id_ref | regex_replace('^env://', ''), '') }}"
+    api_private_key_env_name: "{{ (api_private_key_ref is string and api_private_key_ref.startswith('env://')) | ternary(api_private_key_ref | regex_replace('^env://', ''), '') }}"
+    resolved_api_key_id: "{{ (api_key_id_env_name | length > 0) | ternary(lookup('ansible.builtin.env', api_key_id_env_name), '') }}"
+    resolved_api_private_key: "{{ (api_private_key_env_name | length > 0) | ternary(lookup('ansible.builtin.env', api_private_key_env_name), '') }}"
+    intersight_live_validation_requested: "{{ (validation_mode | default('strict') | string | lower) in ['live', 'intersight_live'] }}"
+    intersight_live_validation_enabled: >-
+      {{
+        intersight_live_validation_requested
+        and (resolved_api_key_id | string | trim | length > 0)
+        and (resolved_api_private_key | string | trim | length > 0)
+      }}
+    fi_count: "{{ inventory_devices | selectattr('category', 'equalto', 'fabric_interconnect') | list | length }}"
+    server_count: "{{ inventory_devices | selectattr('category', 'equalto', 'server') | list | length }}"
+    storage_count: "{{ inventory_devices | selectattr('category', 'equalto', 'storage') | list | length }}"
+    ethernet_switch_count: "{{ inventory_devices | selectattr('category', 'equalto', 'ethernet_switch') | list | length }}"
+    san_switch_count: "{{ inventory_devices | selectattr('category', 'equalto', 'san_switch') | list | length }}"
+    gpu_server_count: "{{ inventory_devices | selectattr('category', 'equalto', 'server') | selectattr('attributes.accelerator_profile', 'defined') | selectattr('attributes.accelerator_profile', 'equalto', 'gpu') | list | length }}"
+    normalized_device_ids: "{{ inventory_devices | map(attribute='id') | list }}"
+    classification: >-
+      {% if fi_count | int > 0 and storage_count | int > 0 and (ethernet_switch_count | int > 0 or san_switch_count | int > 0) %}
+      converged_compute_network_storage
+      {% elif fi_count | int > 0 and (inventory_domains | length > 0) and server_count | int > fi_count | int %}
+      mixed_mode_infrastructure
+      {% elif fi_count | int > 0 and server_count | int > 0 %}
+      fi_managed_compute_domain
+      {% elif gpu_server_count | int > 0 %}
+      standalone_gpu_cluster
+      {% elif server_count | int > 0 %}
+      standalone_rack_servers
+      {% else %}
+      unknown
+      {% endif %}
+
+  tasks:
+    - name: Validate discovery contract
+      ansible.builtin.include_tasks: tasks/validate_contract.yaml
+
+    - name: Validate inventory and site data
+      ansible.builtin.include_tasks: tasks/validate_inventory_and_site.yaml
+
+    - name: Load customer baseline and apply overrides
+      ansible.builtin.include_tasks: tasks/load_baseline.yaml
+
+    - name: Validate effective baseline expectations
+      ansible.builtin.include_tasks: tasks/validate_baseline_expectations.yaml
+
+    - name: Run optional live Intersight validation
+      ansible.builtin.include_tasks: tasks/live_intersight_validation.yaml
+
+    - name: Evaluate onboarding readiness
+      ansible.builtin.include_tasks: tasks/evaluate_onboarding_readiness.yaml
+
+    - name: Execute onboarding actions when explicitly requested
+      ansible.builtin.include_tasks: tasks/execute_onboarding_actions.yaml
+      when:
+        - onboarding_readiness.ready | default(false) | bool
+        - (execution_intent | default('validate_only') | string | trim | lower) in ['apply', 'onboard', 'claim_and_onboard']
+
+    - name: Build discovery model and summary outputs
+      ansible.builtin.include_tasks: tasks/build_discovery_outputs.yaml
+
+  post_tasks:
+    - name: Validate discovery output contract
+      ansible.builtin.assert:
+        that:
+          - discovery_model is defined
+          - discovery_summary is defined
+          - discovery_model.deployment.id | string | trim | length > 0
+          - discovery_model.derived.infrastructure_classification | string | trim | length > 0
+        fail_msg: "discover-infrastructure did not produce the expected output contract"
+      tags:
+        - always
+        - verify
+
+    - name: Export outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          discovery_model_json: "{{ discovery_model | to_json }}"
+          discovery_summary_json: "{{ discovery_summary | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

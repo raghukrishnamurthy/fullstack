@@ -1,0 +1,84 @@
+inventory:
+  defaults:
+    server_management_type: standalone
+
+  devices:
+    - id: fi-a
+      serial: FDO272406DE
+      category: fabric_interconnect
+      mgmt_ip: 10.29.135.101
+
+    - id: fi-b
+      serial: FDO272406CK
+      category: fabric_interconnect
+      mgmt_ip: 10.29.135.102
+
+    - id: blade-01
+      serial: FCH270978FF
+      category: server
+      attributes:
+        form_factor: blade
+        management_type: fi_managed
+
+    - id: blade-02
+      serial: FCH270978GL
+      category: server
+      attributes:
+        form_factor: blade
+        management_type: fi_managed
+
+    - id: blade-03
+      serial: FCH264272FA
+      category: server
+      attributes:
+        form_factor: blade
+        management_type: fi_managed
+
+    - id: blade-04
+      serial: FCH270177BF
+      category: server
+      attributes:
+        form_factor: blade
+        management_type: fi_managed
+
+    - id: rack-server-01
+      serial: WZP270500PQ
+      category: server
+      mgmt_ip: 10.29.135.106
+      attributes:
+        form_factor: rack
+        management_type: standalone
+
+    - id: rack-server-02
+      serial: WZP270500PV
+      category: server
+      mgmt_ip: 10.29.135.107
+      attributes:
+        form_factor: rack
+        management_type: standalone
+
+    - id: rack-server-03
+      serial: WZP270500PA
+      category: server
+      mgmt_ip: 10.29.135.108
+      attributes:
+        form_factor: rack
+        management_type: standalone
+
+    - id: rack-server-04
+      serial: WZP280393WA
+      category: server
+      mgmt_ip: 10.29.135.109
+      attributes:
+        form_factor: rack
+        management_type: standalone
+
+  domains:
+    - domain_id: domain-01
+      type: fi_pair
+      members:
+        - fi-a
+        - fi-b
+      summary:
+        chassis_count: 1
+        blade_count: 4

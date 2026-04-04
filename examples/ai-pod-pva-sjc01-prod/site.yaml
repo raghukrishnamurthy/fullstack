@@ -1,0 +1,14 @@
+site:
+  id: sjc01
+  global_settings:
+    location: SJC01-DC
+    dns:
+      servers:
+        - 10.10.10.10
+        - 10.10.10.11
+    ntp:
+      servers:
+        - 10.20.20.10
+        - 10.20.20.11
+    proxy:
+      enabled: false

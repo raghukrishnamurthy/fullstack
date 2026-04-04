@@ -1,0 +1,6 @@
+placement:
+  intersight:
+    organization: ai-prod
+    policy:
+      reuse_existing_organization: true
+      reuse_existing_resource_group: false

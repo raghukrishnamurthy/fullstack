@@ -1,0 +1,22 @@
+baseline:
+  onboarding:
+    inventory_validation:
+      require_fi_domains: true
+      require_fi_pair_members: 2
+      allow_unmodeled_storage: true
+    intersight_validation:
+      enabled: true
+      require_fabric_interconnect_pair_validation: true
+      require_server_serial_validation: true
+    placement:
+      default_reuse_existing_organization: true
+      default_reuse_existing_resource_group: false
+  policies:
+    naming:
+      domain_profile_suffix: domain-profile
+      policy_suffix: policy
+    site_defaults:
+      use_site_global_settings: true
+  solution_expectations:
+    minimum_blade_count: 4
+    minimum_fi_domain_count: 1

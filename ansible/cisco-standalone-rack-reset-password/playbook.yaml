@@ -1,0 +1,114 @@
+---
+- name: Reset rack passwords or identify reset-ready rack targets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    deployment_root: "{{ (deployment_yaml | from_yaml) if (deployment_yaml | default('') | string | trim | length > 0) else {} }}"
+    deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
+    reset_targets_data: "{{ (targets_json | from_json) if (targets_json | default('') | string | trim | length > 0) else [] }}"
+    credential_candidates_root: "{{ (credential_candidates_yaml | from_yaml) if (credential_candidates_yaml | default('') | string | trim | length > 0) else {} }}"
+    credential_candidates_data: >-
+      {{
+        credential_candidates_root.credential_candidates
+        | default(credential_candidates_root.credentials)
+        | default([])
+      }}
+    normalized_credential_candidates: "{{ credential_candidates_data if (credential_candidates_data is sequence) else [] }}"
+  tasks:
+    - name: Validate cisco-standalone-rack-reset-password contract
+      ansible.builtin.assert:
+        that:
+          - targets_json is defined
+          - targets_json | string | trim | length > 0
+          - credential_candidates_yaml is defined
+          - credential_candidates_yaml | string | trim | length > 0
+          - reset_targets_data is sequence
+          - normalized_credential_candidates is sequence
+        fail_msg: "cisco-standalone-rack-reset-password requires targets_json plus credential_candidates_yaml with a valid credential_candidates list"
+      tags:
+        - always
+        - validate
+        - precheck
+
+    - name: Build effective reset candidate list from targets_json
+      ansible.builtin.set_fact:
+        effective_reset_targets: "{{ (effective_reset_targets | default([])) + [normalized_target] }}"
+      vars:
+        normalized_target:
+          id: "{{ item.id | default(item.target_id | default(item.endpoint | default('rack-target'))) }}"
+          serial: "{{ item.serial | default('') }}"
+          category: server
+          mgmt_ip: "{{ item.mgmt_ip | default(item.endpoint | default('')) }}"
+          attributes:
+            form_factor: rack
+            management_type: standalone
+      loop: "{{ reset_targets_data }}"
+      loop_control:
+        label: "{{ item.id | default(item.target_id | default(item.endpoint | default('rack-target'))) }}"
+      tags:
+        - always
+        - normalize
+
+    - name: Initialize rack password reset outputs
+      ansible.builtin.set_fact:
+        rack_password_reset_results: []
+        password_reset_ready_targets: []
+        password_reset_pending_targets: []
+      tags:
+        - always
+        - outputs
+
+    - name: Process standalone rack reset candidates
+      ansible.builtin.include_tasks: tasks/process_reset_candidate.yaml
+      vars:
+        rack_reset_candidate: "{{ item }}"
+      loop: >-
+        {{
+          effective_reset_targets
+          | selectattr('category', 'equalto', 'server')
+          | selectattr('attributes.form_factor', 'defined')
+          | selectattr('attributes.form_factor', 'equalto', 'rack')
+          | selectattr('attributes.management_type', 'defined')
+          | selectattr('attributes.management_type', 'equalto', 'standalone')
+          | list
+        }}
+      loop_control:
+        label: "{{ item.id | default(item.mgmt_ip | default('rack-target')) }}"
+      tags:
+        - reset
+        - rack
+
+    - name: Export cisco-standalone-rack-reset-password outputs
+      ansible.builtin.set_fact:
+        rack_password_reset_results_json: "{{ rack_password_reset_results | to_json }}"
+        password_reset_ready_targets_json: "{{ password_reset_ready_targets | to_json }}"
+        password_reset_pending_targets_json: "{{ password_reset_pending_targets | to_json }}"
+      tags:
+        - outputs
+        - export
+
+    - name: Validate cisco-standalone-rack-reset-password output contract
+      ansible.builtin.assert:
+        that:
+          - rack_password_reset_results_json is defined
+          - password_reset_ready_targets_json is defined
+          - password_reset_pending_targets_json is defined
+        fail_msg: "cisco-standalone-rack-reset-password did not produce the expected aggregate outputs"
+      tags:
+        - always
+        - outputs
+
+    - name: Export cisco-standalone-rack-reset-password outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          rack_password_reset_results_json: "{{ rack_password_reset_results_json }}"
+          password_reset_ready_targets_json: "{{ password_reset_ready_targets_json }}"
+          password_reset_pending_targets_json: "{{ password_reset_pending_targets_json }}"
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
+      tags:
+        - outputs
+        - export

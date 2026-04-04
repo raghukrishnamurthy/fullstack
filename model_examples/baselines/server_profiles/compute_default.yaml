@@ -1,0 +1,7 @@
+profiles:
+  - name: compute_default
+    policy_set:
+      bios_policy: compute-default-bios
+      boot_policy: compute-default-boot
+      lan_connectivity_policy: compute-default-lan
+

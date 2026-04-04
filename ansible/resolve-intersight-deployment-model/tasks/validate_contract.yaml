@@ -1,0 +1,145 @@
+---
+- name: Validate discovery inputs
+  ansible.builtin.assert:
+    that:
+      - deployment_yaml is defined
+      - deployment_yaml | string | trim | length > 0
+      - platform_yaml is defined
+      - platform_yaml | string | trim | length > 0
+      - placement_yaml is defined
+      - placement_yaml | string | trim | length > 0
+      - inventory_yaml is defined
+      - inventory_yaml | string | trim | length > 0
+      - solution_yaml is defined
+      - solution_yaml | string | trim | length > 0
+    fail_msg: "deployment_yaml, platform_yaml, placement_yaml, inventory_yaml, and solution_yaml are required"
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate deployment wrapper and core fields
+  ansible.builtin.assert:
+    that:
+      - deployment_data.id is defined
+      - deployment_data.id | string | trim | length > 0
+      - deployment_data.site is defined
+      - deployment_data.site | string | trim | length > 0
+      - deployment_data.environment is defined
+      - deployment_data.environment | string | trim | length > 0
+    fail_msg: "deployment_yaml must define deployment.id, deployment.site, and deployment.environment"
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate platform wrapper and Intersight core fields
+  ansible.builtin.assert:
+    that:
+      - platform_data.intersight is defined
+      - platform_data.intersight.endpoint is defined
+      - platform_data.intersight.endpoint | string | trim | length > 0
+      - platform_data.intersight.credentials is defined
+      - platform_data.intersight.credentials.api_key_id_ref is defined
+      - platform_data.intersight.credentials.api_private_key_ref is defined
+    fail_msg: "platform_yaml must define platform.intersight.endpoint and Intersight credential references"
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate live Intersight mode uses supported credential references
+  ansible.builtin.assert:
+    that:
+      - api_key_id_ref.startswith('env://')
+      - api_private_key_ref.startswith('env://')
+      - resolved_api_key_id | string | trim | length > 0
+      - resolved_api_private_key | string | trim | length > 0
+    fail_msg: >-
+      validation_mode=live currently supports env:// credential references only,
+      and the referenced environment variables must be present.
+  when: intersight_live_validation_requested
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate placement wrapper and required organization
+  ansible.builtin.assert:
+    that:
+      - placement_data.intersight is defined
+      - placement_data.intersight.organization is defined
+      - placement_data.intersight.organization | string | trim | length > 0
+    fail_msg: "placement_yaml must define placement.intersight.organization"
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate solution wrapper and required fields
+  ansible.builtin.assert:
+    that:
+      - solution_data.profile is defined
+      - solution_data.profile | string | trim | length > 0
+      - solution_data.delivery_scope is defined
+      - solution_data.delivery_scope | string | trim | length > 0
+    fail_msg: "solution_yaml must define solution.profile and solution.delivery_scope"
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate optional site wrapper when provided
+  ansible.builtin.assert:
+    that:
+      - site_root == {} or site_root.site is defined or site_data.id is defined or site_data.global_settings is defined
+    fail_msg: "site_yaml must use a site: wrapper when provided"
+  when: site_yaml is defined and site_yaml | string | trim | length > 0
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate optional overrides wrapper when provided
+  ansible.builtin.assert:
+    that:
+      - overrides_root == {} or overrides_root.overrides is defined or overrides_data | length >= 0
+    fail_msg: "overrides_yaml must use an overrides: wrapper when provided"
+  when: overrides_yaml is defined and overrides_yaml | string | trim | length > 0
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate optional credential candidates payload when provided
+  ansible.builtin.assert:
+    that:
+      - credential_candidates_root == {} or credential_candidates_root.credential_candidates is defined or credential_candidates_root.credentials is defined or credential_candidates_data is sequence
+      - normalized_credential_candidates is sequence
+    fail_msg: "credential_candidates_yaml must define a credential_candidates: or credentials: list when provided"
+  when: credential_candidates_yaml is defined and credential_candidates_yaml | string | trim | length > 0
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate only one customer baseline source is provided
+  ansible.builtin.assert:
+    that:
+      - not ((normalized_baseline_input_source | length > 0) and (normalized_baseline_directory | length > 0))
+    fail_msg: "Provide only one customer baseline source: baseline_input_source or baseline_directory"
+  tags:
+    - always
+    - validate
+    - precheck
+
+- name: Validate baseline input source scheme when provided
+  ansible.builtin.assert:
+    that:
+      - normalized_baseline_input_source is match('^https?://')
+    fail_msg: "baseline_input_source must be an http:// or https:// URL"
+  when: normalized_baseline_input_source | length > 0
+  tags:
+    - always
+    - validate
+    - precheck

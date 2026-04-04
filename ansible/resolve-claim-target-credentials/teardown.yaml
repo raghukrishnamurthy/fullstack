@@ -1,0 +1,9 @@
+---
+- name: resolve-claim-target-credentials teardown
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: No teardown actions required for resolve-claim-target-credentials
+      ansible.builtin.debug:
+        msg: "resolve-claim-target-credentials does not manage remote resources during destroy"

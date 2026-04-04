@@ -1,0 +1,153 @@
+---
+- name: Query appliance workflow records for submitted claim target
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ claim_api_key_id }}"
+    api_private_key: "{{ claim_api_private_key }}"
+    api_uri: "{{ claim_api_uri }}"
+    use_proxy: false
+    validate_certs: "{{ claim_validate_certs | default(false) | bool }}"
+    resource_path: /workflow/WorkflowInfos
+    query_params:
+      $filter: >-
+        Name eq 'Device registration request'
+        and WorkflowCtx/InitiatorCtx/InitiatorName eq '{{ claim_result_item.endpoint }}'
+      $top: 5
+    return_list: true
+  register: pva_claim_workflow_lookup
+  failed_when: false
+  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  when:
+    - (claim_result_item.execution_mode | default('')) == 'appliance_claim'
+    - (claim_result_item.status | default('')) == 'submitted'
+  tags:
+    - claim
+    - verify
+
+- name: Query appliance DeviceClaims records for submitted claim target
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ claim_api_key_id }}"
+    api_private_key: "{{ claim_api_private_key }}"
+    api_uri: "{{ claim_api_uri }}"
+    use_proxy: false
+    validate_certs: "{{ claim_validate_certs | default(false) | bool }}"
+    resource_path: /appliance/DeviceClaims
+    query_params:
+      $filter: "Hostname eq '{{ claim_result_item.endpoint }}'"
+      $orderby: CreateTime desc
+      $top: 5
+    return_list: true
+  register: pva_claim_device_claim_lookup
+  failed_when: false
+  no_log: "{{ not (internal_debug_enabled | default('false') | bool) }}"
+  when:
+    - (claim_result_item.execution_mode | default('')) == 'appliance_claim'
+    - (claim_result_item.status | default('')) == 'submitted'
+  tags:
+    - claim
+    - verify
+
+- name: Build appliance claim follow-up summary
+  ansible.builtin.set_fact:
+    pva_claim_workflow_results: "{{ pva_claim_workflow_lookup.api_response | default([]) }}"
+    pva_claim_device_claim_results: "{{ pva_claim_device_claim_lookup.api_response | default([]) }}"
+    pva_claim_latest_workflow: >-
+      {{
+        ((pva_claim_workflow_lookup.api_response | default([])) | sort(attribute='CreateTime', reverse=true) | first) | default({})
+      }}
+    pva_claim_latest_device_claim: >-
+      {{
+        ((pva_claim_device_claim_lookup.api_response | default([])) | sort(attribute='CreateTime', reverse=true) | first) | default({})
+      }}
+  when:
+    - (claim_result_item.execution_mode | default('')) == 'appliance_claim'
+    - (claim_result_item.status | default('')) == 'submitted'
+  tags:
+    - claim
+    - verify
+
+- name: Build enriched appliance claim result
+  ansible.builtin.set_fact:
+    current_enriched_claim_result: >-
+      {{
+        claim_result_item
+        | combine(
+            {
+              'status': enriched_claim_status,
+              'reason': enriched_claim_reason,
+              'appliance_claim_execution': (
+                claim_result_item.appliance_claim_execution
+                | combine(
+                    {
+                      'status': enriched_claim_status,
+                      'reason': enriched_claim_reason,
+                      'payload': (
+                        (claim_result_item.appliance_claim_execution.payload | default({}))
+                        | combine(
+                            {
+                              'workflow_found': ((pva_claim_workflow_results | default([])) | length) > 0,
+                              'workflow_count': (pva_claim_workflow_results | default([]) | length),
+                              'latest_workflow_status': (pva_claim_latest_workflow.Status | default('')),
+                              'latest_workflow_moid': (pva_claim_latest_workflow.Moid | default('')),
+                              'latest_workflow_name': (pva_claim_latest_workflow.Name | default('')),
+                              'latest_workflow_progress': (pva_claim_latest_workflow.Progress | default(0)),
+                              'device_claim_found': ((pva_claim_device_claim_results | default([])) | length) > 0,
+                              'device_claim_count': (pva_claim_device_claim_results | default([]) | length),
+                              'latest_device_claim_status': (pva_claim_latest_device_claim.Status | default('')),
+                              'latest_device_claim_moid': (pva_claim_latest_device_claim.Moid | default('')),
+                              'latest_device_claim_message': (pva_claim_latest_device_claim.Message | default(''))
+                            },
+                            recursive=True
+                          )
+                      )
+                    },
+                    recursive=True
+                  )
+              )
+            },
+            recursive=True
+          )
+      }}
+  vars:
+    latest_workflow_status: "{{ pva_claim_latest_workflow.Status | default('') | string | upper }}"
+    latest_device_claim_status: "{{ pva_claim_latest_device_claim.Status | default('') | string | lower }}"
+    enriched_claim_status: >-
+      {%- if latest_device_claim_status in ['failed', 'error'] -%}
+      failed
+      {%- elif latest_workflow_status in ['FAILED', 'FAILURE', 'ERROR', 'CANCELED', 'CANCELLED'] -%}
+      failed
+      {%- else -%}
+      {{ claim_result_item.status }}
+      {%- endif -%}
+    enriched_claim_reason: >-
+      {%- if latest_device_claim_status in ['failed', 'error'] -%}
+      device_claim_failed
+      {%- elif latest_workflow_status in ['FAILED', 'FAILURE', 'ERROR', 'CANCELED', 'CANCELLED'] -%}
+      workflow_failed
+      {%- else -%}
+      {{ claim_result_item.reason }}
+      {%- endif -%}
+  when:
+    - (claim_result_item.execution_mode | default('')) == 'appliance_claim'
+    - (claim_result_item.status | default('')) == 'submitted'
+  tags:
+    - claim
+    - verify
+
+- name: Keep original appliance claim result when no follow-up is needed
+  ansible.builtin.set_fact:
+    current_enriched_claim_result: "{{ claim_result_item }}"
+  when:
+    - not (
+        (claim_result_item.execution_mode | default('')) == 'appliance_claim'
+        and (claim_result_item.status | default('')) == 'submitted'
+      )
+  tags:
+    - claim
+    - verify
+
+- name: Append aggregate-enriched appliance claim result
+  ansible.builtin.set_fact:
+    enriched_claim_results: "{{ (enriched_claim_results | default([])) + [current_enriched_claim_result] }}"
+  tags:
+    - claim
+    - aggregate

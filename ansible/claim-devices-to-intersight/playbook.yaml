@@ -1,0 +1,318 @@
+---
+- name: Build dynamic inventory for unified Jarvis claim
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    deployment_root: "{{ (deployment_yaml | from_yaml) if (deployment_yaml | default('') | string | trim | length > 0) else {} }}"
+    deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
+    platform_root: "{{ (platform_yaml | from_yaml) if (platform_yaml | default('') | string | trim | length > 0) else {} }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    claim_targets_input: "{{ claim_targets_json | default('[]') }}"
+    claim_targets: >-
+      {{
+        claim_targets_input
+        if (claim_targets_input is not string)
+        else (
+          (claim_targets_input | from_yaml)
+          if (claim_targets_input | string | trim | length) > 0
+          else []
+        )
+      }}
+    raw_intersight_endpoint: "{{ platform_data.intersight.endpoint | default('') }}"
+    backend_type: "{{ 'saas' if ((raw_intersight_endpoint | string).find('intersight.com') != -1) else 'appliance' }}"
+    normalized_intersight_endpoint: >-
+      {{
+        raw_intersight_endpoint
+        if ((raw_intersight_endpoint | string | regex_search('/api/v1/?$')) is not none)
+        else ((raw_intersight_endpoint | string | regex_replace('/+$', '')) ~ '/api/v1')
+      }}
+    intersight_api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    intersight_api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    intersight_api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') }}"
+    intersight_api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
+    resolved_api_key_id: >-
+      {{
+        intersight_api_key_id_direct
+        if (intersight_api_key_id_direct | length) > 0
+        else
+        lookup('ansible.builtin.env', intersight_api_key_id_ref | regex_replace('^env://', ''))
+        if (
+          (intersight_api_key_id_ref | string | trim | length) > 0
+          and (intersight_api_key_id_ref | string).startswith('env://')
+        )
+        else ''
+      }}
+    resolved_api_private_key: >-
+      {{
+        intersight_api_private_key_direct
+        if (intersight_api_private_key_direct | trim | length) > 0
+        else
+        lookup('ansible.builtin.env', intersight_api_private_key_ref | regex_replace('^env://', ''))
+        if (
+          (intersight_api_private_key_ref | string | trim | length) > 0
+          and (intersight_api_private_key_ref | string).startswith('env://')
+        )
+        else ''
+      }}
+    claim_validate_certs: "{{ platform_data.intersight.validate_certs | default(false) | bool }}"
+    claim_endpoint_validate_certs: "{{ endpoint_validate_certs | default(false) | bool }}"
+    internal_debug_enabled: "{{ debug_enabled | default('false') }}"
+    internal_helper_timeout_seconds: "{{ helper_timeout_seconds | default(20) }}"
+    internal_organization: "{{ organization | default('') | string | trim }}"
+    internal_deployment_name: "{{ deployment_data.id | default('') }}"
+    debug_artifact_dir: "/tmp/jarvis-debug/claim-devices-to-intersight"
+    claim_readiness_helper_path: "{{ playbook_dir }}/tools/run_claim_readiness.py"
+  pre_tasks:
+    - name: Install shared Python requirements
+      ansible.builtin.pip:
+        requirements: "{{ playbook_dir }}/../requirements.txt"
+      tags:
+        - always
+        - precheck
+
+    - name: Validate unified claim contract
+      ansible.builtin.assert:
+        that:
+          - claim_targets | type_debug == 'list'
+          - platform_data | type_debug == 'dict'
+          - internal_organization | string | trim | length > 0
+          - normalized_intersight_endpoint | string | trim | length > 0
+          - backend_type in ['saas', 'appliance']
+        fail_msg: "claim-devices-to-intersight requires claim_targets_json, a prepared organization, and valid platform_yaml"
+      tags:
+        - always
+        - validate
+        - precheck
+
+    - name: Validate unified claim authentication inputs when claim targets exist
+      ansible.builtin.assert:
+        that:
+          - resolved_api_key_id | string | trim | length > 0
+          - resolved_api_private_key | string | trim | length > 0
+        fail_msg: "claim-devices-to-intersight requires direct or env-backed Intersight API credentials in platform_yaml when claim targets are present"
+      when: (claim_targets | select('mapping') | list | length) > 0
+      tags:
+        - always
+        - validate
+        - precheck
+
+  tasks:
+    - name: Persist unified claim runtime context on localhost
+      ansible.builtin.set_fact:
+        claim_backend_type: "{{ backend_type }}"
+        claim_api_key_id: "{{ resolved_api_key_id }}"
+        claim_api_private_key: "{{ resolved_api_private_key }}"
+        claim_api_uri: "{{ normalized_intersight_endpoint }}"
+        claim_validate_certs_runtime: "{{ claim_validate_certs }}"
+        claim_endpoint_validate_certs_runtime: "{{ claim_endpoint_validate_certs }}"
+        internal_organization_runtime: "{{ internal_organization }}"
+        internal_deployment_name_runtime: "{{ internal_deployment_name }}"
+        internal_debug_enabled_runtime: "{{ internal_debug_enabled }}"
+        internal_helper_timeout_seconds_runtime: "{{ internal_helper_timeout_seconds }}"
+        claim_readiness_helper_path_runtime: "{{ claim_readiness_helper_path }}"
+        debug_artifact_dir_runtime: "{{ debug_artifact_dir }}"
+      tags:
+        - always
+        - configure
+
+    - name: Initialize unified claim aggregate outputs
+      ansible.builtin.set_fact:
+        claim_results: []
+        enriched_claim_results: []
+        successful_result_items: []
+        failed_result_items: []
+        conflict_result_items: []
+        skipped_result_items: []
+        changed_result_items: []
+        seen_claim_target_map: {}
+      tags:
+        - always
+        - outputs
+
+    - name: Add claim targets to dynamic unified claim group
+      ansible.builtin.add_host:
+        name: "{{ (claim_target.endpoint | default(claim_target.canonical_endpoint | default(claim_target.target_id | default('claim-target')))) | replace('.', '_') }}"
+        groups: claim_targets
+        claim_target_context: "{{ claim_target }}"
+      loop: "{{ claim_targets }}"
+      loop_control:
+        loop_var: claim_target
+        label: "{{ claim_target.endpoint | default(claim_target.target_id | default('claim-target')) }}"
+      when:
+        - claim_target is mapping
+        - (claim_target.endpoint | default(claim_target.canonical_endpoint | default('')) | string | trim | length) > 0
+      tags:
+        - configure
+        - claim
+        - aggregate
+
+- name: Claim targets to Intersight through unified backend router
+  hosts: claim_targets
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  serial: 1
+  vars:
+    claim_backend_type: "{{ hostvars['localhost'].claim_backend_type | default('saas') }}"
+    claim_api_key_id: "{{ hostvars['localhost'].claim_api_key_id | default('') }}"
+    claim_api_private_key: "{{ hostvars['localhost'].claim_api_private_key | default('') }}"
+    claim_api_uri: "{{ hostvars['localhost'].claim_api_uri | default('') }}"
+    claim_validate_certs: "{{ hostvars['localhost'].claim_validate_certs_runtime | default(false) | bool }}"
+    claim_endpoint_validate_certs: "{{ hostvars['localhost'].claim_endpoint_validate_certs_runtime | default(false) | bool }}"
+    internal_organization: "{{ hostvars['localhost'].internal_organization_runtime | default('') }}"
+    internal_deployment_name: "{{ hostvars['localhost'].internal_deployment_name_runtime | default('') }}"
+    internal_debug_enabled: "{{ hostvars['localhost'].internal_debug_enabled_runtime | default('false') }}"
+    internal_helper_timeout_seconds: "{{ hostvars['localhost'].internal_helper_timeout_seconds_runtime | default(20) }}"
+    claim_readiness_helper_path: "{{ hostvars['localhost'].claim_readiness_helper_path_runtime | default('') }}"
+    debug_artifact_dir: "{{ hostvars['localhost'].debug_artifact_dir_runtime | default('/tmp/jarvis-debug/claim-devices-to-intersight') }}"
+  tasks:
+    - name: Run unified SaaS claim path for target
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/saas_process_claim_target.yaml"
+      when: claim_backend_type == 'saas'
+      tags:
+        - configure
+        - claim
+        - verify
+        - aggregate
+
+    - name: Run unified appliance claim path for target
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/appliance_process_claim_target.yaml"
+      when: claim_backend_type == 'appliance'
+      tags:
+        - claim
+        - aggregate
+
+- name: Aggregate unified Jarvis claim outputs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    claim_backend_type: "{{ claim_backend_type | default(hostvars['localhost'].claim_backend_type | default('saas')) }}"
+    submitted_claim_results: >-
+      {{
+        claim_results
+        | default([])
+        | selectattr('execution_mode', 'defined')
+        | selectattr('execution_mode', 'equalto', 'appliance_claim')
+        | selectattr('status', 'defined')
+        | selectattr('status', 'equalto', 'submitted')
+        | list
+      }}
+  tasks:
+    - name: Wait once for appliance workflows to appear after all submissions
+      ansible.builtin.pause:
+        seconds: 5
+      when:
+        - claim_backend_type == 'appliance'
+        - (submitted_claim_results | default([]) | length) > 0
+      tags:
+        - claim
+        - verify
+
+    - name: Enrich submitted appliance claims after aggregate submission pass
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/appliance_followup_claim_target.yaml"
+      vars:
+        claim_result_item: "{{ item }}"
+      loop: "{{ claim_results | default([]) }}"
+      loop_control:
+        label: "{{ item.target_id | default(item.endpoint | default('claim-result')) }}"
+      when: claim_backend_type == 'appliance'
+      tags:
+        - claim
+        - verify
+        - aggregate
+
+    - name: Replace appliance claim results with aggregate-enriched results
+      ansible.builtin.set_fact:
+        claim_results: "{{ enriched_claim_results | default(claim_results | default([])) }}"
+      when: claim_backend_type == 'appliance'
+      tags:
+        - claim
+        - verify
+        - aggregate
+
+    - name: Build unified claim aggregate outputs
+      ansible.builtin.set_fact:
+        batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
+        successful_targets: "{{ successful_result_items | length | string }}"
+        failed_targets: "{{ failed_result_items | length | string }}"
+        conflict_targets: "{{ conflict_result_items | length | string }}"
+        skipped_targets: "{{ skipped_result_items | length | string }}"
+        changed_targets: "{{ changed_result_items | length | string }}"
+        results_json: "{{ claim_results | to_json }}"
+        normalized_claim_results:
+          summary:
+            total_results: "{{ claim_results | length }}"
+            appliance_result_count: "{{ (claim_results | selectattr('execution_mode', 'defined') | selectattr('execution_mode', 'equalto', 'appliance_claim') | list | length) if claim_backend_type == 'appliance' else 0 }}"
+            saas_result_count: "{{ (claim_results | length) if claim_backend_type == 'saas' else 0 }}"
+            successful_count: "{{ successful_result_items | length }}"
+            failed_count: "{{ failed_result_items | length }}"
+            conflict_count: "{{ conflict_result_items | length }}"
+            skipped_count: "{{ skipped_result_items | length }}"
+            changed_count: "{{ changed_result_items | length }}"
+            batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
+          results: "{{ claim_results }}"
+      tags:
+        - outputs
+        - aggregate
+
+    - name: Export unified normalized claim outputs
+      ansible.builtin.set_fact:
+        normalized_claim_results_json: "{{ normalized_claim_results | to_json }}"
+        normalized_claim_batch_status: "{{ normalized_claim_results.summary.batch_status }}"
+        normalized_claim_successful_count: "{{ normalized_claim_results.summary.successful_count | string }}"
+        normalized_claim_failed_count: "{{ normalized_claim_results.summary.failed_count | string }}"
+        normalized_claim_conflict_count: "{{ normalized_claim_results.summary.conflict_count | string }}"
+        normalized_claim_skipped_count: "{{ normalized_claim_results.summary.skipped_count | string }}"
+        normalized_claim_changed_count: "{{ normalized_claim_results.summary.changed_count | string }}"
+      tags:
+        - outputs
+
+    - name: Validate unified claim aggregate outputs
+      ansible.builtin.assert:
+        that:
+          - batch_status is defined
+          - successful_targets is defined
+          - failed_targets is defined
+          - conflict_targets is defined
+          - skipped_targets is defined
+          - changed_targets is defined
+          - results_json is defined
+          - normalized_claim_results_json is defined
+          - normalized_claim_batch_status is defined
+          - normalized_claim_successful_count is defined
+          - normalized_claim_failed_count is defined
+          - normalized_claim_conflict_count is defined
+          - normalized_claim_skipped_count is defined
+          - normalized_claim_changed_count is defined
+        fail_msg: "claim-devices-to-intersight did not produce the expected aggregate outputs"
+      tags:
+        - always
+        - verify
+
+    - name: Export claim-devices-to-intersight outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          batch_status: "{{ batch_status }}"
+          successful_targets: "{{ successful_targets }}"
+          failed_targets: "{{ failed_targets }}"
+          conflict_targets: "{{ conflict_targets }}"
+          skipped_targets: "{{ skipped_targets }}"
+          changed_targets: "{{ changed_targets }}"
+          results_json: "{{ results_json }}"
+          normalized_claim_results_json: "{{ normalized_claim_results_json }}"
+          normalized_claim_batch_status: "{{ normalized_claim_batch_status }}"
+          normalized_claim_successful_count: "{{ normalized_claim_successful_count }}"
+          normalized_claim_failed_count: "{{ normalized_claim_failed_count }}"
+          normalized_claim_conflict_count: "{{ normalized_claim_conflict_count }}"
+          normalized_claim_skipped_count: "{{ normalized_claim_skipped_count }}"
+          normalized_claim_changed_count: "{{ normalized_claim_changed_count }}"
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
+      tags:
+        - always
+        - outputs

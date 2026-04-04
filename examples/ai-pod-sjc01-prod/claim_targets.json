@@ -1,0 +1,24 @@
+[
+  {
+    "target_id": "domain-01",
+    "target_category": "fabric_interconnect",
+    "device_type": "imm",
+    "serial": "FDO272406DE",
+    "endpoint": "10.29.135.101",
+    "canonical_endpoint": "10.29.135.101",
+    "normalized_claim_key": "FDO272406CK&FDO272406DE",
+    "claim_submission_required": true
+  },
+  {
+    "target_id": "rack-server-01",
+    "target_category": "server",
+    "device_type": "imc",
+    "form_factor": "rack",
+    "management_type": "standalone",
+    "serial": "WZP270500PQ",
+    "endpoint": "10.29.135.106",
+    "canonical_endpoint": "10.29.135.106",
+    "normalized_claim_key": "WZP270500PQ",
+    "claim_submission_required": true
+  }
+]
