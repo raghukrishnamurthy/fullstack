@@ -178,7 +178,7 @@ admin
 - The active backend branch is selected internally from `api_uri`.
 - The grain-level claim blueprint does not expose `deployment_yaml`; it uses a fixed internal deployment label for traceability.
 - The blueprint now accepts direct secret inputs and internally uses an env bridge plus internal YAML refs for the reusable grains.
-- `validate_certs` and reuse-policy values are intentionally fixed inside the blueprint during development and are not exposed in the launch form.
+- `validate_certs` is intentionally fixed to `false` inside the blueprint during current development and is not exposed in the launch form.
 - The focused claim blueprint now treats `organization` as an existing-org precondition and passes it directly to `claim_devices_to_intersight`.
 
 ## Rack Reset Small Test
@@ -247,7 +247,7 @@ deployment:
 platform:
   intersight:
     endpoint: https://intersight.com/api/v1
-    validate_certs: true
+    validate_certs: false
     credentials:
       api_key_id_ref: env://INTERSIGHT_API_KEY_ID
       api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
@@ -311,6 +311,8 @@ credential_candidates:
 
 ### Notes
 
-- This first working implementation reuses `resolve-intersight-deployment-model` directly.
-- Standalone rack password reset remains available through the separate focused reset workflow until that derivation is promoted into this phase.
+- The onboarding blueprint now uses the explicit phase chain:
+  `prepare-intersight-context` -> `build-infrastructure-onboarding-targets` -> `reset-standalone-rack-password` -> `prepare-claim-target-credentials` -> `prepare-device-connector` -> `claim-devices-to-intersight` -> `validate-infrastructure-onboarding`
+- Onboarding validation is inventory-driven and checks direct targets only:
+  FI pairs and standalone racks.
 - `execution_intent: validate_only` is the safest first run.

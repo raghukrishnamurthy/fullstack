@@ -31,7 +31,7 @@ EOF
 
 cat > "${tmp_wrapper_playbook}" <<EOF
 ---
-- import_playbook: $(pwd)/ansible/resolve-intersight-deployment-model/playbook.yaml
+- import_playbook: $(pwd)/ansible/build-infrastructure-domain-model/playbook.yaml
 
 - name: Persist strict example outputs
   hosts: localhost

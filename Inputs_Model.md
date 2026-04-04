@@ -23,8 +23,8 @@ The implementation now has two layers of contract:
 
 | Grain | Purpose | Input Style |
 | --- | --- | --- |
-| `resolve-intersight-deployment-model` | Normalize deployment, platform, placement, site, inventory, solution, baseline, and readiness | Broad wrapped model inputs |
-| `render-intersight-deployment-summary` | Render summary artifacts from the resolved model | Broad model outputs |
+| `build-infrastructure-domain-model` | Normalize deployment, platform, placement, site, inventory, solution, baseline, and readiness | Broad wrapped model inputs |
+| `summarize-infrastructure-onboarding` | Render summary artifacts from the resolved model | Broad model outputs |
 | `ensure-intersight-context` | Ensure the requested Intersight organization exists | Narrow direct inputs |
 | `claim-to-saas` | Claim one or more targets into Intersight SaaS | Narrow direct inputs |
 | `claim-to-appliance` | Claim one or more targets into appliance/PVA | Narrow direct inputs |
@@ -107,7 +107,7 @@ The current top-level model grain accepts these broad wrapped inputs:
 
 These are primarily consumed by:
 
-- `resolve-intersight-deployment-model`
+- `build-infrastructure-domain-model`
 
 ### Domain Summary
 
@@ -264,12 +264,12 @@ The current blueprint still supports the broad orchestration flow and the reusab
 
 ### Broad Model Outputs
 
-Produced by `resolve-intersight-deployment-model`:
+Produced by `build-infrastructure-domain-model`:
 
 - `discovery_model_json`
 - `discovery_summary_json`
 
-Produced by `render-intersight-deployment-summary`:
+Produced by `summarize-infrastructure-onboarding`:
 
 - `discovery_report_json`
 - `discovery_summary_markdown`
@@ -316,8 +316,8 @@ Use `kebab-case`.
 
 Examples:
 
-- `resolve-intersight-deployment-model`
-- `render-intersight-deployment-summary`
+- `build-infrastructure-domain-model`
+- `summarize-infrastructure-onboarding`
 - `ensure-intersight-context`
 - `claim-to-saas`
 - `claim-to-appliance`

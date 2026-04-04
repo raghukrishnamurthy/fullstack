@@ -44,7 +44,7 @@ Configuration model:
 Initial implementation note:
 
 - the first working implementation of this phase is planning and validation only
-- it reuses `resolve-intersight-deployment-model` to build shared context, then uses a dedicated `infrastructure-network-provisioning` grain to publish a reusable shared-network foundation plan
+- it reuses `build-infrastructure-domain-model` to build shared context, then uses a dedicated `infrastructure-network-provisioning` grain to publish a reusable shared-network foundation plan
 - this slice does not mutate Intersight network objects yet; it exists to make the phase boundary executable and testable
 
 Planned internal behavior:

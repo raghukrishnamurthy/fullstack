@@ -1,4 +1,4 @@
-# resolve-claim-target-credentials
+# prepare-claim-target-credentials
 
 Standalone Jarvis grain for mapping a credential-candidate pool onto claim targets.
 

@@ -1,0 +1,66 @@
+---
+- name: Normalize connector prepare claim target payload
+  ansible.builtin.set_fact:
+    claim_target_payload: >-
+      {{
+        claim_target
+        | combine(
+            {
+              'selected_target_credential': {
+                'username': (claim_target.claim_username | default('')),
+                'password_ref': (claim_target.claim_password_ref | default('')),
+                'password': (claim_target.claim_password | default(''))
+              },
+              'endpoint': (
+                claim_target.endpoint
+                | default(claim_target.canonical_endpoint | default(''))
+              ),
+              'target_category': (
+                claim_target.target_category
+                | default(claim_target.category | default(''))
+              )
+            },
+            recursive=True
+          )
+      }}
+  no_log: true
+  tags:
+    - prepare
+    - verify
+
+- name: Run shared connector prepare implementation
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../build-infrastructure-domain-model/tasks/execute_device_connector_prepare.yaml"
+  vars:
+    validation_mode: "{{ internal_validation_mode }}"
+  tags:
+    - prepare
+    - verify
+
+- name: Append connector prepare execution result
+  ansible.builtin.set_fact:
+    connector_prep_results: "{{ (connector_prep_results | default([])) + [connector_prepare_execution_result] }}"
+  tags:
+    - prepare
+    - outputs
+
+- name: Append prepared claim target when connector prepare did not fail
+  ansible.builtin.set_fact:
+    prepared_claim_targets: >-
+      {{
+        (prepared_claim_targets | default([]))
+        + [
+            (
+              claim_target_payload
+              | combine(
+                  {
+                    'connector_prepare_execution': connector_prepare_execution_result
+                  },
+                  recursive=True
+                )
+            )
+          ]
+      }}
+  when: (connector_prepare_execution_result.status | default('')) != 'connector_prepare_failed'
+  tags:
+    - prepare
+    - outputs

@@ -38,7 +38,7 @@ EOF
 ANSIBLE_LOCAL_TEMP=/tmp/jarvis-ansible-local \
 ANSIBLE_REMOTE_TEMP=/tmp/jarvis-ansible-remote \
 ansible-playbook \
-  ansible/resolve-intersight-deployment-model/playbook.yaml \
+  ansible/build-infrastructure-domain-model/playbook.yaml \
   -i localhost, \
   -c local \
   -e "@${tmp_vars_file}"

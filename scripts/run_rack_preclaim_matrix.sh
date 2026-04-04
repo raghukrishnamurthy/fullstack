@@ -10,7 +10,7 @@ tmp_model_file="/tmp/jarvis_rack_preclaim_matrix_model.json"
 
 cat > "${tmp_wrapper_playbook}" <<EOF
 ---
-- import_playbook: $(pwd)/ansible/resolve-intersight-deployment-model/playbook.yaml
+- import_playbook: $(pwd)/ansible/build-infrastructure-domain-model/playbook.yaml
 
 - name: Persist rack preclaim matrix outputs
   hosts: localhost

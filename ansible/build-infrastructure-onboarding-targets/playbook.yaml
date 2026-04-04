@@ -1,0 +1,193 @@
+---
+- name: Build infrastructure onboarding targets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    inventory_root: "{{ (inventory_yaml | from_yaml) if (inventory_yaml | default('') | string | trim | length > 0) else {} }}"
+    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
+    inventory_defaults: "{{ inventory_data.defaults | default({}) }}"
+    inventory_devices: "{{ inventory_data.devices | default([]) }}"
+    inventory_domains: "{{ inventory_data.domains | default([]) }}"
+
+  pre_tasks:
+    - name: Validate build-infrastructure-onboarding-targets contract
+      ansible.builtin.assert:
+        that:
+          - inventory_yaml is defined
+          - inventory_yaml | string | trim | length > 0
+          - inventory_data | type_debug == 'dict'
+          - inventory_devices | type_debug == 'list'
+          - inventory_domains | type_debug == 'list'
+        fail_msg: "build-infrastructure-onboarding-targets requires inventory_yaml with devices and optional domains"
+      tags:
+        - always
+        - validate
+        - precheck
+
+  tasks:
+    - name: Build normalized device lookup map
+      ansible.builtin.set_fact:
+        inventory_device_map: "{{ (inventory_device_map | default({})) | combine({item.id: normalized_device}) }}"
+      vars:
+        normalized_device:
+          id: "{{ item.id }}"
+          serial: "{{ item.serial | default('') }}"
+          category: "{{ item.category | default('') }}"
+          mgmt_ip: "{{ item.mgmt_ip | default('') }}"
+          attributes: "{{ item.attributes | default({}) }}"
+          management_type: >-
+            {{
+              item.attributes.management_type
+              | default(
+                  inventory_defaults.server_management_type
+                  | default('')
+                )
+            }}
+          form_factor: "{{ item.attributes.form_factor | default('') }}"
+      loop: "{{ inventory_devices }}"
+      loop_control:
+        label: "{{ item.id | default('device') }}"
+      when:
+        - item is mapping
+        - (item.id | default('') | string | trim | length) > 0
+      tags:
+        - build
+        - normalize
+
+    - name: Initialize onboarding target outputs
+      ansible.builtin.set_fact:
+        claim_targets: []
+        reset_targets: []
+      tags:
+        - build
+        - outputs
+
+    - name: Build FI pair claim targets
+      ansible.builtin.set_fact:
+        claim_targets: "{{ claim_targets + [fi_claim_target] }}"
+      vars:
+        domain_members: >-
+          {{
+            item.members
+            | default([])
+            | map('extract', inventory_device_map | default({}))
+            | reject('equalto', None)
+            | list
+          }}
+        member_serials: >-
+          {{
+            domain_members
+            | map(attribute='serial')
+            | map('string')
+            | map('trim')
+            | reject('equalto', '')
+            | list
+          }}
+        primary_member: "{{ domain_members | first | default({}) }}"
+        fi_claim_target:
+          target_id: "{{ item.domain_id }}"
+          domain_id: "{{ item.domain_id }}"
+          target_category: fabric_interconnect
+          device_type: imm
+          endpoint: "{{ primary_member.mgmt_ip | default('') }}"
+          canonical_endpoint: "{{ primary_member.mgmt_ip | default('') }}"
+          serial: "{{ primary_member.serial | default('') }}"
+          claim_serial_number: "{{ primary_member.serial | default('') }}"
+          normalized_claim_key: >-
+            {{
+              member_serials
+              | unique
+              | sort
+              | join('|')
+            }}
+          claim_submission_required: true
+          management_type: intersight
+          form_factor: ""
+          member_ids: "{{ item.members | default([]) }}"
+          member_serials: "{{ member_serials }}"
+          endpoint_validate_certs: false
+      loop: "{{ inventory_domains | selectattr('type', 'defined') | selectattr('type', 'equalto', 'fi_pair') | list }}"
+      loop_control:
+        label: "{{ item.domain_id }}"
+      when:
+        - (primary_member.mgmt_ip | default('') | string | trim | length) > 0
+        - (member_serials | length) > 0
+      tags:
+        - build
+        - claim
+
+    - name: Build standalone rack claim targets
+      ansible.builtin.set_fact:
+        claim_targets: "{{ claim_targets + [rack_claim_target] }}"
+        reset_targets: "{{ reset_targets + [rack_reset_target] }}"
+      vars:
+        management_type: >-
+          {{
+            item.attributes.management_type
+            | default(
+                inventory_defaults.server_management_type
+                | default('')
+              )
+          }}
+        rack_claim_target:
+          target_id: "{{ item.id }}"
+          target_category: server
+          device_type: imc
+          endpoint: "{{ item.mgmt_ip | default('') }}"
+          canonical_endpoint: "{{ item.mgmt_ip | default('') }}"
+          serial: "{{ item.serial | default('') }}"
+          claim_serial_number: "{{ item.serial | default('') }}"
+          normalized_claim_key: "{{ item.serial | default(item.mgmt_ip | default(item.id)) }}"
+          claim_submission_required: true
+          management_type: "{{ management_type }}"
+          form_factor: rack
+          endpoint_validate_certs: false
+        rack_reset_target:
+          id: "{{ item.id }}"
+          serial: "{{ item.serial | default('') }}"
+          mgmt_ip: "{{ item.mgmt_ip | default('') }}"
+      loop: "{{ inventory_devices }}"
+      loop_control:
+        label: "{{ item.id | default('rack-target') }}"
+      when:
+        - item is mapping
+        - (item.category | default('')) == 'server'
+        - (item.mgmt_ip | default('') | string | trim | length) > 0
+        - (item.attributes.form_factor | default('')) == 'rack'
+        - management_type == 'standalone'
+      tags:
+        - build
+        - claim
+        - reset
+
+    - name: Export onboarding target outputs
+      ansible.builtin.set_fact:
+        claim_targets_json: "{{ claim_targets | to_json }}"
+        reset_targets_json: "{{ reset_targets | to_json }}"
+      tags:
+        - outputs
+
+    - name: Validate onboarding target outputs
+      ansible.builtin.assert:
+        that:
+          - claim_targets_json is defined
+          - reset_targets_json is defined
+        fail_msg: "build-infrastructure-onboarding-targets did not produce the expected output contract"
+      tags:
+        - always
+        - verify
+
+    - name: Export build-infrastructure-onboarding-targets outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          claim_targets_json: "{{ claim_targets_json }}"
+          reset_targets_json: "{{ reset_targets_json }}"
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
+      tags:
+        - always
+        - outputs

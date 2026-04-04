@@ -1,4 +1,4 @@
-# cisco-standalone-rack-reset-password
+# reset-standalone-rack-password
 
 Standalone rack password reset grain.
 
@@ -55,12 +55,12 @@ Common per-target reset reasons include:
 
 ## Internal Python Components
 
-- [/Users/rkrishn2/Documents/Jarvis_IAC/ansible/cisco-standalone-rack-reset-password/tools/run_cisco_standalone_rack_reset_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/cisco-standalone-rack-reset-password/tools/run_cisco_standalone_rack_reset_password.py)
+- [/Users/rkrishn2/Documents/Jarvis_IAC/ansible/reset-standalone-rack-password/tools/run_cisco_standalone_rack_reset_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/reset-standalone-rack-password/tools/run_cisco_standalone_rack_reset_password.py)
   Repo-local helper used to validate current credentials, detect password-change-required state, and rotate standalone rack IMC passwords.
 
 ## Relationship to Main Claim Flow
 
-- this grain is intentionally separate from `resolve-intersight-deployment-model`
+- this grain is intentionally separate from `build-infrastructure-domain-model`
 - the main PVA prepare-and-claim flow now assumes standalone rack devices already use the desired credential
 - use this grain first when rack devices may still be at factory/default password
-- the focused `cisco-standalone-rack-reset-password.yaml` blueprint wraps this grain with direct manufacturing and target credential inputs and passes `targets_json` directly
+- the focused `reset-standalone-rack-password.yaml` blueprint wraps this grain with direct manufacturing and target credential inputs and passes `targets_json` directly

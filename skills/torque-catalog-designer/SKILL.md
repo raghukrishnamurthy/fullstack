@@ -36,13 +36,13 @@ Focus on:
 5. Keep blueprint names scope-accurate.
 - Use descriptive `kebab-case` filenames under `blueprints/`.
 - For cross-system operational workflows, prefer directional names such as `<action>-<object>-to-<target>`.
-- Use focused action names for grain-level blueprints, for example `claim-devices-to-intersight.yaml` or `cisco-standalone-rack-reset-password.yaml`.
+- Use focused action names for grain-level blueprints, for example `claim-devices-to-intersight.yaml` or `reset-standalone-rack-password.yaml`.
 - Reserve broader names such as `onboard-*` for end-to-end orchestration blueprints.
 
 ## Repo Patterns
 - Public blueprint:
   - `blueprints/claim-devices-to-intersight.yaml`
-  - `blueprints/cisco-standalone-rack-reset-password.yaml`
+  - `blueprints/reset-standalone-rack-password.yaml`
 - Wiring map:
   - `wiring-table.md`
 - Example launch inputs:

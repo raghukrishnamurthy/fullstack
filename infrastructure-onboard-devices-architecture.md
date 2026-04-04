@@ -40,23 +40,36 @@ Credential inputs:
 
 Initial implementation note:
 
-- the current implementation uses `resolve-intersight-deployment-model` for discovery, preflight readiness, and guarded onboarding action execution
-- a dedicated `validate-infrastructure-onboarding-completion` grain now owns the final phase completion contract so higher-level stacks can depend on a separate validation/completeness step
+- the current implementation uses `build-infrastructure-domain-model` for discovery, preflight readiness, and guarded onboarding action execution
+- a dedicated `validate-infrastructure-onboarding` grain now owns the final phase completion contract so higher-level stacks can depend on a separate validation/completeness step
 - over time, this validator grain is the right place for customer-defined static rules, full inventory/device presence checks, and Intersight-side logical discovery/completion checks
-- standalone rack reset remains available through the separate focused `cisco-standalone-rack-reset-password` workflow until inventory-to-reset-target derivation is promoted into this phase
+- standalone rack reset remains available through the separate focused `reset-standalone-rack-password` workflow until inventory-to-reset-target derivation is promoted into this phase
+
+Validation contract:
+
+- onboarding validation is based on inventory intent plus live Intersight truth
+- onboarding validation checks only direct onboarding targets for this phase
+- current direct onboarding targets are:
+  - declared `fi_pair` Fabric Interconnect domains
+  - standalone rack servers with direct management endpoints
+- child devices discovered later through those control points, such as FI-managed chassis or blades, do not gate onboarding completion
+- logical Intersight context checks, such as organization or resource-group creation or reuse policy, belong in earlier `prepare-*` grains and are not end-validation blockers
+- claim submission success and onboarding completion are different outcomes:
+  - claim grains report submission or immediate claim status
+  - validation reports whether the declared direct targets have converged in Intersight
 
 Planned internal grain composition:
 
-1. `resolve-intersight-deployment-model`
+1. `build-infrastructure-domain-model`
    - current reusable model and discovery grain
    - planned future naming direction: `build-infrastructure-domain-model`
    - used here to build the effective infrastructure model, discover current state, classify devices, and derive onboarding readiness and claim candidates
 
-2. `cisco-standalone-rack-reset-password`
+2. `reset-standalone-rack-password`
    - optional sub-step for standalone rack targets that still require manufacturing-to-target credential normalization
    - should only act on the subset of rack targets that the model/discovery step identifies as needing reset
 
-3. `resolve-claim-target-credentials`
+3. `prepare-claim-target-credentials`
    - maps final target credentials onto the current claim candidate set
    - remains an internal reusable resolver grain rather than a user-facing phase blueprint
 
@@ -64,7 +77,7 @@ Planned internal grain composition:
    - claims prepared FI and rack targets into the requested Intersight backend
    - assumes organization/context and other claim prerequisites are already satisfied within the higher stack orchestration model
 
-5. `validate-infrastructure-onboarding-completion`
+5. `validate-infrastructure-onboarding`
    - interpret preflight readiness, onboarding action execution, and live-validation evidence
    - publish the final phase completion contract that later stacks can fail, wait on, or depend on
 
@@ -88,10 +101,10 @@ Readiness meaning:
 
 This phase should be considered ready when:
 
-- declared devices have been discovered or reconciled against current Intersight state
+- declared direct onboarding targets have been discovered or reconciled against current Intersight state
 - standalone rack devices needing credential normalization have either been corrected or clearly reported as blockers
-- claim-capable devices have been claimed or confirmed already onboarded
-- resulting managed devices are validated as ready for downstream infrastructure provisioning phases
+- direct onboarding targets have been claimed or confirmed already onboarded
+- resulting direct onboarding targets are validated as ready for downstream infrastructure provisioning phases
 
 Behavior expectations:
 

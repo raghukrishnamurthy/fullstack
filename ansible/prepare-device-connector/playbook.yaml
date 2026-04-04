@@ -1,0 +1,84 @@
+---
+- name: Prepare device connector claim targets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    claim_targets_input: "{{ claim_targets_json | default('[]') }}"
+    claim_targets: >-
+      {{
+        claim_targets_input
+        if (claim_targets_input is not string)
+        else (
+          (claim_targets_input | from_yaml)
+          if (claim_targets_input | string | trim | length) > 0
+          else []
+        )
+      }}
+    platform_root: "{{ (platform_yaml | from_yaml) if (platform_yaml | default('') | string | trim | length > 0) else {} }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    derived_intersight_mode: "{{ platform_data.intersight.deployment_mode | default('saas') | string | lower }}"
+    internal_validation_mode: "{{ validation_mode | default('strict') }}"
+
+  pre_tasks:
+    - name: Validate device connector prepare contract
+      ansible.builtin.assert:
+        that:
+          - claim_targets | type_debug == 'list'
+        fail_msg: "prepare-device-connector requires claim_targets_json to decode to a list"
+      tags:
+        - always
+        - validate
+        - precheck
+
+  tasks:
+    - name: Initialize device connector prepare outputs
+      ansible.builtin.set_fact:
+        connector_prep_results: []
+        prepared_claim_targets: []
+      tags:
+        - prepare
+        - outputs
+
+    - name: Prepare connector per claim target
+      ansible.builtin.include_tasks: tasks/process_claim_target.yaml
+      loop: "{{ claim_targets }}"
+      loop_control:
+        loop_var: claim_target
+        label: "{{ claim_target.endpoint | default(claim_target.canonical_endpoint | default(claim_target.target_id | default('claim-target'))) }}"
+      when: claim_target is mapping
+      tags:
+        - prepare
+        - verify
+        - outputs
+
+    - name: Build device connector prepare output contract
+      ansible.builtin.set_fact:
+        connector_prep_results_json: "{{ connector_prep_results | to_json }}"
+        prepared_claim_targets_json: "{{ prepared_claim_targets | to_json }}"
+      tags:
+        - outputs
+
+    - name: Validate device connector prepare outputs
+      ansible.builtin.assert:
+        that:
+          - connector_prep_results_json is defined
+          - prepared_claim_targets_json is defined
+        fail_msg: "prepare-device-connector did not produce the expected output contract"
+      tags:
+        - always
+        - verify
+
+    - name: Export device connector prepare outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          connector_prep_results_json: "{{ connector_prep_results_json }}"
+          prepared_claim_targets_json: "{{ prepared_claim_targets_json }}"
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
+      tags:
+        - always
+        - outputs

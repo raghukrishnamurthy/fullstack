@@ -19,12 +19,12 @@
     credential_candidates_root: "{{ (credential_candidates_yaml | from_yaml) if (credential_candidates_yaml | default('') | string | trim | length > 0) else {} }}"
     credential_candidates: "{{ credential_candidates_root.credential_candidates | default([]) }}"
   pre_tasks:
-    - name: Validate resolve-claim-target-credentials contract
+    - name: Validate prepare-claim-target-credentials contract
       ansible.builtin.assert:
         that:
           - claim_targets | type_debug == 'list'
           - credential_candidates | type_debug == 'list'
-        fail_msg: "resolve-claim-target-credentials requires claim_targets_json and credential_candidates_yaml to decode to lists"
+        fail_msg: "prepare-claim-target-credentials requires claim_targets_json and credential_candidates_yaml to decode to lists"
       tags:
         - always
         - validate
@@ -60,12 +60,12 @@
       ansible.builtin.assert:
         that:
           - resolved_claim_targets_json is defined
-        fail_msg: "resolve-claim-target-credentials did not produce resolved_claim_targets_json"
+        fail_msg: "prepare-claim-target-credentials did not produce resolved_claim_targets_json"
       tags:
         - always
         - verify
 
-    - name: Export resolve-claim-target-credentials outputs to Torque
+    - name: Export prepare-claim-target-credentials outputs to Torque
       torque.collections.export_torque_outputs:
         outputs:
           resolved_claim_targets_json: "{{ resolved_claim_targets_json }}"

@@ -54,7 +54,7 @@ grains:
     spec:
       source:
         store: intersight-fullstack-repo
-        path: ansible/resolve-intersight-deployment-model/playbook.yaml
+        path: ansible/build-infrastructure-domain-model/playbook.yaml
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
@@ -82,7 +82,7 @@ grains:
     on-destroy:
       - source:
           store: intersight-fullstack-repo
-          path: ansible/resolve-intersight-deployment-model/teardown.yaml
+          path: ansible/build-infrastructure-domain-model/teardown.yaml
         inventory-file:
           localhost:
             hosts:

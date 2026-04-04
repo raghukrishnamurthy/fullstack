@@ -46,7 +46,7 @@ grains:
     spec:
       source:
         store: intersight-fullstack-repo
-        path: ansible/resolve-claim-target-credentials/playbook.yaml
+        path: ansible/prepare-claim-target-credentials/playbook.yaml
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
@@ -78,7 +78,7 @@ grains:
     on-destroy:
       - source:
           store: intersight-fullstack-repo
-          path: ansible/resolve-claim-target-credentials/teardown.yaml
+          path: ansible/prepare-claim-target-credentials/teardown.yaml
         inventory-file:
           localhost:
             hosts:

@@ -1,4 +1,4 @@
-# resolve-intersight-deployment-model
+# build-infrastructure-domain-model
 
 Purpose:
 
@@ -47,7 +47,7 @@ Execution notes:
 - Accepts optional wrapped `site` payload for site-scoped operational settings
 - Accepts optional direct credential-candidate input for endpoint preparation and claim
 - The main prepare-and-claim path assumes standalone racks already use the desired target credential
-- Rack-server manufacturing/default credentials should be handled by the separate `cisco-standalone-rack-reset-password` grain
+- Rack-server manufacturing/default credentials should be handled by the separate `reset-standalone-rack-password` grain
 - Accepts optional baseline-resolution hints for higher orchestration or direct Ansible execution
 - Always resolves a built-in baseline from `solution.profile`
 - Accepts only one customer baseline source at a time: `baseline_input_source` or `baseline_directory`

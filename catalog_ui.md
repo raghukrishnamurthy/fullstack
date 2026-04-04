@@ -37,7 +37,7 @@ Notes:
 - `site_yaml` is optional and is the preferred place for site-scoped settings such as location, DNS, NTP, and proxy defaults.
 - `credential_candidates_yaml` is optional and is the current direct-input path for endpoint preparation and claim credentials.
 - in the main prepare-and-claim flow, provide desired rack and FI target credentials.
-- manufacturing rack credentials belong in the separate `cisco-standalone-rack-reset-password` grain when factory/default password reset is needed.
+- manufacturing rack credentials belong in the separate `reset-standalone-rack-password` grain when factory/default password reset is needed.
 - `baseline_input_source` is the higher-orchestration baseline hook and may be hidden in Quali/Torque or Cisco Zero Touch offerings.
 - `baseline_directory` is primarily for direct Ansible-style execution and should contain `baseline.yaml`.
 - provide only one customer baseline source at a time.

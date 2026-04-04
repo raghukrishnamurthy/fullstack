@@ -8,12 +8,6 @@
   vars:
     default_intersight_query_rules_json: |
       {
-        "Blade": {
-          "resource_path": "/compute/PhysicalSummaries",
-          "serial_field": "Serial",
-          "discovery_field": "Lifecycle",
-          "allowed_discovery_states": ["Active"]
-        },
         "Rack": {
           "resource_path": "/compute/PhysicalSummaries",
           "serial_field": "Serial",
@@ -28,30 +22,66 @@
           "pair_validation": true
         }
       }
-    discovery_model: "{{ discovery_model_json | from_json }}"
-    onboarding_readiness: "{{ discovery_model.derived.onboarding_readiness | default({}) }}"
-    onboarding_action_execution: "{{ discovery_model.derived.onboarding_action_execution | default({}) }}"
-    initial_intersight_validation: "{{ discovery_model.derived.intersight_validation | default({}) }}"
-    initial_placement_validation: "{{ discovery_model.derived.placement_validation | default({}) }}"
-    baseline_expectation_validation: "{{ discovery_model.derived.baseline_expectation_validation | default({}) }}"
-    platform_intersight: "{{ discovery_model.platform.intersight | default({}) }}"
-    raw_platform: "{{ discovery_model.platform.raw_platform | default({}) }}"
-    placement_intersight: "{{ discovery_model.placement.intersight | default({}) }}"
-    inventory_devices: "{{ discovery_model.inventory.devices | default([]) }}"
-    inventory_domains: "{{ discovery_model.inventory.domains | default([]) }}"
-    claim_candidate_targets: "{{ onboarding_readiness.claim_candidate_targets | default([]) }}"
-    reachability_only_targets: "{{ onboarding_readiness.reachability_only_targets | default([]) }}"
-    claim_execution_results: "{{ onboarding_action_execution.claim_execution_results | default([]) }}"
-    baseline_expectation_results: "{{ baseline_expectation_validation.results | default([]) }}"
-    baseline_expectation_errors: "{{ baseline_expectation_validation.errors | default([]) }}"
-    missing_devices: "{{ initial_intersight_validation.missing_devices | default([]) }}"
-    not_ready_devices: "{{ initial_intersight_validation.not_ready_devices | default([]) }}"
-    present_devices: "{{ initial_intersight_validation.present_devices | default([]) }}"
-    live_validation_enabled: "{{ discovery_model.derived.intersight_live_validation_enabled | default(false) | bool }}"
+    discovery_model: "{{ (discovery_model_json | from_json) if (discovery_model_json | default('') | string | trim | length > 0) else {} }}"
+    platform_root: "{{ (platform_yaml | from_yaml) if (platform_yaml | default('') | string | trim | length > 0) else {} }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    inventory_root: "{{ (inventory_yaml | from_yaml) if (inventory_yaml | default('') | string | trim | length > 0) else {} }}"
+    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
+    onboarding_action_execution: >-
+      {{
+        discovery_model.derived.onboarding_action_execution
+        | default({})
+        if (discovery_model | length) > 0
+        else {}
+      }}
+    platform_intersight: >-
+      {{
+        discovery_model.platform.intersight
+        | default({})
+        if (discovery_model | length) > 0
+        else (platform_data.intersight | default({}))
+      }}
+    raw_platform: >-
+      {{
+        discovery_model.platform.raw_platform
+        | default({})
+        if (discovery_model | length) > 0
+        else platform_data
+      }}
+    inventory_devices: >-
+      {{
+        discovery_model.inventory.devices
+        | default([])
+        if (discovery_model | length) > 0
+        else (inventory_data.devices | default([]))
+      }}
+    inventory_domains: >-
+      {{
+        discovery_model.inventory.domains
+        | default([])
+        if (discovery_model | length) > 0
+        else (inventory_data.domains | default([]))
+      }}
+    claim_execution_results_input: "{{ claim_execution_results_json | default('') }}"
+    claim_execution_results: >-
+      {{
+        (
+          claim_execution_results_input
+          if (claim_execution_results_input is not string)
+          else ((claim_execution_results_input | from_json) if (claim_execution_results_input | string | trim | length > 0) else [])
+        )
+        if (claim_execution_results_input | default('') | string | trim | length) > 0
+        else (onboarding_action_execution.claim_execution_results | default([]))
+      }}
+    live_validation_enabled: >-
+      {{
+        discovery_model.derived.intersight_live_validation_enabled | default(false) | bool
+        if (discovery_model | length) > 0
+        else true
+      }}
     raw_intersight_endpoint: "{{ platform_intersight.endpoint | default('') | string | trim }}"
     derived_intersight_mode: "{{ platform_intersight.deployment_mode | default('saas') | string | lower }}"
     normalized_intersight_endpoint: "{{ raw_intersight_endpoint }}"
-    effective_resource_group: "{{ placement_intersight.resource_group | default(placement_intersight.organization | default('')) }}"
     intersight_validate_certs: >-
       {{
         (raw_platform.intersight.validate_certs | default('false' if derived_intersight_mode == 'pva' else 'true') | string | lower)
@@ -84,14 +114,86 @@
         and (resolved_api_key_id | string | trim | length > 0)
         and (resolved_api_private_key | string | trim | length > 0)
       }}
+    direct_rack_inventory_devices: >-
+      {{
+        inventory_devices
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('mgmt_ip', 'defined')
+        | selectattr('mgmt_ip', 'truthy')
+        | selectattr('attributes.form_factor', 'defined')
+        | selectattr('attributes.form_factor', 'equalto', 'rack')
+        | selectattr('attributes.management_type', 'defined')
+        | selectattr('attributes.management_type', 'equalto', 'standalone')
+        | list
+      }}
+    direct_rack_serials: >-
+      {{
+        direct_rack_inventory_devices
+        | map(attribute='serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    direct_fi_pair_domains: >-
+      {{
+        inventory_domains
+        | selectattr('type', 'defined')
+        | selectattr('type', 'equalto', 'fi_pair')
+        | list
+      }}
+    direct_fi_pair_serials: >-
+      {{
+        (
+          inventory_devices
+          | selectattr('category', 'equalto', 'fabric_interconnect')
+          | selectattr('serial', 'defined')
+          | map(attribute='serial')
+          | map('string')
+          | map('trim')
+          | reject('equalto', '')
+          | list
+        )
+      }}
+    direct_target_serials: "{{ (direct_rack_serials + direct_fi_pair_serials) | unique | list }}"
+    direct_target_categories:
+      - Rack
+      - FabricInterconnect
+    present_direct_rack_count: "{{ polled_present_devices | default([]) | selectattr('category', 'equalto', 'Rack') | list | length }}"
+    present_direct_fi_pair_count: >-
+      {{
+        direct_fi_pair_domains | length
+        if ((polled_fi_pair_validation_errors | default([]) | length) == 0)
+        and (
+          (
+            polled_present_devices | default([])
+            | selectattr('category', 'equalto', 'FabricInterconnect')
+            | map(attribute='serial')
+            | list
+          ) | length
+        ) == (direct_fi_pair_serials | length)
+        else 0
+      }}
+    present_direct_target_count: "{{ present_direct_rack_count + present_direct_fi_pair_count }}"
 
   pre_tasks:
     - name: Validate onboarding completion input contract
       ansible.builtin.assert:
         that:
-          - discovery_model_json is defined
-          - discovery_model_json | string | trim | length > 0
-        fail_msg: "discovery_model_json is required"
+          - >
+            (
+              discovery_model_json is defined
+              and discovery_model_json | string | trim | length > 0
+            )
+            or
+            (
+              platform_yaml is defined
+              and platform_yaml | string | trim | length > 0
+              and inventory_yaml is defined
+              and inventory_yaml | string | trim | length > 0
+            )
+        fail_msg: "validate-infrastructure-onboarding requires discovery_model_json or raw platform_yaml plus inventory_yaml"
       tags:
         - always
         - validate
@@ -117,58 +219,16 @@
         - validate
         - completion
 
-    - name: Build blade readiness query batch for polling
-      ansible.builtin.set_fact:
-        live_validation_device_batches: "{{ live_validation_device_batches + [blade_batch] }}"
-      vars:
-        blade_serials: >-
-          {{
-            inventory_devices
-            | selectattr('category', 'equalto', 'server')
-            | selectattr('attributes.form_factor', 'defined')
-            | selectattr('attributes.form_factor', 'equalto', 'blade')
-            | selectattr('serial', 'defined')
-            | map(attribute='serial')
-            | map('string')
-            | map('trim')
-            | reject('equalto', '')
-            | unique
-            | list
-          }}
-        blade_batch:
-          category: Blade
-          serial_numbers: "{{ blade_serials }}"
-          rule: "{{ intersight_query_rules.Blade }}"
-          serial_filter: "{{ blade_serials | map('regex_replace', '^(.*)$', \"Serial eq '\\1'\") | join(' or ') }}"
-      when: blade_serials | length > 0
-      tags:
-        - validate
-        - completion
-
     - name: Build rack readiness query batch for polling
       ansible.builtin.set_fact:
         live_validation_device_batches: "{{ live_validation_device_batches + [rack_batch] }}"
       vars:
-        rack_serials: >-
-          {{
-            inventory_devices
-            | selectattr('category', 'equalto', 'server')
-            | selectattr('attributes.form_factor', 'defined')
-            | selectattr('attributes.form_factor', 'equalto', 'rack')
-            | selectattr('serial', 'defined')
-            | map(attribute='serial')
-            | map('string')
-            | map('trim')
-            | reject('equalto', '')
-            | unique
-            | list
-          }}
         rack_batch:
           category: Rack
-          serial_numbers: "{{ rack_serials }}"
+          serial_numbers: "{{ direct_rack_serials }}"
           rule: "{{ intersight_query_rules.Rack }}"
-          serial_filter: "{{ rack_serials | map('regex_replace', '^(.*)$', \"Serial eq '\\1'\") | join(' or ') }}"
-      when: rack_serials | length > 0
+          serial_filter: "{{ direct_rack_serials | map('regex_replace', '^(.*)$', \"Serial eq '\\1'\") | join(' or ') }}"
+      when: direct_rack_serials | length > 0
       tags:
         - validate
         - completion
@@ -208,11 +268,13 @@
     - name: Initialize live completion polling facts
       ansible.builtin.set_fact:
         completion_polling_done: false
-        polled_present_devices: "{{ present_devices }}"
-        polled_missing_devices: "{{ missing_devices }}"
-        polled_not_ready_devices: "{{ not_ready_devices }}"
+        polled_present_devices: []
+        polled_missing_devices: []
+        polled_not_ready_devices: []
         polled_fi_pair_validation_errors: []
-        polled_placement_validation: "{{ initial_placement_validation }}"
+        polled_placement_validation:
+          ready: true
+          errors: []
         live_validation_attempt_summary:
           requested: "{{ wait_for_completion_normalized }}"
           runtime_capable: "{{ runtime_live_validation_capable }}"
@@ -240,18 +302,31 @@
         - validate
         - completion
 
+    - name: Filter direct-target claim execution outcomes
+      ansible.builtin.set_fact:
+        direct_claim_execution_results: >-
+          {{
+            (claim_execution_results | default([]))
+            | selectattr('serial', 'defined')
+            | selectattr('serial', 'in', direct_target_serials)
+            | list
+          }}
+      tags:
+        - validate
+        - completion
+
     - name: Summarize claim execution outcomes
       ansible.builtin.set_fact:
         successful_claim_results: >-
           {{
-            claim_execution_results
+            direct_claim_execution_results
             | selectattr('status', 'defined')
             | selectattr('status', 'in', ['submitted', 'already_claimed', 'already_compliant'])
             | list
           }}
         blocking_claim_results: >-
           {{
-            claim_execution_results
+            direct_claim_execution_results
             | selectattr('status', 'defined')
             | rejectattr('status', 'in', ['submitted', 'already_claimed', 'already_compliant', 'not_applicable'])
             | list
@@ -260,26 +335,7 @@
         - validate
         - completion
 
-    - name: Build onboarding completeness lists
-      ansible.builtin.set_fact:
-        onboarding_present_devices: "{{ polled_present_devices | default(present_devices) }}"
-        onboarding_missing_devices: "{{ polled_missing_devices | default(missing_devices) }}"
-        onboarding_not_ready_devices: "{{ polled_not_ready_devices | default(not_ready_devices) }}"
-        onboarding_completeness_checks:
-          expected_claimable_target_count: "{{ claim_candidate_targets | length }}"
-          expected_reachability_only_target_count: "{{ reachability_only_targets | length }}"
-          present_device_count: "{{ (polled_present_devices | default(present_devices)) | length }}"
-          missing_device_count: "{{ (polled_missing_devices | default(missing_devices)) | length }}"
-          not_ready_device_count: "{{ (polled_not_ready_devices | default(not_ready_devices)) | length }}"
-          baseline_expectation_error_count: "{{ baseline_expectation_errors | length }}"
-          baseline_expectation_result_count: "{{ baseline_expectation_results | length }}"
-          wait_for_completion_requested: "{{ wait_for_completion_normalized }}"
-          wait_attempts_executed: "{{ live_validation_attempt_summary.attempts_executed | default(0) }}"
-      tags:
-        - validate
-        - completion
-
-    - name: Build onboarding completion result
+    - name: Build simplified onboarding completion result
       ansible.builtin.set_fact:
         onboarding_completion:
           ready: "{{ completion_ready }}"
@@ -288,95 +344,61 @@
           blockers: "{{ completion_blockers }}"
           readiness_success: "{{ completion_ready }}"
           summary:
-            claim_candidate_count: "{{ claim_candidate_targets | length }}"
-            reachability_only_target_count: "{{ reachability_only_targets | length }}"
+            direct_fi_pair_count: "{{ direct_fi_pair_domains | length }}"
+            direct_rack_count: "{{ direct_rack_serials | length }}"
+            direct_target_count: "{{ (direct_fi_pair_domains | length) + (direct_rack_serials | length) }}"
             successful_claim_result_count: "{{ successful_claim_results | length }}"
             blocking_claim_result_count: "{{ blocking_claim_results | length }}"
             live_validation_enabled: "{{ effective_live_validation_enabled }}"
-            present_device_count: "{{ onboarding_present_devices | length }}"
-            missing_device_count: "{{ onboarding_missing_devices | length }}"
-            not_ready_device_count: "{{ onboarding_not_ready_devices | length }}"
-            baseline_expectation_error_count: "{{ baseline_expectation_errors | length }}"
+            present_direct_target_count: "{{ present_direct_target_count }}"
+            present_direct_rack_count: "{{ present_direct_rack_count }}"
+            present_direct_fi_pair_count: "{{ present_direct_fi_pair_count }}"
+            present_device_count: "{{ polled_present_devices | length }}"
+            missing_device_count: "{{ polled_missing_devices | length }}"
+            not_ready_device_count: "{{ polled_not_ready_devices | length }}"
           device_readiness:
-            present_devices: "{{ onboarding_present_devices }}"
-            missing_devices: "{{ onboarding_missing_devices }}"
-            not_ready_devices: "{{ onboarding_not_ready_devices }}"
+            present_devices: "{{ polled_present_devices }}"
+            missing_devices: "{{ polled_missing_devices }}"
+            not_ready_devices: "{{ polled_not_ready_devices }}"
             fi_pair_errors: "{{ polled_fi_pair_validation_errors | default([]) }}"
-          baseline_expectation_validation:
-            results: "{{ baseline_expectation_results }}"
-            errors: "{{ baseline_expectation_errors }}"
           source_checks:
-            preflight_status: "{{ onboarding_readiness.status | default('unknown') }}"
-            preflight_ready: "{{ onboarding_readiness.ready | default(false) | bool }}"
-            action_requested: "{{ onboarding_action_execution.requested | default(false) | bool }}"
+            action_requested: "{{ action_requested }}"
             action_status: "{{ onboarding_action_execution.status | default('not_requested') }}"
-            placement_ready: "{{ effective_placement_ready }}"
-            baseline_expectation_error_count: "{{ baseline_expectation_errors | length }}"
             device_readiness_available: "{{ effective_live_validation_enabled }}"
             wait_for_completion_requested: "{{ wait_for_completion_normalized }}"
             wait_attempt_summary: "{{ live_validation_attempt_summary }}"
-            completeness_check_summary: "{{ onboarding_completeness_checks }}"
       vars:
-        preflight_ready: "{{ onboarding_readiness.ready | default(false) | bool }}"
-        preflight_status: "{{ onboarding_readiness.status | default('unknown') | string }}"
         action_requested: "{{ onboarding_action_execution.requested | default(false) | bool }}"
-        baseline_expectations_passed: "{{ (baseline_expectation_errors | length) == 0 }}"
         effective_live_validation_enabled: "{{ runtime_live_validation_capable or live_validation_enabled }}"
-        effective_placement_ready: "{{ (polled_placement_validation | default(initial_placement_validation)).ready | default(true) | bool }}"
         live_completion_ready: >-
           {{
             effective_live_validation_enabled
-            and (onboarding_missing_devices | length == 0)
-            and (onboarding_not_ready_devices | length == 0)
+            and (polled_missing_devices | length == 0)
+            and (polled_not_ready_devices | length == 0)
             and ((polled_fi_pair_validation_errors | default([])) | length == 0)
-            and effective_placement_ready
-            and baseline_expectations_passed
-            and preflight_ready
-          }}
-        claim_submission_succeeded: >-
-          {{
-            action_requested
-            and (claim_candidate_targets | length > 0)
-            and (blocking_claim_results | length == 0)
-            and (successful_claim_results | length > 0)
           }}
         completion_blockers: >-
           {%- set blockers = [] -%}
-          {%- if not preflight_ready -%}
-          {%- for blocker in (onboarding_readiness.blockers | default([])) -%}
-          {%- set _ = blockers.append(blocker) -%}
-          {%- endfor -%}
-          {%- endif -%}
-          {%- if baseline_expectation_errors | length > 0 -%}
-          {%- for blocker in baseline_expectation_errors -%}
-          {%- set _ = blockers.append(blocker.message | default(blocker | string)) -%}
-          {%- endfor -%}
-          {%- endif -%}
-          {%- if effective_live_validation_enabled and not effective_placement_ready -%}
-          {%- for blocker in ((polled_placement_validation | default(initial_placement_validation)).errors | default([])) -%}
-          {%- set _ = blockers.append(blocker) -%}
-          {%- endfor -%}
-          {%- endif -%}
           {%- if action_requested and (blocking_claim_results | length > 0) -%}
           {%- set _ = blockers.append('One or more onboarding claim actions ended in a blocking state') -%}
           {%- endif -%}
-          {%- if action_requested and (blocking_claim_results | length == 0) and (successful_claim_results | length == 0) and ((claim_candidate_targets | length) > 0) -%}
-          {%- set _ = blockers.append('Onboarding apply was requested, but no successful claim-capable action results were produced') -%}
+          {%- if action_requested and (blocking_claim_results | length == 0) and (successful_claim_results | length == 0) and (direct_target_serials | length > 0) -%}
+          {%- set _ = blockers.append('Onboarding apply was requested, but no successful direct-target claim results were produced') -%}
           {%- endif -%}
-          {%- if effective_live_validation_enabled and (onboarding_missing_devices | length > 0) -%}
-          {%- set _ = blockers.append('One or more expected devices are still missing from the Intersight readiness view') -%}
+          {%- if effective_live_validation_enabled and (polled_missing_devices | length > 0) -%}
+          {%- set _ = blockers.append('One or more direct onboarding targets are still missing from the Intersight readiness view') -%}
           {%- endif -%}
-          {%- if effective_live_validation_enabled and (onboarding_not_ready_devices | length > 0) -%}
-          {%- set _ = blockers.append('One or more discovered devices are present but not yet ready in Intersight') -%}
+          {%- if effective_live_validation_enabled and (polled_not_ready_devices | length > 0) -%}
+          {%- set _ = blockers.append('One or more direct onboarding targets are present but not yet ready in Intersight') -%}
           {%- endif -%}
           {%- if effective_live_validation_enabled and (((polled_fi_pair_validation_errors | default([])) | length) > 0) -%}
           {%- set _ = blockers.append('Fabric Interconnect pair validation has not yet settled in Intersight') -%}
           {%- endif -%}
           {%- if wait_for_completion_normalized and runtime_live_validation_capable and not live_completion_ready and not (live_validation_attempt_summary.completed | default(false) | bool) -%}
-          {%- set _ = blockers.append('Validation polling reached the configured timeout before onboarding completed') -%}
+          {%- set _ = blockers.append('Validation polling reached the configured timeout before direct onboarding targets completed') -%}
           {%- endif -%}
-          {%- if (not action_requested) and preflight_ready and (not live_completion_ready) -%}
-          {%- set _ = blockers.append('Onboarding actions have not been executed or verified complete for all claim-capable targets') -%}
+          {%- if (not action_requested) and (not live_completion_ready) -%}
+          {%- set _ = blockers.append('Onboarding actions have not been executed or verified complete for all direct targets') -%}
           {%- endif -%}
           {{ blockers }}
         completion_ready: "{{ live_completion_ready }}"
@@ -384,32 +406,16 @@
           {{
             'completed'
             if live_completion_ready
-            else 'needs_live_validation'
-            if (preflight_status == 'needs_live_validation')
-            else 'fix_baseline_expectations'
-            if (baseline_expectation_errors | length > 0)
-            else preflight_status
-            if ((not preflight_ready) and (preflight_status | length > 0) and (preflight_status != 'blocked'))
-            else 'blocked'
-            if (completion_blockers | length > 0 and not preflight_ready)
             else 'action_failed'
             if (action_requested and (blocking_claim_results | length > 0))
             else 'onboarding_submitted'
-            if claim_submission_succeeded
-            else 'ready_for_execution'
-            if preflight_ready
+            if action_requested
             else 'blocked'
           }}
         completion_next_action: >-
           {{
             'proceed_to_infrastructure_network_provisioning'
             if live_completion_ready
-            else 'run_live_intersight_validation'
-            if (completion_status == 'needs_live_validation')
-            else 'fix_baseline_expectations'
-            if (completion_status == 'fix_baseline_expectations')
-            else 'review_validation_results'
-            if (completion_status == 'blocked')
             else 'review_claim_failures'
             if (completion_status == 'action_failed')
             else 'wait_for_intersight_management_settlement'
@@ -427,7 +433,7 @@
           - onboarding_completion is defined
           - onboarding_completion.status is defined
           - onboarding_completion.next_action is defined
-        fail_msg: "validate-infrastructure-onboarding-completion did not produce the expected output contract"
+        fail_msg: "validate-infrastructure-onboarding did not produce the expected output contract"
       tags:
         - always
         - verify

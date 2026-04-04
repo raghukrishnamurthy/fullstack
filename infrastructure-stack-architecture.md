@@ -14,7 +14,7 @@ Core design decisions:
 - the stack should favor pre-validation and quick completion when a phase is already satisfied
 - phase-to-phase contracts should be minimal; later phases should rely on Intersight state plus shared inventory context
 - top-level stacks and lowest-level user-facing operational workflows should get blueprint surfaces first, while middle orchestration layers remain grains until a stronger user-facing boundary is needed
-- current discovery and model-building behavior can continue to live in `resolve-intersight-deployment-model` for now, with a planned future rename toward `build-infrastructure-domain-model` when the stack naming is implemented
+- current discovery and model-building behavior can continue to live in `build-infrastructure-domain-model` for now, with a planned future rename toward `build-infrastructure-domain-model` when the stack naming is implemented
 - separate validation/completeness grains are a preferred pattern when a phase must publish reusable post-validation, pre-validation, or cross-check results for other phases and stacks
 
 Current implementation scope:

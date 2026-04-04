@@ -2,15 +2,15 @@
 
 This directory contains a Torque-ready scaffold derived from the v2 Jarvis IAC architecture and input model.
 
-The current implementation focus is the first infrastructure slice:
+The current implementation focus is the first infrastructure onboarding slice:
 
-1. Collect deployment, platform, placement, site, baseline-resolution, and inventory inputs
-2. Normalize optional credential candidate inputs for endpoint preparation and claim
-3. Normalize and validate infrastructure devices
-4. Optionally validate declared serials against Cisco Intersight
-5. Derive run-level claim readiness from baseline, placement, and target selection
-6. Run endpoint-side connector preparation and PVA claim for supported targets
-7. Render a discovery summary artifact for downstream workflows
+1. Prepare the shared Intersight context needed for onboarding
+2. Build direct onboarding targets from `inventory_yaml`
+3. Optionally reset standalone rack passwords before claim
+4. Map credential candidates onto per-target claim inputs
+5. Run device-connector preparation where applicable
+6. Claim direct onboarding targets into Intersight
+7. Validate onboarding completion from inventory intent plus live Intersight truth
 
 Current offering shape:
 
@@ -36,8 +36,8 @@ Higher-level orchestration blueprint boundary:
 - it should own normalized `inventory_yaml` as the shared source of truth across discovery, preparation, claim, and reporting workflows
 - it is the right place for optional scan or discovery-driven target selection before those targets are normalized
 - it should own context preparation concerns such as organization or resource-group preparation before downstream claim execution
-- it should orchestrate focused operational workflows such as `cisco-standalone-rack-reset-password` and `claim-devices-to-intersight` rather than re-implementing their endpoint logic
-- it should continue to use reusable grains such as `resolve-intersight-deployment-model`, `prepare-intersight-context`, and `render-intersight-deployment-summary` for broader flow composition
+- it should orchestrate focused operational workflows such as `reset-standalone-rack-password` and `claim-devices-to-intersight` rather than re-implementing their endpoint logic
+- it should continue to use reusable grains such as `prepare-intersight-context`, `build-infrastructure-onboarding-targets`, `prepare-device-connector`, `claim-devices-to-intersight`, and `validate-infrastructure-onboarding` for broader flow composition
 - focused operational blueprints should remain narrow wrappers for a single operational task, while the higher-level blueprint becomes the place where sequencing, policy, and shared inventory normalization are expressed
 
 Blueprint promotion and handoff standard:
@@ -46,7 +46,7 @@ Blueprint promotion and handoff standard:
 - lowest-level user-facing operational workflows should get blueprint surfaces
 - middle layers should remain reusable grains until they clearly need promotion to a user-facing phase or stack boundary
 - grain-to-grain information flow is expected within a phase, but inter-phase contracts should stay minimal because later phases re-read durable state from Intersight
-- current model/discovery behavior can continue to live in `resolve-intersight-deployment-model` for now, with a planned future rename toward `build-infrastructure-domain-model` as the stack model solidifies
+- `build-infrastructure-domain-model` can remain available as a separate model/report grain, but it is no longer the main onboarding validation authority
 - separate validation/completeness grains are encouraged where a phase must publish a reusable completion authority that later blueprints can fail on, wait on, or run independently
 
 Implementation scope note:
@@ -67,7 +67,7 @@ Planned stack architecture:
 - [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-resource-provisioning-architecture.md)
   Draft phase boundary for reusable chassis and management-plane resource foundation, kept separate from later solution-specific resource consumption.
 - [blueprints/infrastructure-onboard-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-onboard-devices.yaml)
-  First working phase blueprint for all-YAML device onboarding, currently backed by the integrated model/discovery grain plus summary rendering.
+  First working phase blueprint for all-YAML device onboarding using an explicit grain chain for context preparation, target building, reset, claim preparation, claim, and validation.
 - [blueprints/infrastructure-network-provisioning.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-network-provisioning.yaml)
   First working phase blueprint for shared FI and fabric/network foundation planning, currently implemented as planning and validation only.
 
@@ -89,9 +89,9 @@ Files:
   uses `store: intersight-fullstack-repo` for grain sources
 - `blueprints/cisco-standalone-rack-reset-password.yaml`
   Focused standalone rack password reset blueprint
-  wraps the reusable `cisco-standalone-rack-reset-password` grain with direct credential inputs
+  wraps the reusable `reset-standalone-rack-password` grain with direct credential inputs
 - `blueprints/infrastructure-onboard-devices.yaml`
-  First working infrastructure phase blueprint using shared YAML context to discover, validate, and optionally apply onboarding actions
+  First working infrastructure phase blueprint using shared YAML context to prepare context, derive direct targets, claim direct targets, and validate onboarding completion
 - `blueprints/infrastructure-network-provisioning.yaml`
   First working infrastructure network phase blueprint using shared YAML context and a reusable planning grain for shared FI and fabric/network foundation
 - `catalog_ui.md`
@@ -100,22 +100,22 @@ Files:
   Form key to grain input mapping
 - `skills/`
   Repo-local shared Torque/Codex skill guidance for blueprint and Ansible patterns used in this repo
-- `ansible/resolve-intersight-deployment-model/`
-  Validates inventory, derives claim candidates, and runs prepare-and-claim flow
-- `ansible/render-intersight-deployment-summary/`
-  Produces a discovery summary from the derived infrastructure view
+- `ansible/build-infrastructure-onboarding-targets/`
+  Builds direct onboarding targets from `inventory_yaml` for FI pairs and standalone racks
 - `ansible/bootstrap_runtime/`
   Optional worker bootstrap playbook that installs shared Python and collection requirements
-- `ansible/cisco-standalone-rack-reset-password/`
+- `ansible/reset-standalone-rack-password/`
   Separate grain for IMC rack manufacturing-to-desired password reset before prepare-and-claim
-- `ansible/resolve-claim-target-credentials/`
+- `ansible/prepare-claim-target-credentials/`
   Maps shared credential candidates onto per-target claim credential fields
+- `ansible/prepare-device-connector/`
+  Explicit device-connector preparation grain used in the shared onboarding flow
 - `ansible/claim-devices-to-intersight/`
   Unified claim grain that routes internally to SaaS or appliance logic and exports one stable final claim contract
 - `ansible/infrastructure-network-provisioning/`
   First working planning grain for shared FI and fabric/network foundation under the infrastructure stack model
-- `ansible/validate-infrastructure-onboarding-completion/`
-  Validation and completion grain that owns the final onboarding phase readiness contract
+- `ansible/validate-infrastructure-onboarding/`
+  Validation and completion grain that owns the final onboarding phase readiness contract using inventory intent plus live direct-target truth
 - `examples/ai-pod-sjc01-prod/`
   Local example inputs that mirror the blueprint contract
 - `scripts/run_example_strict.sh`
@@ -137,26 +137,26 @@ Published automation sources:
 | `blueprints/cisco-standalone-rack-reset-password.yaml` | `intersight-fullstack-repo` | Public blueprint | Focused standalone rack reset workflow |
 | `blueprints/infrastructure-onboard-devices.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working infrastructure onboarding phase |
 | `blueprints/infrastructure-network-provisioning.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working infrastructure network phase |
-| `ansible/validate-infrastructure-onboarding-completion/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Final onboarding completion validation |
-| `ansible/validate-infrastructure-onboarding-completion/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/validate-infrastructure-onboarding/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Final onboarding completion validation |
+| `ansible/validate-infrastructure-onboarding/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 | `ansible/claim-devices-to-intersight/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Unified claim execution |
 | `ansible/claim-devices-to-intersight/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
-| `ansible/cisco-standalone-rack-reset-password/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Standalone rack password reset |
-| `ansible/cisco-standalone-rack-reset-password/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
-| `ansible/resolve-claim-target-credentials/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Claim credential resolution |
-| `ansible/resolve-claim-target-credentials/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/reset-standalone-rack-password/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Standalone rack password reset |
+| `ansible/reset-standalone-rack-password/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
+| `ansible/prepare-claim-target-credentials/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Claim credential resolution |
+| `ansible/prepare-claim-target-credentials/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 | `ansible/prepare-intersight-context/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Higher-level org/context preparation |
 | `ansible/prepare-intersight-context/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
-| `ansible/resolve-intersight-deployment-model/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Stack discovery and derived model |
-| `ansible/resolve-intersight-deployment-model/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
-| `ansible/render-intersight-deployment-summary/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Discovery summary rendering |
-| `ansible/render-intersight-deployment-summary/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/build-infrastructure-onboarding-targets/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Direct onboarding target construction from inventory |
+| `ansible/build-infrastructure-onboarding-targets/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/prepare-device-connector/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit connector preparation step |
+| `ansible/prepare-device-connector/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 | `ansible/bootstrap_runtime/playbook.yaml` | `intersight-fullstack-repo` | Utility grain | Optional worker bootstrap |
 
 Local test path:
 
 - `./scripts/run_example_strict.sh`
-  executes the example input set end to end against `ansible/resolve-intersight-deployment-model/playbook.yaml`
+  executes the example input set end to end against the current onboarding blueprint chain
   in `validation_mode=strict` and `execution_intent=validate_only`
 - `./scripts/run_example_strict_checked.sh`
   executes the same path and verifies a few expected JSON output values for the AI Pod example
@@ -175,7 +175,7 @@ Assumptions:
 - the blueprint internally builds:
   - `platform_yaml` for the claim and context grains
   - `placement_yaml` only for `prepare-intersight-context`
-  - `credential_candidates_yaml` only for `resolve-claim-target-credentials`
+  - `credential_candidates_yaml` only for `prepare-claim-target-credentials`
 - claim grains assume the organization/context is already prepared and consume direct `organization`
 - `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
 - `credential_candidates_yaml` is the current direct-input mechanism for target credential rotation candidates
@@ -183,7 +183,7 @@ Assumptions:
 - rack-server flows can use typed candidates such as:
   `manufacturing` for factory/default login and `target` for the desired post-rotation credential
 - in the main prepare-and-claim flow, standalone rack targets are expected to already use the desired credential
-- manufacturing/default rack credentials now belong in the separate `cisco-standalone-rack-reset-password` grain
+- manufacturing/default rack credentials now belong in the separate `reset-standalone-rack-password` grain
 - `baseline_input_source` and `baseline_directory` are optional customer-baseline sources for higher orchestration and direct Ansible execution
 - `overrides_yaml` is the deployment-specific delta layer and is optional
 - provide only one customer baseline source at a time
@@ -196,12 +196,15 @@ Assumptions:
 - the scaffold now uses the effective baseline payload for early onboarding expectation checks
 - `validation_mode: strict` validates the input contract only
 - `validation_mode: live` resolves env-based Intersight credential refs and queries Cisco Intersight for declared serials
-- live mode also evaluates placement targets in Intersight and reports whether the requested organization/resource group would be reused, created, or would conflict with placement policy
 - `execution_intent` defaults to `validate_only`
 - `execution_intent: apply` now supports real PVA claim submission for:
   - one Fabric Interconnect pair claim unit per declared `fi_pair` domain
   - standalone rack servers using target credentials
-- blade targets currently remain in the guarded non-direct path and are not submitted for direct PVA claim
+- onboarding validation compares inventory intent with live direct-target objects only:
+  - FI pair intent validates against two FI member objects in `network/Elements`
+  - standalone rack intent validates against `compute/PhysicalSummaries`
+- blade and other child devices do not gate onboarding completion
+- organization and resource-group policy belongs in `prepare-intersight-context`, not in end validation
 - future target handling should remain type-aware:
   FI and server targets may become claim/onboarding-ready, while storage targets may initially support only reachability-style readiness such as TCP or ping validation
 - discovery outputs now carry target readiness profiles to make that distinction explicit for downstream workflows
@@ -217,8 +220,7 @@ Runtime dependencies:
 - [playbook.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/bootstrap_runtime/playbook.yaml)
   can be used to prepare a worker with:
   - shared Python dependencies
-  - `resolve-intersight-deployment-model` collections
-  - `render-intersight-deployment-summary` collections
+  - the repo's Intersight automation collections
 
 Python helpers and custom modules:
 
@@ -226,7 +228,7 @@ Python helpers and custom modules:
   Repo-local helper that retrieves per-target claim-readiness data from device connector endpoints before SaaS claim submission inside the unified claim grain.
 - [/Users/rkrishn2/Documents/Jarvis_IAC/ansible/claim-devices-to-intersight/library/intersight_scoped_claim.py](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/claim-devices-to-intersight/library/intersight_scoped_claim.py)
   Custom Ansible module used by the unified claim grain to submit scoped SaaS claims and return a stable result payload.
-- [/Users/rkrishn2/Documents/Jarvis_IAC/ansible/cisco-standalone-rack-reset-password/tools/run_cisco_standalone_rack_reset_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/cisco-standalone-rack-reset-password/tools/run_cisco_standalone_rack_reset_password.py)
+- [/Users/rkrishn2/Documents/Jarvis_IAC/ansible/reset-standalone-rack-password/tools/run_cisco_standalone_rack_reset_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/reset-standalone-rack-password/tools/run_cisco_standalone_rack_reset_password.py)
   Repo-local helper for manufacturing-to-desired IMC rack password rotation used by the separate reset grain.
 
 Current checkpoint:
@@ -236,7 +238,7 @@ Current checkpoint:
   - standalone rack claim targets
 - appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
 - the focused claim blueprint now uses the simplified grain-level chain:
-  - `resolve-claim-target-credentials`
+  - `prepare-claim-target-credentials`
   - `claim-devices-to-intersight`
 - the public focused claim blueprint now exposes:
   - `api_uri`

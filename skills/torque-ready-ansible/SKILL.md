@@ -49,7 +49,7 @@ It is optimized for:
 ## Repo Patterns
 - Public Torque blueprint path:
   - `blueprints/claim-devices-to-intersight.yaml`
-  - `blueprints/cisco-standalone-rack-reset-password.yaml`
+  - `blueprints/reset-standalone-rack-password.yaml`
 - Reusable claim chain:
   - `resolve_claim_target_credentials`
   - `claim_devices_to_intersight`

@@ -1,5 +1,5 @@
 ---
-- name: Render master plan teardown
+- name: Resolve deployment model teardown
   hosts: "{{ group | default('localhost') }}"
   connection: local
   gather_facts: false
@@ -15,7 +15,7 @@
                 "status": "skipped",
                 "reason": "noop_destroy_behavior",
                 "messages": [
-                  "render-intersight-deployment-summary is render-only and has no destroy-time cleanup"
+                  "build-infrastructure-domain-model does not create or mutate remote resources"
                 ]
               }
             ] | to_json
