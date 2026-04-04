@@ -11,16 +11,7 @@ Use this for the first real Torque SaaS run with:
 - FI pair target via `10.29.135.101`
 - rack target via `10.29.135.106`
 
-### `deployment_yaml`
-
-```yaml
-deployment:
-  id: ai-pod-sjc01-prod
-  site: sjc01
-  environment: production
-```
-
-### `intersight_endpoint`
+### `api_uri`
 
 ```text
 https://intersight.com/api/v1
@@ -102,16 +93,7 @@ Use this for the first real Torque appliance run with:
 - FI pair target via `10.29.135.101`
 - rack target via `10.29.135.106`
 
-### `deployment_yaml`
-
-```yaml
-deployment:
-  id: ai-pod-pva-sjc01-prod
-  site: sjc01
-  environment: production
-```
-
-### `intersight_endpoint`
+### `api_uri`
 
 ```text
 https://ucs-hci-appliance-2.cisco.com
@@ -191,7 +173,8 @@ admin
 ## Notes
 
 - For blueprint claim testing, the key launch input is `claim_targets_json`.
-- The active backend branch is selected internally from `intersight_endpoint`.
+- The active backend branch is selected internally from `api_uri`.
+- The grain-level claim blueprint does not expose `deployment_yaml`; it uses a fixed internal deployment label for traceability.
 - The blueprint now accepts direct secret inputs and internally uses an env bridge plus internal YAML refs for the reusable grains.
 - `validate_certs` and reuse-policy values are intentionally fixed inside the blueprint during development and are not exposed in the launch form.
 - `ensure_intersight_context` owns org/context setup before either claim grain runs.

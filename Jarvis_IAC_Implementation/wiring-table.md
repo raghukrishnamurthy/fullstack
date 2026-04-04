@@ -9,12 +9,11 @@ Blueprint file:
 | Form Key | Grain | Automation Variable | Torque Grain Input |
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
-| `deployment_yaml` | `claim_intersight_devices` | `deployment_yaml` | `deployment_yaml` |
-| `intersight_endpoint` | `ensure_intersight_context` | `platform_yaml` | `platform_yaml` |
+| `api_uri` | `ensure_intersight_context` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_key_id` | `ensure_intersight_context` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_private_key` | `ensure_intersight_context` | `platform_yaml` | `platform_yaml` |
 | `organization` | `ensure_intersight_context` | `placement_yaml` | `placement_yaml` |
-| `intersight_endpoint` | `claim_intersight_devices` | `platform_yaml` | `platform_yaml` |
+| `api_uri` | `claim_intersight_devices` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_key_id` | `claim_intersight_devices` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_private_key` | `claim_intersight_devices` | `platform_yaml` | `platform_yaml` |
 | `organization` | `ensure_intersight_context` | `organization` | `organization` |

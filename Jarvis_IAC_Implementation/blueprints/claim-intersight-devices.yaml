@@ -5,17 +5,9 @@ inputs:
     type: agent
     title: Torque Agent
     description: Torque agent that runs this workflow.
-  deployment_yaml:
+  api_uri:
     type: string
-    description: Optional deployment YAML payload for claim traceability
-    default: |
-      deployment:
-        id: ai-pod-sjc01-prod
-        site: sjc01
-        environment: production
-  intersight_endpoint:
-    type: string
-    description: Intersight SaaS or appliance endpoint
+    description: Intersight SaaS or appliance API base URI
     default: https://intersight.com/api/v1
   intersight_api_key_id:
     type: string
@@ -70,7 +62,7 @@ grains:
         - platform_yaml: |
             platform:
               intersight:
-                endpoint: {{ .inputs.intersight_endpoint }}
+                endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
@@ -165,12 +157,14 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - deployment_yaml: |
+            deployment:
+              id: claim-intersight-devices
         - internal_debug_enabled: 'true'
         - platform_yaml: |
             platform:
               intersight:
-                endpoint: {{ .inputs.intersight_endpoint }}
+                endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
