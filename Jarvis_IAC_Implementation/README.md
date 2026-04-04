@@ -162,8 +162,7 @@ Current checkpoint:
   - one FI pair claim unit derived from a declared `fi_pair` domain
   - standalone rack claim targets
 - appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
-- blueprint claim orchestration now uses the focused unified claim chain:
-- `prepare-intersight-context`
+- the focused claim blueprint now uses the simplified grain-level chain:
   - `resolve-claim-target-credentials`
   - `claim-devices-to-intersight`
 - the public focused claim blueprint now exposes:
@@ -188,7 +187,7 @@ Current checkpoint:
 - `api_uri` is the backend selector for the focused claim blueprint and should be the real API base URI, for example:
   - `https://intersight.com/api/v1`
   - `https://ucs-hci-appliance-2.cisco.com/api/v1`
-- `prepare-intersight-context` owns organization/context setup
+- the focused claim blueprint treats `organization` as an existing-org precondition and passes it directly to the unified claim grain
 - claim grains intentionally assume org/resource-group prerequisites are already satisfied
 - the unified claim grain also assumes other endpoint prerequisites are already satisfied, such as device connector preparation and any required reset-to-known-state work
 - appliance claim API calls now default to `use_proxy: false`; proxy use should only be enabled when that path is explicitly wired into the contract

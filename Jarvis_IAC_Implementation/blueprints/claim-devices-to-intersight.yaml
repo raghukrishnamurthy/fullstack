@@ -41,60 +41,8 @@ inputs:
     description: JSON array of Intersight claim targets to process
     default: '[]'
 grains:
-  prepare_intersight_context:
-    kind: ansible
-    spec:
-      source:
-        store: intersight-fullstack-repo
-        path: ansible/prepare-intersight-context/playbook.yaml
-      command-arguments: -vvv
-      agent:
-        name: '{{ .inputs.agent }}'
-      env-vars:
-        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
-        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
-      inventory-file:
-        localhost:
-          hosts:
-            localhost:
-              ansible_connection: local
-      inputs:
-        - platform_yaml: |
-            platform:
-              intersight:
-                endpoint: {{ .inputs.api_uri }}
-                validate_certs: false
-                credentials:
-                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - placement_yaml: |
-            placement:
-              intersight:
-                organization: {{ .inputs.organization }}
-                policy:
-                  reuse_existing_organization: true
-                  reuse_existing_resource_group: false
-        - organization: '{{ .inputs.organization }}'
-        - internal_debug_enabled: 'true'
-      outputs:
-        - context_status
-        - org_status
-        - org_name
-        - org_action
-        - org_result_json
-        - context_result_json
-    on-destroy:
-      - source:
-          store: intersight-fullstack-repo
-          path: ansible/prepare-intersight-context/teardown.yaml
-        inventory-file:
-          localhost:
-            hosts:
-              localhost:
-                ansible_connection: local
   resolve_claim_target_credentials:
     kind: ansible
-    depends-on: prepare_intersight_context
     spec:
       source:
         store: intersight-fullstack-repo
@@ -169,7 +117,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
+        - organization: '{{ .inputs.organization }}'
         - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:
         - batch_status
@@ -196,8 +144,6 @@ grains:
               localhost:
                 ansible_connection: local
 outputs:
-  context_result_json:
-    value: '{{ .grains.prepare_intersight_context.outputs.context_result_json }}'
   claim_results_json:
     value: '{{ .grains.claim_devices_to_intersight.outputs.results_json }}'
   normalized_claim_results_json:

@@ -10,14 +10,10 @@ Blueprint file:
 | Form Key | Grain | Automation Variable | Torque Grain Input |
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
-| `api_uri` | `prepare_intersight_context` | `platform_yaml` | `platform_yaml` |
-| `intersight_api_key_id` | `prepare_intersight_context` | `platform_yaml` | `platform_yaml` |
-| `intersight_api_private_key` | `prepare_intersight_context` | `platform_yaml` | `platform_yaml` |
-| `organization` | `prepare_intersight_context` | `placement_yaml` | `placement_yaml` |
 | `api_uri` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_key_id` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_private_key` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
-| `organization` | `prepare_intersight_context` | `organization` | `organization` |
+| `organization` | `claim_devices_to_intersight` | `organization` | `organization` |
 | `claim_targets_json` | `resolve_claim_target_credentials` | `claim_targets_json` | `claim_targets_json` |
 | `fi_target_username` | `resolve_claim_target_credentials` | `credential_candidates_yaml` | `credential_candidates_yaml` |
 | `fi_target_password` | `resolve_claim_target_credentials` | `credential_candidates_yaml` | `credential_candidates_yaml` |
@@ -28,19 +24,12 @@ Blueprint file:
 
 | Upstream Output | Downstream Grain | Torque Grain Input |
 | --- | --- | --- |
-| `org_name` | `claim_devices_to_intersight` | `organization` |
 | `resolved_claim_targets_json` | `claim_devices_to_intersight` | `claim_targets_json` |
 
 ## Exported Outputs
 
 | Grain | Output |
 | --- | --- |
-| `prepare_intersight_context` | `context_status` |
-| `prepare_intersight_context` | `org_status` |
-| `prepare_intersight_context` | `org_name` |
-| `prepare_intersight_context` | `org_action` |
-| `prepare_intersight_context` | `org_result_json` |
-| `prepare_intersight_context` | `context_result_json` |
 | `resolve_claim_target_credentials` | `resolved_claim_targets_json` |
 | `claim_devices_to_intersight` | `batch_status` |
 | `claim_devices_to_intersight` | `successful_targets` |

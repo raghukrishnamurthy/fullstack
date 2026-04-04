@@ -51,7 +51,6 @@ It is optimized for:
   - `blueprints/claim-devices-to-intersight.yaml`
   - `blueprints/cisco-standalone-rack-reset-password.yaml`
 - Reusable claim chain:
-  - `prepare_intersight_context`
   - `resolve_claim_target_credentials`
   - `claim_devices_to_intersight`
 

@@ -178,8 +178,7 @@ admin
 - The grain-level claim blueprint does not expose `deployment_yaml`; it uses a fixed internal deployment label for traceability.
 - The blueprint now accepts direct secret inputs and internally uses an env bridge plus internal YAML refs for the reusable grains.
 - `validate_certs` and reuse-policy values are intentionally fixed inside the blueprint during development and are not exposed in the launch form.
-- `prepare_intersight_context` owns org/context setup before either claim grain runs.
-- `claim_devices_to_intersight` assumes the `organization` it receives is already prepared.
+- The focused claim blueprint now treats `organization` as an existing-org precondition and passes it directly to `claim_devices_to_intersight`.
 
 ## Rack Reset Small Test
 
