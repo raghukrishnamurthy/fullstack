@@ -33,6 +33,11 @@ Inventory-first standalone rack password reset grain.
 - `password_reset_ready_targets_json`
 - `password_reset_pending_targets_json`
 
+## Internal Python Components
+
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py)
+  Repo-local helper used to validate current credentials, detect password-change-required state, and rotate standalone rack IMC passwords.
+
 ## Relationship to Main Claim Flow
 
 - this grain is intentionally separate from `resolve-intersight-deployment-model`

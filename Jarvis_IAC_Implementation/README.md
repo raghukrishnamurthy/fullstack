@@ -130,6 +130,15 @@ Runtime dependencies:
   - `resolve-intersight-deployment-model` collections
   - `render-intersight-deployment-summary` collections
 
+Python helpers and custom modules:
+
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/tools/run_claim_readiness.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/tools/run_claim_readiness.py)
+  Repo-local helper that retrieves per-target claim-readiness data from device connector endpoints before SaaS claim submission.
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/library/intersight_scoped_claim.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/library/intersight_scoped_claim.py)
+  Custom Ansible module used by the SaaS claim grain to submit scoped claims and return a stable result payload.
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py)
+  Repo-local helper for manufacturing-to-desired IMC rack password rotation used by the separate reset grain.
+
 Current checkpoint:
 
 - PVA flow is proven live for:

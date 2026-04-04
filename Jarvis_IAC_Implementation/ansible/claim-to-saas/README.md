@@ -57,6 +57,13 @@ Standalone Jarvis grain for claiming target contexts into Intersight SaaS.
 - `changed_targets`
 - `results_json`
 
+## Internal Python Components
+
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/tools/run_claim_readiness.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/tools/run_claim_readiness.py)
+  Repo-local helper used to refresh per-target connector claim readiness when serial/token data is not already present.
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/library/intersight_scoped_claim.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/library/intersight_scoped_claim.py)
+  Custom module used for the actual SaaS claim submission to Intersight.
+
 ## Example
 
 - standalone target example:
