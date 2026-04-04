@@ -9,9 +9,7 @@ Thin direct-Ansible orchestration playbook for the reusable Intersight claim gra
 - feed narrow contracts into:
   - `ensure-intersight-context`
   - `resolve-claim-target-credentials`
-  - `claim-to-saas`
-  - `claim-to-appliance`
-  - `normalize-claim-results`
+  - `claim-intersight-devices`
 
 ## Required inputs
 
@@ -29,9 +27,10 @@ Thin direct-Ansible orchestration playbook for the reusable Intersight claim gra
 
 - ensures Intersight context first
 - maps shared credential candidates onto claim targets when needed
-- routes to SaaS when the platform endpoint contains `intersight.com`
-- routes to appliance otherwise
-- normalizes results into the same final contract the blueprint uses
+- passes one normalized target contract into the unified claim grain
+- the unified claim grain routes to SaaS when the platform endpoint contains `intersight.com`
+- the unified claim grain routes to appliance otherwise
+- the unified claim grain exports the same final normalized contract the focused blueprint uses
 
 ## Examples
 

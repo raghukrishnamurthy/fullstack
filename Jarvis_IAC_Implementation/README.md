@@ -151,7 +151,22 @@ Current checkpoint:
   - `ensure-intersight-context`
   - `resolve-claim-target-credentials`
   - `claim-intersight-devices`
+- the public focused claim blueprint now exposes:
+  - `api_uri`
+  - `intersight_api_key_id`
+  - `intersight_api_private_key`
+  - `organization`
+  - `fi_target_username`
+  - `fi_target_password`
+  - `rack_target_username`
+  - `rack_target_password`
+  - `claim_targets_json`
+- the focused claim blueprint no longer exposes `deployment_yaml`; it uses a fixed internal deployment label for traceability
+- `api_uri` is the backend selector for the focused claim blueprint and should be the real API base URI, for example:
+  - `https://intersight.com/api/v1`
+  - `https://ucs-hci-appliance-2.cisco.com/api/v1`
 - `ensure-intersight-context` owns organization/context setup
 - claim grains intentionally assume org/resource-group prerequisites are already satisfied
 - the unified claim grain also assumes other endpoint prerequisites are already satisfied, such as device connector preparation and any required reset-to-known-state work
+- appliance claim API calls now default to `use_proxy: false`; proxy use should only be enabled when that path is explicitly wired into the contract
 - rack password reset is split into its own grain and is no longer part of the main prepare-and-claim playbook
