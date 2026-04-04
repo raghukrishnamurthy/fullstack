@@ -28,6 +28,7 @@ Design requirement:
 - credential-map resolution belongs in orchestration or in a dedicated resolver grain, not inside execution grains
 - standalone execution grains should consume per-target fields such as `claim_username` and `claim_password_ref`
 - the public Torque blueprint should prefer direct inputs for endpoints, organizations, and secrets, then translate them into internal YAML or env-shaped contracts as needed
+- focused operational blueprints should prefer small JSON target contracts, while higher-level full-stack orchestration should continue to use normalized `inventory_yaml` as the shared source of truth
 
 Blueprint naming convention in this repo:
 
