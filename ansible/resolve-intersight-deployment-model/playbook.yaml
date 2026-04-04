@@ -82,8 +82,8 @@
     api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
     api_key_id_env_name: "{{ (api_key_id_ref is string and api_key_id_ref.startswith('env://')) | ternary(api_key_id_ref | regex_replace('^env://', ''), '') }}"
     api_private_key_env_name: "{{ (api_private_key_ref is string and api_private_key_ref.startswith('env://')) | ternary(api_private_key_ref | regex_replace('^env://', ''), '') }}"
-    resolved_api_key_id: "{{ (api_key_id_env_name | length > 0) | ternary(lookup('ansible.builtin.env', api_key_id_env_name), '') }}"
-    resolved_api_private_key: "{{ (api_private_key_env_name | length > 0) | ternary(lookup('ansible.builtin.env', api_private_key_env_name), '') }}"
+    resolved_api_key_id: "{{ lookup('ansible.builtin.env', api_key_id_env_name) if (api_key_id_env_name | length > 0) else '' }}"
+    resolved_api_private_key: "{{ lookup('ansible.builtin.env', api_private_key_env_name) if (api_private_key_env_name | length > 0) else '' }}"
     intersight_live_validation_requested: "{{ (validation_mode | default('strict') | string | lower) in ['live', 'intersight_live'] }}"
     intersight_live_validation_enabled: >-
       {{
