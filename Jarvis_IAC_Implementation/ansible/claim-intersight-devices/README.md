@@ -25,10 +25,18 @@ Unified Jarvis grain for claiming prepared targets into either Intersight SaaS o
 
 - determines backend mode from `platform_yaml.intersight.endpoint`
 - assumes organization/context and other endpoint prerequisites are already prepared
-- reuses the existing SaaS and appliance claim task implementations internally
+- keeps the SaaS and appliance task logic, helper script, and custom module inside this grain
 - emits both:
   - `results_json`
   - normalized claim outputs matching the previous normalize grain contract
+
+## Internal implementation
+
+- `tasks/saas_process_claim_target.yaml`
+- `tasks/appliance_process_claim_target.yaml`
+- `tasks/appliance_followup_claim_target.yaml`
+- `tools/run_claim_readiness.py`
+- `library/intersight_scoped_claim.py`
 
 ## Outputs
 

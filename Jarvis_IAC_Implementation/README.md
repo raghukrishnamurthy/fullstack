@@ -17,7 +17,7 @@ Current offering shape:
 - offering type: `custom`
 - platform focus: Cisco Intersight and Cisco infrastructure onboarding
 - automation shape: multi-grain Ansible blueprint
-- reference conventions: aligned to `/Users/rkrishn2/intersightztp`
+- reference conventions: aligned to the repo's documented grain, blueprint, and orchestration standards
 
 Design requirement:
 
@@ -134,12 +134,12 @@ Assumptions:
 - vault or secret-manager integration for target credentials is intentionally deferred until the Torque-side mechanism is agreed
 - storage target handling should evolve toward an Assist-mediated flow:
   first validate Assist reachability, then run storage claim using Assist as the effective target path
-- Explicit no-op destroy flows are included to match the reference repo pattern
+- Explicit no-op destroy flows are included so focused operational blueprints have a predictable, non-destructive destroy behavior
 
 Runtime dependencies:
 
 - shared Python requirements live in [requirements.txt](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/requirements.txt)
-- this includes `cryptography==44.0.3`, matching the tested `intersightztp` runtime pattern for Intersight-backed workflows
+- this includes `cryptography==44.0.3`, which is the pinned runtime dependency used by the repo's Intersight-backed workflows
 - [playbook.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/bootstrap_runtime/playbook.yaml)
   can be used to prepare a worker with:
   - shared Python dependencies
@@ -148,10 +148,10 @@ Runtime dependencies:
 
 Python helpers and custom modules:
 
-- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/tools/run_claim_readiness.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/tools/run_claim_readiness.py)
-  Repo-local helper that retrieves per-target claim-readiness data from device connector endpoints before SaaS claim submission.
-- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/library/intersight_scoped_claim.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-to-saas/library/intersight_scoped_claim.py)
-  Custom Ansible module used by the SaaS claim grain to submit scoped claims and return a stable result payload.
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-intersight-devices/tools/run_claim_readiness.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-intersight-devices/tools/run_claim_readiness.py)
+  Repo-local helper that retrieves per-target claim-readiness data from device connector endpoints before SaaS claim submission inside the unified claim grain.
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-intersight-devices/library/intersight_scoped_claim.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-intersight-devices/library/intersight_scoped_claim.py)
+  Custom Ansible module used by the unified claim grain to submit scoped SaaS claims and return a stable result payload.
 - [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py)
   Repo-local helper for manufacturing-to-desired IMC rack password rotation used by the separate reset grain.
 

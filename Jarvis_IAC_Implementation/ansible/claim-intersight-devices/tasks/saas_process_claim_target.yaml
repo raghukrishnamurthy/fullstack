@@ -202,7 +202,7 @@
       - claim_target_username | string | trim | length > 0
       - (claim_target_password_ref | string | trim | length > 0) or (claim_target_password_direct | string | trim | length > 0)
       - claim_target_password | string | trim | length > 0
-    fail_msg: "Standalone claim-to-saas requires claim_username plus either claim_password or env-backed claim_password_ref on each target when claim readiness must be refreshed inline"
+    fail_msg: "claim-intersight-devices requires claim_username plus either claim_password or env-backed claim_password_ref on each target when claim readiness must be refreshed inline"
   when:
     - claim_result is not defined
     - effective_target_context.claim_submission_required | default(true) | bool

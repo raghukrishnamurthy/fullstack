@@ -63,7 +63,7 @@
     internal_organization: "{{ organization | default('') | string | trim }}"
     internal_deployment_name: "{{ deployment_data.id | default('') }}"
     debug_artifact_dir: "/tmp/jarvis-debug/claim-intersight-devices"
-    claim_readiness_helper_path: "{{ playbook_dir }}/../claim-to-saas/tools/run_claim_readiness.py"
+    claim_readiness_helper_path: "{{ playbook_dir }}/tools/run_claim_readiness.py"
   pre_tasks:
     - name: Install shared Python requirements
       ansible.builtin.pip:
@@ -169,7 +169,7 @@
     debug_artifact_dir: "{{ hostvars['localhost'].debug_artifact_dir_runtime | default('/tmp/jarvis-debug/claim-intersight-devices') }}"
   tasks:
     - name: Run unified SaaS claim path for target
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../claim-to-saas/tasks/process_claim_target.yaml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/saas_process_claim_target.yaml"
       when: claim_backend_type == 'saas'
       tags:
         - configure
@@ -178,7 +178,7 @@
         - aggregate
 
     - name: Run unified appliance claim path for target
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../claim-to-appliance/tasks/process_claim_target.yaml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/appliance_process_claim_target.yaml"
       when: claim_backend_type == 'appliance'
       tags:
         - claim
@@ -213,7 +213,7 @@
         - verify
 
     - name: Enrich submitted appliance claims after aggregate submission pass
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../claim-to-appliance/tasks/followup_claim_target.yaml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/appliance_followup_claim_target.yaml"
       vars:
         claim_result_item: "{{ item }}"
       loop: "{{ claim_results | default([]) }}"

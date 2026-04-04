@@ -6,7 +6,7 @@ Standalone Jarvis grain for mapping a credential-candidate pool onto claim targe
 
 - keep blueprint and orchestration inputs convenient by allowing a shared credential map
 - produce per-target claim credential fields for standalone claim grains
-- avoid credential inference inside `claim-to-saas` and `claim-to-appliance`
+- avoid credential inference inside `claim-intersight-devices`
 
 ## Required inputs
 
