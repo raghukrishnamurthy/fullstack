@@ -20,6 +20,7 @@ It is optimized for:
 1. Keep reusable grains narrow.
 - Leaf grains should accept only the data they truly need.
 - Broad shaping, credential mapping, or launch-form convenience belongs in a wrapper or blueprint.
+- Prefer user-facing input normalization in the wrapper/blueprint layer so the same execution grain can be reused from Torque, direct Ansible, or future Tower/AAP orchestrators.
 
 2. Let Torque own runtime inputs.
 - Torque passes grain inputs as extra-vars.

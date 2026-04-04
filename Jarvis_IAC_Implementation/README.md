@@ -24,6 +24,7 @@ Design requirement:
 - reusable grains must remain narrow and standalone
 - reusable grains must not depend on the full `deployment_yaml` unless they are explicitly model/discovery grains
 - blueprint or one thin direct-Ansible wrapper playbook is the orchestration layer
+- orchestration or wrapper layers should own user-facing input normalization so the same leaf grain can be reused from Torque, direct Ansible, or future Tower/AAP-style orchestrators
 - credential-map resolution belongs in orchestration or in a dedicated resolver grain, not inside execution grains
 - standalone execution grains should consume per-target fields such as `claim_username` and `claim_password_ref`
 - the public Torque blueprint should prefer direct inputs for endpoints, organizations, and secrets, then translate them into internal YAML or env-shaped contracts as needed
@@ -97,6 +98,7 @@ Assumptions:
 - Torque launch-form complex inputs are passed as strings
 - YAML-shaped blueprint inputs should be avoided in Torque-facing contracts; prefer direct inputs or JSON strings and assemble internal YAML only inside the blueprint or automation layer when necessary
 - the focused claim blueprint now prefers direct user-facing inputs for endpoint, org, and secrets
+- user-facing input normalization should happen as early as practical in the blueprint or wrapper layer; leaf grains should keep only the validation and derivation they need for correct execution
 - the blueprint internally builds:
   - `platform_yaml` for the claim and context grains
   - `placement_yaml` only for `ensure-intersight-context`

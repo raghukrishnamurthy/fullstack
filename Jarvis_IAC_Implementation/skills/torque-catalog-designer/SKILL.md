@@ -23,6 +23,7 @@ Focus on:
 - Expose values the user actually chooses.
 - Hide internal orchestration details behind the blueprint or wrapper.
 - Prefer direct string/sensitive inputs or JSON-string contracts over YAML-shaped blueprint inputs, since Torque support for YAML-type blueprint inputs is currently unreliable.
+- Prefer doing user-facing input normalization in the blueprint or wrapper so the same execution grain can later be reused by non-Torque orchestrators such as direct Ansible or Tower/AAP.
 
 3. Keep field names stable.
 - Use `snake_case`.
