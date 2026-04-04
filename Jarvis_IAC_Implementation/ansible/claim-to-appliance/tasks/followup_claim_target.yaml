@@ -4,6 +4,7 @@
     api_key_id: "{{ claim_api_key_id }}"
     api_private_key: "{{ claim_api_private_key }}"
     api_uri: "{{ claim_api_uri }}"
+    use_proxy: false
     validate_certs: "{{ claim_validate_certs | default(false) | bool }}"
     resource_path: /workflow/WorkflowInfos
     query_params:
@@ -27,6 +28,7 @@
     api_key_id: "{{ claim_api_key_id }}"
     api_private_key: "{{ claim_api_private_key }}"
     api_uri: "{{ claim_api_uri }}"
+    use_proxy: false
     validate_certs: "{{ claim_validate_certs | default(false) | bool }}"
     resource_path: /appliance/DeviceClaims
     query_params:

@@ -152,6 +152,7 @@
     api_key_id: "{{ claim_api_key_id }}"
     api_private_key: "{{ claim_api_private_key }}"
     api_uri: "{{ claim_api_uri }}"
+    use_proxy: false
     validate_certs: "{{ claim_validate_certs | default(false) | bool }}"
     resource_path: /appliance/DeviceClaims
     update_method: post
@@ -167,6 +168,13 @@
   ansible.builtin.set_fact:
     pva_claim_error_text: "{{ (pva_appliance_claim_result.msg | default('')) ~ ' ' ~ (pva_appliance_claim_result.api_response | default({}) | to_json) }}"
     pva_claim_error_text_lower: "{{ (((pva_appliance_claim_result.msg | default('')) ~ ' ' ~ (pva_appliance_claim_result.api_response | default({}) | to_json)) | lower) }}"
+    pva_claim_transport_failed: >-
+      {{
+        (pva_appliance_claim_result.failed | default(false) | bool)
+        or ('request failed' in ((((pva_appliance_claim_result.msg | default('')) ~ ' ' ~ (pva_appliance_claim_result.api_response | default({}) | to_json)) | lower)))
+        or ('code exception' in ((((pva_appliance_claim_result.msg | default('')) ~ ' ' ~ (pva_appliance_claim_result.api_response | default({}) | to_json)) | lower)))
+        or ('urlopen error' in ((((pva_appliance_claim_result.msg | default('')) ~ ' ' ~ (pva_appliance_claim_result.api_response | default({}) | to_json)) | lower)))
+      }}
   when:
     - claim_result is not defined
     - pva_appliance_claim_result is defined
@@ -196,7 +204,7 @@
         already_claimed
         {%- elif 'conflict' in pva_claim_error_text_lower -%}
         conflict
-        {%- elif (pva_appliance_claim_result.failed | default(false) | bool) -%}
+        {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
         failed
         {%- else -%}
         submitted
@@ -208,7 +216,7 @@
         already_compliant
         {%- elif 'conflict' in pva_claim_error_text_lower -%}
         conflict
-        {%- elif (pva_appliance_claim_result.failed | default(false) | bool) -%}
+        {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
         claim_submission_failed
         {%- else -%}
         claimed_and_configured
@@ -230,7 +238,7 @@
           already_claimed
           {%- elif 'conflict' in pva_claim_error_text_lower -%}
           conflict
-          {%- elif (pva_appliance_claim_result.failed | default(false) | bool) -%}
+          {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
           failed
           {%- else -%}
           submitted
@@ -242,7 +250,7 @@
           already_compliant
           {%- elif 'conflict' in pva_claim_error_text_lower -%}
           conflict
-          {%- elif (pva_appliance_claim_result.failed | default(false) | bool) -%}
+          {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
           claim_submission_failed
           {%- else -%}
           claimed_and_configured
