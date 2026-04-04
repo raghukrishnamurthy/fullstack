@@ -12,6 +12,12 @@ Validation and completion grain for the `infrastructure-onboard-devices` phase.
 
 - `discovery_model_json`
 
+## Optional inputs
+
+- `wait_for_completion`
+- `validation_poll_interval`
+- `validation_timeout_seconds`
+
 ## Outputs
 
 - `phase_ready`
@@ -24,3 +30,4 @@ Validation and completion grain for the `infrastructure-onboard-devices` phase.
 - reports `ready_for_execution` when preflight checks pass but onboarding has not been executed or verified complete
 - reports `onboarding_submitted` when apply-mode claim actions succeeded but final live completion has not been proven yet
 - reports `completed` only when the current discovery model shows no missing or not-ready devices under live validation
+- can optionally poll Intersight for asynchronous onboarding settlement using the credential refs embedded in the discovery model when those refs resolve at runtime

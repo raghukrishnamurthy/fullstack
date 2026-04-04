@@ -1,0 +1,314 @@
+---
+- name: Wait before next completion poll
+  ansible.builtin.pause:
+    seconds: "{{ validation_poll_interval_normalized }}"
+  when:
+    - readiness_attempt_number | int > 1
+    - validation_poll_interval_normalized | int > 0
+  tags:
+    - validate
+    - completion
+    - wait
+
+- name: Query requested organization by name during completion poll
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ normalized_intersight_endpoint }}"
+    validate_certs: "{{ intersight_validate_certs }}"
+    resource_path: /organization/Organizations
+    query_params:
+      $filter: "Name eq '{{ placement_intersight.organization }}'"
+      $top: 1
+    return_list: true
+  register: polled_existing_org_query
+  changed_when: false
+  no_log: true
+  when: placement_intersight.organization | default('') | string | trim | length > 0
+  tags:
+    - validate
+    - completion
+    - placement
+
+- name: Query requested resource group by name during completion poll
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ normalized_intersight_endpoint }}"
+    validate_certs: "{{ intersight_validate_certs }}"
+    resource_path: /resource/Groups
+    query_params:
+      $filter: "Name eq '{{ effective_resource_group }}'"
+      $top: 1
+    return_list: true
+  register: polled_existing_resource_group_query
+  changed_when: false
+  no_log: true
+  when: effective_resource_group | string | trim | length > 0
+  tags:
+    - validate
+    - completion
+    - placement
+
+- name: Build polled placement validation result
+  ansible.builtin.set_fact:
+    polled_placement_validation:
+      organization:
+        requested_name: "{{ placement_intersight.organization | default('') }}"
+        exists: "{{ org_exists }}"
+        action: "{{ org_action }}"
+        moid: "{{ org_moid }}"
+      resource_group:
+        requested_name: "{{ effective_resource_group }}"
+        exists: "{{ resource_group_exists }}"
+        action: "{{ resource_group_action }}"
+        moid: "{{ resource_group_moid }}"
+        matches_requested_organization: "{{ resource_group_matches_org }}"
+      ready: "{{ placement_errors | length == 0 }}"
+      errors: "{{ placement_errors }}"
+  vars:
+    org_query_records: "{{ polled_existing_org_query.api_response | default([]) if (polled_existing_org_query is defined) else [] }}"
+    resource_group_query_records: "{{ polled_existing_resource_group_query.api_response | default([]) if (polled_existing_resource_group_query is defined) else [] }}"
+    org_record: "{{ (org_query_records | first) | default({}) }}"
+    resource_group_record: "{{ (resource_group_query_records | first) | default({}) }}"
+    org_exists: "{{ (org_query_records | length) > 0 }}"
+    resource_group_exists: "{{ (resource_group_query_records | length) > 0 }}"
+    org_moid: "{{ org_record.Moid | default('') }}"
+    resource_group_moid: "{{ resource_group_record.Moid | default('') }}"
+    requested_reuse_org: "{{ placement_intersight.policy.reuse_existing_organization | default(true) | bool }}"
+    requested_reuse_resource_group: "{{ placement_intersight.policy.reuse_existing_resource_group | default(false) | bool }}"
+    resource_group_org_moids: >-
+      {{
+        resource_group_record.Organizations | default([])
+        | map(attribute='Moid')
+        | map('string')
+        | list
+      }}
+    resource_group_matches_org: >-
+      {{
+        (not resource_group_exists)
+        or (not org_exists)
+        or (org_moid in resource_group_org_moids)
+      }}
+    org_action: >-
+      {{
+        'existing'
+        if (org_exists and requested_reuse_org)
+        else 'conflict_existing_not_reusable'
+        if (org_exists and not requested_reuse_org)
+        else 'would_create'
+      }}
+    resource_group_action: >-
+      {{
+        'existing'
+        if (resource_group_exists and requested_reuse_resource_group)
+        else 'conflict_existing_not_reusable'
+        if (resource_group_exists and not requested_reuse_resource_group)
+        else 'would_create'
+      }}
+    placement_errors: >-
+      {%- set errors = [] -%}
+      {%- if org_exists and not requested_reuse_org -%}
+      {%- set _ = errors.append('Requested organization already exists but placement policy forbids reuse') -%}
+      {%- endif -%}
+      {%- if resource_group_exists and not requested_reuse_resource_group -%}
+      {%- set _ = errors.append('Requested resource group already exists but placement policy forbids reuse') -%}
+      {%- endif -%}
+      {%- if org_exists and resource_group_exists and not resource_group_matches_org -%}
+      {%- set _ = errors.append('Requested resource group is not associated with the requested organization') -%}
+      {%- endif -%}
+      {{ errors }}
+  changed_when: false
+  tags:
+    - validate
+    - completion
+    - placement
+
+- name: Query Intersight for each live validation batch during completion poll
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_uri: "{{ normalized_intersight_endpoint }}"
+    validate_certs: "{{ intersight_validate_certs }}"
+    resource_path: "{{ query_batch.rule.resource_path }}"
+    return_list: true
+    query_params:
+      $filter: "{{ query_batch.serial_filter }}"
+      $top: 1000
+  register: polled_intersight_lookup
+  loop: "{{ live_validation_device_batches | default([]) }}"
+  loop_control:
+    loop_var: query_batch
+    label: "{{ query_batch.category }}{{ ':' ~ query_batch.domain_id if query_batch.domain_id is defined else '' }}"
+  changed_when: false
+  no_log: true
+  tags:
+    - validate
+    - completion
+    - intersight
+
+- name: Initialize polled readiness lists
+  ansible.builtin.set_fact:
+    polled_present_devices: []
+    polled_missing_devices: []
+    polled_not_ready_devices: []
+    polled_fi_pair_validation_errors: []
+  changed_when: false
+  tags:
+    - validate
+    - completion
+    - intersight
+
+- name: Evaluate polled Intersight query results
+  ansible.builtin.set_fact:
+    polled_present_devices: "{{ polled_present_devices + ready_devices }}"
+    polled_missing_devices: "{{ polled_missing_devices + category_missing_devices }}"
+    polled_not_ready_devices: "{{ polled_not_ready_devices + category_not_ready_devices }}"
+  vars:
+    response_results: "{{ readiness_query_result.api_response | default([]) }}"
+    requested_serials: "{{ readiness_query_result.query_batch.serial_numbers }}"
+    category_name: "{{ readiness_query_result.query_batch.category }}"
+    discovery_field: "{{ readiness_query_result.query_batch.rule.discovery_field | default('') }}"
+    allowed_states: "{{ readiness_query_result.query_batch.rule.allowed_discovery_states | default([]) }}"
+    returned_serials: >-
+      {{
+        response_results
+        | map(attribute='Serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+    category_missing_devices: >-
+      {%- set result = [] -%}
+      {%- for serial_number in requested_serials | default([]) -%}
+      {%- if serial_number not in returned_serials -%}
+      {%- set _ = result.append({
+            'category': category_name,
+            'serial': serial_number,
+            'status': 'missing_in_intersight'
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+    ready_devices: >-
+      {%- set result = [] -%}
+      {%- for item in response_results | default([]) -%}
+      {%- set current_state = item[discovery_field] | default('') -%}
+      {%- if current_state in allowed_states -%}
+      {%- set _ = result.append({
+            'category': category_name,
+            'serial': item.Serial | default(''),
+            'status': 'present',
+            'discovery_field': discovery_field,
+            'actual_discovery_state': current_state
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+    category_not_ready_devices: >-
+      {%- set result = [] -%}
+      {%- for item in response_results | default([]) -%}
+      {%- set current_state = item[discovery_field] | default('') -%}
+      {%- if current_state not in allowed_states -%}
+      {%- set _ = result.append({
+            'category': category_name,
+            'serial': item.Serial | default(''),
+            'status': 'present_but_not_ready',
+            'discovery_field': discovery_field,
+            'actual_discovery_state': current_state,
+            'allowed_discovery_states': allowed_states
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+  loop: "{{ polled_intersight_lookup.results | default([]) }}"
+  loop_control:
+    loop_var: readiness_query_result
+    label: "{{ readiness_query_result.query_batch.category }}"
+  changed_when: false
+  tags:
+    - validate
+    - completion
+    - intersight
+
+- name: Validate polled FI pair readiness
+  ansible.builtin.set_fact:
+    polled_fi_pair_validation_errors: "{{ polled_fi_pair_validation_errors + [fi_pair_failure] }}"
+    polled_not_ready_devices: "{{ polled_not_ready_devices + [fi_pair_failure] }}"
+  vars:
+    fi_pair_records: "{{ fi_lookup_result.api_response | default([]) }}"
+    fi_requested_serials: "{{ fi_lookup_result.query_batch.serial_numbers | default([]) }}"
+    fi_pair_errors_local: >-
+      {%- set errors = [] -%}
+      {%- if (fi_requested_serials | length) != 2 -%}
+      {%- set _ = errors.append('FabricInterconnect fi_pair domains must resolve to exactly 2 serial numbers') -%}
+      {%- endif -%}
+      {%- if (fi_pair_records | length) != 2 -%}
+      {%- set _ = errors.append('FabricInterconnect A/B pair validation requires both serials to be present in network/Elements') -%}
+      {%- endif -%}
+      {%- if (fi_pair_records | length) == 2 and ((fi_pair_records | map(attribute='DeviceMoId') | unique | list | length) != 1) -%}
+      {%- set _ = errors.append('FabricInterconnect serials are not part of the same target pair') -%}
+      {%- endif -%}
+      {%- if (fi_pair_records | length) == 2 and ((fi_pair_records | map(attribute='SwitchId') | sort | list) != ['A', 'B']) -%}
+      {%- set _ = errors.append('FabricInterconnect serials must resolve to one switch A and one switch B') -%}
+      {%- endif -%}
+      {{ errors }}
+    fi_pair_failure:
+      category: FabricInterconnect
+      domain_id: "{{ fi_lookup_result.query_batch.domain_id | default('') }}"
+      serial: "{{ fi_requested_serials | join(',') }}"
+      status: invalid_pair
+      discovery_field: "SwitchId+DeviceMoId"
+      actual_discovery_state: >-
+        {{
+          fi_pair_records
+          | map(attribute='Serial')
+          | zip(fi_pair_records | map(attribute='SwitchId'), fi_pair_records | map(attribute='DeviceMoId'))
+          | list
+          | to_json
+        }}
+      allowed_discovery_states:
+        - same DeviceMoId
+        - SwitchId A/B pair
+      error_messages: "{{ fi_pair_errors_local }}"
+  loop: >-
+    {{
+      polled_intersight_lookup.results
+      | default([])
+      | selectattr('query_batch.category', 'equalto', 'FabricInterconnect')
+      | list
+    }}
+  loop_control:
+    loop_var: fi_lookup_result
+    label: "{{ fi_lookup_result.query_batch.domain_id | default(fi_lookup_result.query_batch.serial_numbers | join(',')) }}"
+  when: fi_pair_errors_local | length > 0
+  changed_when: false
+  tags:
+    - validate
+    - completion
+    - intersight
+
+- name: Build polled live validation attempt summary
+  ansible.builtin.set_fact:
+    live_validation_attempt_summary:
+      requested: "{{ wait_for_completion_normalized }}"
+      runtime_capable: "{{ runtime_live_validation_capable }}"
+      poll_interval_seconds: "{{ validation_poll_interval_normalized }}"
+      timeout_seconds: "{{ validation_timeout_seconds_normalized }}"
+      max_attempts: "{{ validation_max_attempts_normalized }}"
+      attempts_executed: "{{ readiness_attempt_number | int }}"
+      completed: "{{ attempt_completed }}"
+    completion_polling_done: "{{ attempt_completed }}"
+  vars:
+    attempt_completed: >-
+      {{
+        (polled_missing_devices | length == 0)
+        and (polled_not_ready_devices | length == 0)
+        and (polled_fi_pair_validation_errors | length == 0)
+        and (polled_placement_validation.ready | default(true) | bool)
+      }}
+  changed_when: false
+  tags:
+    - validate
+    - completion

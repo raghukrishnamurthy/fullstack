@@ -48,6 +48,18 @@ inputs:
     type: string
     description: Execution intent for the onboarding phase
     default: validate_only
+  wait_for_completion:
+    type: string
+    description: Optional polling mode for asynchronous onboarding validation
+    default: 'false'
+  validation_poll_interval:
+    type: string
+    description: Poll interval in seconds when wait_for_completion is enabled
+    default: '60'
+  validation_timeout_seconds:
+    type: string
+    description: Total timeout in seconds when wait_for_completion is enabled
+    default: '3600'
 grains:
   build_infrastructure_domain_model:
     kind: ansible
@@ -112,6 +124,9 @@ grains:
               ansible_connection: local
       inputs:
         - discovery_model_json: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_model_json }}'
+        - wait_for_completion: '{{ .inputs.wait_for_completion }}'
+        - validation_poll_interval: '{{ .inputs.validation_poll_interval }}'
+        - validation_timeout_seconds: '{{ .inputs.validation_timeout_seconds }}'
       outputs:
         - phase_ready
         - phase_status
