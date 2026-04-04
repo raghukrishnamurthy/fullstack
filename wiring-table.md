@@ -5,6 +5,25 @@ Blueprint file:
 - [claim-devices-to-intersight.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/claim-devices-to-intersight.yaml)
 - [cisco-standalone-rack-reset-password.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/cisco-standalone-rack-reset-password.yaml)
 
+## Published Automation Sources
+
+| Repo Path | Torque Store | Blueprint Use | Notes |
+| --- | --- | --- | --- |
+| `ansible/claim-devices-to-intersight/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Unified claim execution |
+| `ansible/claim-devices-to-intersight/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
+| `ansible/cisco-standalone-rack-reset-password/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Standalone rack password reset |
+| `ansible/cisco-standalone-rack-reset-password/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
+| `ansible/resolve-claim-target-credentials/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Claim credential resolution |
+| `ansible/resolve-claim-target-credentials/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/prepare-intersight-context/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Higher-level org/context preparation |
+| `ansible/prepare-intersight-context/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/resolve-intersight-deployment-model/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Full-stack discovery and derived model |
+| `ansible/resolve-intersight-deployment-model/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/render-intersight-deployment-summary/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Discovery summary rendering |
+| `ansible/render-intersight-deployment-summary/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/bootstrap_runtime/playbook.yaml` | `intersight-fullstack-repo` | Utility grain | Optional worker bootstrap |
+
+
 ## Launch Inputs
 
 | Form Key | Grain | Automation Variable | Torque Grain Input |

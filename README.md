@@ -80,6 +80,26 @@ Files:
   the checked runners use small embedded Python assertion blocks to validate
   persisted JSON outputs rather than relying only on Ansible exit codes
 
+Published automation sources:
+
+| Repo Path | Torque Store | Blueprint Use | Notes |
+| --- | --- | --- | --- |
+| `blueprints/claim-devices-to-intersight.yaml` | `intersight-fullstack-repo` | Public blueprint | Focused claim workflow |
+| `blueprints/cisco-standalone-rack-reset-password.yaml` | `intersight-fullstack-repo` | Public blueprint | Focused standalone rack reset workflow |
+| `ansible/claim-devices-to-intersight/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Unified claim execution |
+| `ansible/claim-devices-to-intersight/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
+| `ansible/cisco-standalone-rack-reset-password/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Standalone rack password reset |
+| `ansible/cisco-standalone-rack-reset-password/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
+| `ansible/resolve-claim-target-credentials/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Claim credential resolution |
+| `ansible/resolve-claim-target-credentials/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/prepare-intersight-context/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Higher-level org/context preparation |
+| `ansible/prepare-intersight-context/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/resolve-intersight-deployment-model/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Full-stack discovery and derived model |
+| `ansible/resolve-intersight-deployment-model/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/render-intersight-deployment-summary/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Discovery summary rendering |
+| `ansible/render-intersight-deployment-summary/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
+| `ansible/bootstrap_runtime/playbook.yaml` | `intersight-fullstack-repo` | Utility grain | Optional worker bootstrap |
+
 Local test path:
 
 - `./scripts/run_example_strict.sh`
