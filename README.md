@@ -54,6 +54,8 @@ Planned stack architecture:
   Draft architecture for the higher-level `deploy-infrastructure-stack` blueprint and its phase boundaries.
 - [infrastructure-onboard-devices-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-onboard-devices-architecture.md)
   Draft phase boundary for the first infrastructure onboarding phase, including discovery, optional rack reset, claim, and validation.
+- [infrastructure-network-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-network-provisioning-architecture.md)
+  Draft phase boundary for shared FI and fabric/network foundation, kept separate from later solution-specific logical network provisioning.
 
 Blueprint naming convention in this repo:
 

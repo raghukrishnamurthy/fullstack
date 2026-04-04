@@ -57,6 +57,7 @@ Planned infrastructure phases:
    - validate that devices are manageable and ready for later infrastructure phases
 
 2. `infrastructure-network-provisioning`
+   - see [infrastructure-network-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-network-provisioning-architecture.md) for the current phase boundary draft
    - establish shared FI and fabric/network foundation for the infrastructure-domain
    - drive discovery that depends on FI-managed infrastructure when applicable
    - validate that network-side infrastructure is ready for broader resource provisioning
