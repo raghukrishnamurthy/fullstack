@@ -191,10 +191,8 @@ admin
 ## Notes
 
 - For blueprint claim testing, the key launch input is `claim_targets_json`.
-- The active claim branch is selected from `intersight_endpoint`.
-- Use SaaS endpoint for `claim_to_saas`.
-- Use appliance endpoint for `claim_to_appliance`.
+- The active backend branch is selected internally from `intersight_endpoint`.
 - The blueprint now accepts direct secret inputs and internally uses an env bridge plus internal YAML refs for the reusable grains.
 - `validate_certs` and reuse-policy values are intentionally fixed inside the blueprint during development and are not exposed in the launch form.
 - `ensure_intersight_context` owns org/context setup before either claim grain runs.
-- `claim_to_saas` and `claim_to_appliance` assume the `organization` they receive is already prepared.
+- `claim_intersight_devices` assumes the `organization` it receives is already prepared.

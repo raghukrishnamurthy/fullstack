@@ -45,9 +45,7 @@ It is optimized for:
 - Reusable claim chain:
   - `ensure_intersight_context`
   - `resolve_claim_target_credentials`
-  - `claim_to_saas`
-  - `claim_to_appliance`
-  - `normalize_claim_results`
+  - `claim_intersight_devices`
 - Direct non-blueprint orchestrator:
   - `ansible/run-intersight-claim-chain/playbook.yaml`
 

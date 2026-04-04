@@ -1,0 +1,9 @@
+---
+- name: No-op unified claim destroy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Unified claim grain has no destroy action
+      ansible.builtin.debug:
+        msg: "claim-intersight-devices has no destroy behavior"

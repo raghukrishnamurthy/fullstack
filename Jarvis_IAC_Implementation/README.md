@@ -49,6 +49,8 @@ Files:
   Separate grain for IMC rack manufacturing-to-desired password reset before prepare-and-claim
 - `ansible/resolve-claim-target-credentials/`
   Maps shared credential candidates onto per-target claim credential fields
+- `ansible/claim-intersight-devices/`
+  Unified claim grain that routes internally to SaaS or appliance logic and exports one stable final claim contract
 - `ansible/run-intersight-claim-chain/`
   Thin direct-Ansible orchestration path that invokes the reusable context, credential-resolution, claim, and normalize grains
 - `examples/ai-pod-sjc01-prod/`
@@ -145,11 +147,11 @@ Current checkpoint:
   - one FI pair claim unit derived from a declared `fi_pair` domain
   - standalone rack claim targets
 - appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
-- blueprint and direct-Ansible claim orchestration now share the same reusable grain chain:
+- blueprint claim orchestration now uses the focused unified claim chain:
   - `ensure-intersight-context`
   - `resolve-claim-target-credentials`
-  - `claim-to-saas` or `claim-to-appliance`
-  - `normalize-claim-results`
+  - `claim-intersight-devices`
 - `ensure-intersight-context` owns organization/context setup
 - claim grains intentionally assume org/resource-group prerequisites are already satisfied
+- the unified claim grain also assumes other endpoint prerequisites are already satisfied, such as device connector preparation and any required reset-to-known-state work
 - rack password reset is split into its own grain and is no longer part of the main prepare-and-claim playbook
