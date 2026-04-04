@@ -50,6 +50,7 @@ Input model notes:
 Planned infrastructure phases:
 
 1. `infrastructure-onboard-devices`
+   - see [infrastructure-onboard-devices-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-onboard-devices-architecture.md) for the current phase boundary draft
    - discover candidate devices
    - run standalone rack password reset when needed
    - claim devices into Intersight
