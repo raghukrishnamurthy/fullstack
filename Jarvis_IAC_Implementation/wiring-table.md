@@ -2,7 +2,7 @@
 
 Blueprint file:
 
-- [claim-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-intersight-devices.yaml)
+- [claim-devices-to-intersight.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-devices-to-intersight.yaml)
 - [cisco-standalone-rack-reset-password.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/cisco-standalone-rack-reset-password.yaml)
 
 ## Launch Inputs
@@ -14,9 +14,9 @@ Blueprint file:
 | `intersight_api_key_id` | `prepare_intersight_context` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_private_key` | `prepare_intersight_context` | `platform_yaml` | `platform_yaml` |
 | `organization` | `prepare_intersight_context` | `placement_yaml` | `placement_yaml` |
-| `api_uri` | `claim_intersight_devices` | `platform_yaml` | `platform_yaml` |
-| `intersight_api_key_id` | `claim_intersight_devices` | `platform_yaml` | `platform_yaml` |
-| `intersight_api_private_key` | `claim_intersight_devices` | `platform_yaml` | `platform_yaml` |
+| `api_uri` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
+| `intersight_api_key_id` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
+| `intersight_api_private_key` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
 | `organization` | `prepare_intersight_context` | `organization` | `organization` |
 | `claim_targets_json` | `resolve_claim_target_credentials` | `claim_targets_json` | `claim_targets_json` |
 | `fi_target_username` | `resolve_claim_target_credentials` | `credential_candidates_yaml` | `credential_candidates_yaml` |
@@ -28,8 +28,8 @@ Blueprint file:
 
 | Upstream Output | Downstream Grain | Torque Grain Input |
 | --- | --- | --- |
-| `org_name` | `claim_intersight_devices` | `organization` |
-| `resolved_claim_targets_json` | `claim_intersight_devices` | `claim_targets_json` |
+| `org_name` | `claim_devices_to_intersight` | `organization` |
+| `resolved_claim_targets_json` | `claim_devices_to_intersight` | `claim_targets_json` |
 
 ## Exported Outputs
 
@@ -42,20 +42,20 @@ Blueprint file:
 | `prepare_intersight_context` | `org_result_json` |
 | `prepare_intersight_context` | `context_result_json` |
 | `resolve_claim_target_credentials` | `resolved_claim_targets_json` |
-| `claim_intersight_devices` | `batch_status` |
-| `claim_intersight_devices` | `successful_targets` |
-| `claim_intersight_devices` | `failed_targets` |
-| `claim_intersight_devices` | `conflict_targets` |
-| `claim_intersight_devices` | `skipped_targets` |
-| `claim_intersight_devices` | `changed_targets` |
-| `claim_intersight_devices` | `results_json` |
-| `claim_intersight_devices` | `normalized_claim_results_json` |
-| `claim_intersight_devices` | `normalized_claim_batch_status` |
-| `claim_intersight_devices` | `normalized_claim_successful_count` |
-| `claim_intersight_devices` | `normalized_claim_failed_count` |
-| `claim_intersight_devices` | `normalized_claim_conflict_count` |
-| `claim_intersight_devices` | `normalized_claim_skipped_count` |
-| `claim_intersight_devices` | `normalized_claim_changed_count` |
+| `claim_devices_to_intersight` | `batch_status` |
+| `claim_devices_to_intersight` | `successful_targets` |
+| `claim_devices_to_intersight` | `failed_targets` |
+| `claim_devices_to_intersight` | `conflict_targets` |
+| `claim_devices_to_intersight` | `skipped_targets` |
+| `claim_devices_to_intersight` | `changed_targets` |
+| `claim_devices_to_intersight` | `results_json` |
+| `claim_devices_to_intersight` | `normalized_claim_results_json` |
+| `claim_devices_to_intersight` | `normalized_claim_batch_status` |
+| `claim_devices_to_intersight` | `normalized_claim_successful_count` |
+| `claim_devices_to_intersight` | `normalized_claim_failed_count` |
+| `claim_devices_to_intersight` | `normalized_claim_conflict_count` |
+| `claim_devices_to_intersight` | `normalized_claim_skipped_count` |
+| `claim_devices_to_intersight` | `normalized_claim_changed_count` |
 
 ## Reset Blueprint Launch Inputs
 

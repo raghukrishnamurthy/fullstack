@@ -2,7 +2,7 @@
 
 Reusable first-run inputs for the current Torque blueprint:
 
-- [claim-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-intersight-devices.yaml)
+- [claim-devices-to-intersight.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-devices-to-intersight.yaml)
 - [cisco-standalone-rack-reset-password.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/cisco-standalone-rack-reset-password.yaml)
 
 ## SaaS Small Mixed Test
@@ -179,7 +179,7 @@ admin
 - The blueprint now accepts direct secret inputs and internally uses an env bridge plus internal YAML refs for the reusable grains.
 - `validate_certs` and reuse-policy values are intentionally fixed inside the blueprint during development and are not exposed in the launch form.
 - `prepare_intersight_context` owns org/context setup before either claim grain runs.
-- `claim_intersight_devices` assumes the `organization` it receives is already prepared.
+- `claim_devices_to_intersight` assumes the `organization` it receives is already prepared.
 
 ## Rack Reset Small Test
 

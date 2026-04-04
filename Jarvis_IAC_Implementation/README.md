@@ -34,15 +34,16 @@ Blueprint naming convention in this repo:
 
 - keep blueprint files under top-level `blueprints/` and use `.yaml`
 - use descriptive `kebab-case` file names
+- for cross-system operational workflows, prefer directional names in the form `<action>-<object>-to-<target>`
 - use focused action names for grain-level blueprints, for example:
-  - `claim-intersight-devices.yaml`
+  - `claim-devices-to-intersight.yaml`
   - `cisco-standalone-rack-reset-password.yaml`
 - reserve broader names such as `onboard-*` for true end-to-end orchestration blueprints, not focused operational wrappers
 - keep the file name scope-accurate even when the Torque catalog display name later becomes more user-friendly
 
 Files:
 
-- `blueprints/claim-intersight-devices.yaml`
+- `blueprints/claim-devices-to-intersight.yaml`
   Torque `spec_version: 2` blueprint
   uses `store: intersight-fullstack-repo` for grain sources
 - `blueprints/cisco-standalone-rack-reset-password.yaml`
@@ -64,7 +65,7 @@ Files:
   Separate grain for IMC rack manufacturing-to-desired password reset before prepare-and-claim
 - `ansible/resolve-claim-target-credentials/`
   Maps shared credential candidates onto per-target claim credential fields
-- `ansible/claim-intersight-devices/`
+- `ansible/claim-devices-to-intersight/`
   Unified claim grain that routes internally to SaaS or appliance logic and exports one stable final claim contract
 - `examples/ai-pod-sjc01-prod/`
   Local example inputs that mirror the blueprint contract
@@ -148,9 +149,9 @@ Runtime dependencies:
 
 Python helpers and custom modules:
 
-- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-intersight-devices/tools/run_claim_readiness.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-intersight-devices/tools/run_claim_readiness.py)
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-devices-to-intersight/tools/run_claim_readiness.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-devices-to-intersight/tools/run_claim_readiness.py)
   Repo-local helper that retrieves per-target claim-readiness data from device connector endpoints before SaaS claim submission inside the unified claim grain.
-- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-intersight-devices/library/intersight_scoped_claim.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-intersight-devices/library/intersight_scoped_claim.py)
+- [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-devices-to-intersight/library/intersight_scoped_claim.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/claim-devices-to-intersight/library/intersight_scoped_claim.py)
   Custom Ansible module used by the unified claim grain to submit scoped SaaS claims and return a stable result payload.
 - [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py)
   Repo-local helper for manufacturing-to-desired IMC rack password rotation used by the separate reset grain.
@@ -164,7 +165,7 @@ Current checkpoint:
 - blueprint claim orchestration now uses the focused unified claim chain:
 - `prepare-intersight-context`
   - `resolve-claim-target-credentials`
-  - `claim-intersight-devices`
+  - `claim-devices-to-intersight`
 - the public focused claim blueprint now exposes:
   - `api_uri`
   - `intersight_api_key_id`

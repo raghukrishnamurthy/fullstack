@@ -6,4 +6,4 @@
   tasks:
     - name: Unified claim grain has no destroy action
       ansible.builtin.debug:
-        msg: "claim-intersight-devices has no destroy behavior"
+        msg: "claim-devices-to-intersight has no destroy behavior"

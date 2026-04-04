@@ -42,17 +42,18 @@ It is optimized for:
 
 6. Keep blueprint names aligned to scope.
 - Use descriptive `kebab-case` names under `blueprints/`.
+- For cross-system operational workflows, prefer directional names such as `<action>-<object>-to-<target>`.
 - Focused leaf-workflow blueprints should use narrow action names.
 - Reserve broader names such as `onboard-*` for true end-to-end orchestration flows.
 
 ## Repo Patterns
 - Public Torque blueprint path:
-  - `blueprints/claim-intersight-devices.yaml`
+  - `blueprints/claim-devices-to-intersight.yaml`
   - `blueprints/cisco-standalone-rack-reset-password.yaml`
 - Reusable claim chain:
   - `prepare_intersight_context`
   - `resolve_claim_target_credentials`
-  - `claim_intersight_devices`
+  - `claim_devices_to_intersight`
 
 ## When To Use
 - fixing blueprint load or resolution failures

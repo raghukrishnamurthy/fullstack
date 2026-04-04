@@ -136,13 +136,13 @@ grains:
             hosts:
               localhost:
                 ansible_connection: local
-  claim_intersight_devices:
+  claim_devices_to_intersight:
     kind: ansible
     depends-on: resolve_claim_target_credentials
     spec:
       source:
         store: intersight-fullstack-repo
-        path: ansible/claim-intersight-devices/playbook.yaml
+        path: ansible/claim-devices-to-intersight/playbook.yaml
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
@@ -159,7 +159,7 @@ grains:
       inputs:
         - deployment_yaml: |
             deployment:
-              id: claim-intersight-devices
+              id: claim-devices-to-intersight
         - internal_debug_enabled: 'true'
         - platform_yaml: |
             platform:
@@ -189,7 +189,7 @@ grains:
     on-destroy:
       - source:
           store: intersight-fullstack-repo
-          path: ansible/claim-intersight-devices/teardown.yaml
+          path: ansible/claim-devices-to-intersight/teardown.yaml
         inventory-file:
           localhost:
             hosts:
@@ -199,18 +199,18 @@ outputs:
   context_result_json:
     value: '{{ .grains.prepare_intersight_context.outputs.context_result_json }}'
   claim_results_json:
-    value: '{{ .grains.claim_intersight_devices.outputs.results_json }}'
+    value: '{{ .grains.claim_devices_to_intersight.outputs.results_json }}'
   normalized_claim_results_json:
-    value: '{{ .grains.claim_intersight_devices.outputs.normalized_claim_results_json }}'
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_results_json }}'
   normalized_claim_batch_status:
-    value: '{{ .grains.claim_intersight_devices.outputs.normalized_claim_batch_status }}'
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_batch_status }}'
   normalized_claim_successful_count:
-    value: '{{ .grains.claim_intersight_devices.outputs.normalized_claim_successful_count }}'
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_successful_count }}'
   normalized_claim_failed_count:
-    value: '{{ .grains.claim_intersight_devices.outputs.normalized_claim_failed_count }}'
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_failed_count }}'
   normalized_claim_conflict_count:
-    value: '{{ .grains.claim_intersight_devices.outputs.normalized_claim_conflict_count }}'
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_conflict_count }}'
   normalized_claim_skipped_count:
-    value: '{{ .grains.claim_intersight_devices.outputs.normalized_claim_skipped_count }}'
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_skipped_count }}'
   normalized_claim_changed_count:
-    value: '{{ .grains.claim_intersight_devices.outputs.normalized_claim_changed_count }}'
+    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_changed_count }}'

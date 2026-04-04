@@ -1,4 +1,4 @@
-# claim-intersight-devices
+# claim-devices-to-intersight
 
 Unified Jarvis grain for claiming prepared targets into either Intersight SaaS or an appliance.
 
