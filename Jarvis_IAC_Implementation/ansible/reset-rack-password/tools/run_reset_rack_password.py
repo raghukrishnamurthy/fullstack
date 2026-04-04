@@ -179,6 +179,24 @@ def main() -> None:
     redfish_root_vendor = str(redfish_root_payload.get("Vendor", "")).strip()
     redfish_root_product = str(redfish_root_payload.get("Product", "")).strip()
 
+    if redfish_root_error == "request_error":
+        print_result(
+            {
+                "target_id": target_id,
+                "serial": serial,
+                "endpoint": endpoint,
+                "status": "failed",
+                "changed": False,
+                "reason": "endpoint_unreachable",
+                "messages": ["The endpoint's Cisco CIMC Redfish service root could not be reached."],
+                "redfish_root_status": redfish_root_status,
+                "redfish_root_error": redfish_root_error,
+                "redfish_root_vendor": redfish_root_vendor,
+                "redfish_root_product": redfish_root_product,
+            }
+        )
+        return
+
     if redfish_root_status != 200 or not is_cisco_imc_redfish_root(redfish_root_payload):
         print_result(
             {
@@ -188,7 +206,7 @@ def main() -> None:
                 "status": "failed",
                 "changed": False,
                 "reason": "non_imc_redfish_target",
-                "messages": ["The endpoint did not match the Cisco IMC Redfish fingerprint."],
+                "messages": ["The endpoint did not match the Cisco CIMC Redfish fingerprint."],
                 "redfish_root_status": redfish_root_status,
                 "redfish_root_error": redfish_root_error,
                 "redfish_root_vendor": redfish_root_vendor,

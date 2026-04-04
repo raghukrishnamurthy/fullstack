@@ -179,10 +179,10 @@ Current checkpoint:
 - the focused claim blueprint no longer exposes `deployment_yaml`; it uses a fixed internal deployment label for traceability
 - the focused rack reset blueprint now exposes:
   - `inventory_yaml`
-  - `manufacturing_rack_username`
-  - `manufacturing_rack_password`
-  - `rack_target_username`
-  - `rack_target_password`
+  - `manufacturing_username`
+  - `manufacturing_password`
+  - `target_username`
+  - `target_password`
 - the focused rack reset blueprint builds internal `credential_candidates_yaml` for the reusable reset grain and exports Torque-native outputs directly from that grain
 - `api_uri` is the backend selector for the focused claim blueprint and should be the real API base URI, for example:
   - `https://intersight.com/api/v1`

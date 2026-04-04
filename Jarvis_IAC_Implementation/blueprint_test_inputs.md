@@ -199,25 +199,25 @@ inventory:
         management_type: standalone
 ```
 
-### `manufacturing_rack_username`
+### `manufacturing_username`
 
 ```text
 admin
 ```
 
-### `manufacturing_rack_password`
+### `manufacturing_password`
 
 ```text
 <manufacturing-or-factory-password>
 ```
 
-### `rack_target_username`
+### `target_username`
 
 ```text
 admin
 ```
 
-### `rack_target_password`
+### `target_password`
 
 ```text
 <desired-rack-password>

@@ -63,10 +63,10 @@ Blueprint file:
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
 | `inventory_yaml` | `reset_rack_password` | `inventory_yaml` | `inventory_yaml` |
-| `manufacturing_rack_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `manufacturing_rack_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `rack_target_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `rack_target_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `manufacturing_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `manufacturing_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `target_username` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `target_password` | `reset_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
 
 ## Reset Blueprint Exported Outputs
 

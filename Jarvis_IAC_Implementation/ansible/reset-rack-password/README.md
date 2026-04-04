@@ -35,6 +35,18 @@ Inventory-first standalone rack password reset grain.
 
 These outputs are exported to Torque with `torque.collections.export_torque_outputs`.
 
+Common per-target reset reasons include:
+
+- `endpoint_unreachable`
+- `non_imc_redfish_target`
+- `desired_password_already_active`
+- `manufacturing_credential_missing`
+- `manufacturing_login_failed`
+- `default_password_active_without_forced_change`
+- `password_reset_failed`
+- `password_reset_completed`
+- `password_reset_verification_failed`
+
 ## Internal Python Components
 
 - [/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/reset-rack-password/tools/run_reset_rack_password.py)
