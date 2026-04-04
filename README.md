@@ -30,6 +30,16 @@ Design requirement:
 - the public Torque blueprint should prefer direct inputs for endpoints, organizations, and secrets, then translate them into internal YAML or env-shaped contracts as needed
 - focused operational blueprints should prefer small JSON target contracts, while higher-level full-stack orchestration should continue to use normalized `inventory_yaml` as the shared source of truth
 
+Higher-level orchestration blueprint boundary:
+
+- the higher-level full-stack blueprint is intentionally not the same as the focused operational blueprints
+- it should own normalized `inventory_yaml` as the shared source of truth across discovery, preparation, claim, and reporting workflows
+- it is the right place for optional scan or discovery-driven target selection before those targets are normalized
+- it should own context preparation concerns such as organization or resource-group preparation before downstream claim execution
+- it should orchestrate focused operational workflows such as `cisco-standalone-rack-reset-password` and `claim-devices-to-intersight` rather than re-implementing their endpoint logic
+- it should continue to use reusable grains such as `resolve-intersight-deployment-model`, `prepare-intersight-context`, and `render-intersight-deployment-summary` for broader flow composition
+- focused operational blueprints should remain narrow wrappers for a single operational task, while the higher-level blueprint becomes the place where sequencing, policy, and shared inventory normalization are expressed
+
 Blueprint naming convention in this repo:
 
 - keep blueprint files under top-level `blueprints/` and use `.yaml`
