@@ -7,7 +7,7 @@ Thin direct-Ansible orchestration playbook for the reusable Intersight claim gra
 - provide a non-blueprint execution path that still uses the same reusable grains
 - keep `deployment_yaml` and wider input parsing at the orchestration layer
 - feed narrow contracts into:
-  - `ensure-intersight-context`
+  - `prepare-intersight-context`
   - `resolve-claim-target-credentials`
   - `claim-intersight-devices`
 

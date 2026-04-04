@@ -102,7 +102,7 @@ Assumptions:
 - user-facing input normalization should happen as early as practical in the blueprint or wrapper layer; leaf grains should keep only the validation and derivation they need for correct execution
 - the blueprint internally builds:
   - `platform_yaml` for the claim and context grains
-  - `placement_yaml` only for `ensure-intersight-context`
+  - `placement_yaml` only for `prepare-intersight-context`
   - `credential_candidates_yaml` only for `resolve-claim-target-credentials`
 - claim grains assume the organization/context is already prepared and consume direct `organization`
 - `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
@@ -164,7 +164,7 @@ Current checkpoint:
   - standalone rack claim targets
 - appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
 - blueprint claim orchestration now uses the focused unified claim chain:
-  - `ensure-intersight-context`
+  - `prepare-intersight-context`
   - `resolve-claim-target-credentials`
   - `claim-intersight-devices`
 - the public focused claim blueprint now exposes:
@@ -189,7 +189,7 @@ Current checkpoint:
 - `api_uri` is the backend selector for the focused claim blueprint and should be the real API base URI, for example:
   - `https://intersight.com/api/v1`
   - `https://ucs-hci-appliance-2.cisco.com/api/v1`
-- `ensure-intersight-context` owns organization/context setup
+- `prepare-intersight-context` owns organization/context setup
 - claim grains intentionally assume org/resource-group prerequisites are already satisfied
 - the unified claim grain also assumes other endpoint prerequisites are already satisfied, such as device connector preparation and any required reset-to-known-state work
 - appliance claim API calls now default to `use_proxy: false`; proxy use should only be enabled when that path is explicitly wired into the contract

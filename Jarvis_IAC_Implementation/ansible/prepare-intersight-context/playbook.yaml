@@ -1,5 +1,5 @@
 ---
-- name: Ensure target context
+- name: Prepare target context
   hosts: localhost
   connection: local
   gather_facts: false
@@ -56,13 +56,13 @@
         - always
         - precheck
 
-    - name: Validate ensure-intersight-context inputs
+    - name: Validate prepare-intersight-context inputs
       ansible.builtin.assert:
         that:
           - platform_data | type_debug == 'dict'
           - resolved_api_key_id | string | trim | length > 0
           - resolved_api_private_key | string | trim | length > 0
-        fail_msg: "ensure-intersight-context requires platform_yaml with direct or env-backed Intersight API credentials"
+        fail_msg: "prepare-intersight-context requires platform_yaml with direct or env-backed Intersight API credentials"
       tags:
         - always
         - validate
@@ -161,7 +161,7 @@
       tags:
         - outputs
 
-    - name: Validate ensure-intersight-context outputs
+    - name: Validate prepare-intersight-context outputs
       ansible.builtin.assert:
         that:
           - context_status is defined
@@ -171,12 +171,12 @@
           - org_action is defined
           - org_result_json is defined
           - context_result_json is defined
-        fail_msg: "ensure-intersight-context did not produce the expected output contract"
+        fail_msg: "prepare-intersight-context did not produce the expected output contract"
       tags:
         - always
         - verify
 
-    - name: Export ensure-intersight-context outputs
+    - name: Export prepare-intersight-context outputs
       torque.collections.export_torque_outputs:
         outputs:
           context_status: "{{ context_status }}"

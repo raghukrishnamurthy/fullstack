@@ -50,7 +50,7 @@ It is optimized for:
   - `blueprints/claim-intersight-devices.yaml`
   - `blueprints/reset-rack-password.yaml`
 - Reusable claim chain:
-  - `ensure_intersight_context`
+  - `prepare_intersight_context`
   - `resolve_claim_target_credentials`
   - `claim_intersight_devices`
 - Direct non-blueprint orchestrator:

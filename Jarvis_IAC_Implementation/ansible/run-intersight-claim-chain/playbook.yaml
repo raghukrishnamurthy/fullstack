@@ -1,5 +1,5 @@
 ---
-- import_playbook: /Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/ensure-intersight-context/playbook.yaml
+- import_playbook: /Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/ansible/prepare-intersight-context/playbook.yaml
   vars:
     organization: "{{ organization | default('') }}"
     placement_yaml: "{{ placement_yaml | default('') }}"

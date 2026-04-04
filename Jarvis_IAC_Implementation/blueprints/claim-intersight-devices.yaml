@@ -41,12 +41,12 @@ inputs:
     description: JSON array of Intersight claim targets to process
     default: '[]'
 grains:
-  ensure_intersight_context:
+  prepare_intersight_context:
     kind: ansible
     spec:
       source:
         store: intersight-fullstack-repo
-        path: ansible/ensure-intersight-context/playbook.yaml
+        path: ansible/prepare-intersight-context/playbook.yaml
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
@@ -86,7 +86,7 @@ grains:
     on-destroy:
       - source:
           store: intersight-fullstack-repo
-          path: ansible/ensure-intersight-context/teardown.yaml
+          path: ansible/prepare-intersight-context/teardown.yaml
         inventory-file:
           localhost:
             hosts:
@@ -94,7 +94,7 @@ grains:
                 ansible_connection: local
   resolve_claim_target_credentials:
     kind: ansible
-    depends-on: ensure_intersight_context
+    depends-on: prepare_intersight_context
     spec:
       source:
         store: intersight-fullstack-repo
@@ -169,7 +169,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
+        - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:
         - batch_status
@@ -197,7 +197,7 @@ grains:
                 ansible_connection: local
 outputs:
   context_result_json:
-    value: '{{ .grains.ensure_intersight_context.outputs.context_result_json }}'
+    value: '{{ .grains.prepare_intersight_context.outputs.context_result_json }}'
   claim_results_json:
     value: '{{ .grains.claim_intersight_devices.outputs.results_json }}'
   normalized_claim_results_json:

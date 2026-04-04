@@ -1,11 +1,11 @@
-# ensure-intersight-context
+# prepare-intersight-context
 
-Shared Jarvis grain that ensures the requested Intersight target context exists before claim.
+Shared Jarvis grain that prepares the requested Intersight target context before claim.
 
 ## Intent
 
 - provide one reusable run-level context step for both appliance and SaaS claim flows
-- ensure the requested Intersight organization exists
+- prepare the requested Intersight organization context
 - keep hidden context plumbing out of the user-facing blueprint contract
 
 ## Required inputs

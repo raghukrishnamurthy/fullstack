@@ -92,7 +92,7 @@ EOF
 
   cat > "${tmp_wrapper_playbook}" <<EOF
 ---
-- import_playbook: $(pwd)/ansible/ensure-intersight-context/playbook.yaml
+- import_playbook: $(pwd)/ansible/prepare-intersight-context/playbook.yaml
 - import_playbook: $(pwd)/ansible/claim-to-saas/playbook.yaml
 
 - name: Persist SaaS blueprint claim-chain outputs
@@ -148,7 +148,7 @@ EOF
 
   cat > "${tmp_wrapper_playbook}" <<EOF
 ---
-- import_playbook: $(pwd)/ansible/ensure-intersight-context/playbook.yaml
+- import_playbook: $(pwd)/ansible/prepare-intersight-context/playbook.yaml
 - import_playbook: $(pwd)/ansible/claim-to-appliance/playbook.yaml
 
 - name: Persist appliance blueprint claim-chain outputs
