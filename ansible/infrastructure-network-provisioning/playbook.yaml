@@ -12,7 +12,7 @@
     infrastructure_classification: "{{ discovery_model.derived.infrastructure_classification | default('unknown') }}"
     fabric_interconnect_count: "{{ discovery_model.derived.fabric_interconnect_count | default(0) | int }}"
     domain_count: "{{ discovery_model.derived.domain_count | default(0) | int }}"
-    fi_managed_foundation_applicable: "{{ fabric_interconnect_count > 0 }}"
+    fi_managed_foundation_applicable: "{{ (fabric_interconnect_count | int) > 0 }}"
     declared_domains: "{{ discovery_model.inventory.domains | default([]) }}"
     declared_devices: "{{ discovery_model.inventory.devices | default([]) }}"
 
