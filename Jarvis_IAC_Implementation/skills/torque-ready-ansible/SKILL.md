@@ -48,13 +48,11 @@ It is optimized for:
 ## Repo Patterns
 - Public Torque blueprint path:
   - `blueprints/claim-intersight-devices.yaml`
-  - `blueprints/reset-rack-password.yaml`
+  - `blueprints/cisco-standalone-rack-reset-password.yaml`
 - Reusable claim chain:
   - `prepare_intersight_context`
   - `resolve_claim_target_credentials`
   - `claim_intersight_devices`
-- Direct non-blueprint orchestrator:
-  - `ansible/run-intersight-claim-chain/playbook.yaml`
 
 ## When To Use
 - fixing blueprint load or resolution failures

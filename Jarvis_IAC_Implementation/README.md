@@ -66,8 +66,6 @@ Files:
   Maps shared credential candidates onto per-target claim credential fields
 - `ansible/claim-intersight-devices/`
   Unified claim grain that routes internally to SaaS or appliance logic and exports one stable final claim contract
-- `ansible/run-intersight-claim-chain/`
-  Thin direct-Ansible orchestration path that invokes the reusable context, credential-resolution, claim, and normalize grains
 - `examples/ai-pod-sjc01-prod/`
   Local example inputs that mirror the blueprint contract
 - `scripts/run_example_strict.sh`
@@ -164,7 +162,7 @@ Current checkpoint:
   - standalone rack claim targets
 - appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
 - blueprint claim orchestration now uses the focused unified claim chain:
-  - `prepare-intersight-context`
+- `prepare-intersight-context`
   - `resolve-claim-target-credentials`
   - `claim-intersight-devices`
 - the public focused claim blueprint now exposes:
