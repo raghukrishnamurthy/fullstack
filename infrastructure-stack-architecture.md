@@ -16,6 +16,12 @@ Core design decisions:
 - top-level stacks and lowest-level user-facing operational workflows should get blueprint surfaces first, while middle orchestration layers remain grains until a stronger user-facing boundary is needed
 - current discovery and model-building behavior can continue to live in `resolve-intersight-deployment-model` for now, with a planned future rename toward `build-infrastructure-domain-model` when the stack naming is implemented
 
+Current implementation scope:
+
+- this stack is currently implemented as an Intersight-focused orchestration model
+- Intersight is the assumed management plane and durable source of truth between phases
+- the broader phase model may still apply to non-Intersight stacks later, but those implementations would likely require different internal automation and different phase contracts
+
 Boundary:
 
 - infrastructure provisioning converts bare-metal into usable compute infrastructure

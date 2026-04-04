@@ -48,6 +48,13 @@ Blueprint promotion and handoff standard:
 - grain-to-grain information flow is expected within a phase, but inter-phase contracts should stay minimal because later phases re-read durable state from Intersight
 - current model/discovery behavior can continue to live in `resolve-intersight-deployment-model` for now, with a planned future rename toward `build-infrastructure-domain-model` as the stack model solidifies
 
+Implementation scope note:
+
+- the current repo is an Intersight-focused implementation of the broader phase model
+- Intersight is treated as the durable source of truth for onboarding state, management state, and downstream phase readiness
+- the same high-level phases may still generalize to non-Intersight stacks later
+- non-Intersight implementations would likely need different internal grains, validations, and input/output contracts even when the phase names stay similar
+
 Planned stack architecture:
 
 - [infrastructure-stack-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-stack-architecture.md)
