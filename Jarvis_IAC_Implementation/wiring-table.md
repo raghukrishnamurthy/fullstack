@@ -2,7 +2,7 @@
 
 Blueprint file:
 
-- [onboard-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/onboard-intersight-devices.yaml)
+- [claim-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-intersight-devices.yaml)
 
 ## Launch Inputs
 
@@ -14,24 +14,13 @@ Blueprint file:
 | `intersight_endpoint` | `ensure_intersight_context` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_key_id` | `ensure_intersight_context` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_private_key` | `ensure_intersight_context` | `platform_yaml` | `platform_yaml` |
-| `validate_certs` | `ensure_intersight_context` | `platform_yaml` | `platform_yaml` |
 | `organization` | `ensure_intersight_context` | `placement_yaml` | `placement_yaml` |
-| `reuse_existing_organization` | `ensure_intersight_context` | `placement_yaml` | `placement_yaml` |
-| `reuse_existing_resource_group` | `ensure_intersight_context` | `placement_yaml` | `placement_yaml` |
 | `intersight_endpoint` | `claim_to_saas` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_key_id` | `claim_to_saas` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_private_key` | `claim_to_saas` | `platform_yaml` | `platform_yaml` |
-| `validate_certs` | `claim_to_saas` | `platform_yaml` | `platform_yaml` |
-| `organization` | `claim_to_saas` | `placement_yaml` | `placement_yaml` |
-| `reuse_existing_organization` | `claim_to_saas` | `placement_yaml` | `placement_yaml` |
-| `reuse_existing_resource_group` | `claim_to_saas` | `placement_yaml` | `placement_yaml` |
 | `intersight_endpoint` | `claim_to_appliance` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_key_id` | `claim_to_appliance` | `platform_yaml` | `platform_yaml` |
 | `intersight_api_private_key` | `claim_to_appliance` | `platform_yaml` | `platform_yaml` |
-| `validate_certs` | `claim_to_appliance` | `platform_yaml` | `platform_yaml` |
-| `organization` | `claim_to_appliance` | `placement_yaml` | `placement_yaml` |
-| `reuse_existing_organization` | `claim_to_appliance` | `placement_yaml` | `placement_yaml` |
-| `reuse_existing_resource_group` | `claim_to_appliance` | `placement_yaml` | `placement_yaml` |
 | `organization` | `ensure_intersight_context` | `organization` | `organization` |
 | `claim_targets_json` | `resolve_claim_target_credentials` | `claim_targets_json` | `claim_targets_json` |
 | `fi_target_username` | `resolve_claim_target_credentials` | `credential_candidates_yaml` | `credential_candidates_yaml` |

@@ -13,12 +13,11 @@ Standalone Jarvis grain for claiming claim-target contexts into an Intersight ap
 
 - `claim_targets_json`
 - `platform_yaml`
+- `organization`
 
 ## Optional inputs
 
 - `deployment_yaml`
-- `organization`
-- `placement_yaml`
 - `debug_enabled`
 
 ## Expected claim target fields
@@ -47,8 +46,9 @@ Standalone Jarvis grain for claiming claim-target contexts into an Intersight ap
 ## Current behavior
 
 - uses the appliance endpoint and direct or env-backed API credentials from `platform_yaml`
-- scopes result reporting with direct `organization` when supplied
-- otherwise falls back to the placement organization
+- assumes the target organization/context already exists
+- scopes claim execution and result reporting to the required direct `organization` input
+- does not create or reconcile organizations or resource groups
 - records already-claimed targets without resubmission when `claim_submission_required` is false
 - enriches submitted targets after a single aggregate follow-up wait
 

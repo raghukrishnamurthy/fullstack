@@ -13,12 +13,11 @@ Standalone Jarvis grain for claiming target contexts into Intersight SaaS.
 
 - `claim_targets_json`
 - `platform_yaml`
+- `organization`
 
 ## Optional inputs
 
 - `deployment_yaml`
-- `organization`
-- `placement_yaml`
 - `debug_enabled`
 - `helper_timeout_seconds`
 
@@ -40,10 +39,11 @@ Standalone Jarvis grain for claiming target contexts into Intersight SaaS.
 
 ## Current behavior
 
- - uses the `platform_yaml` Intersight endpoint and direct or env-backed API credentials
-- scopes claims to the direct `organization` input when one is supplied
-- otherwise falls back to the placement organization
- - refreshes endpoint claim readiness inline from per-target `claim_username` plus either direct `claim_password` or env-backed `claim_password_ref` when serial/token data is not already present
+- uses the `platform_yaml` Intersight endpoint and direct or env-backed API credentials
+- assumes the target organization/context already exists
+- scopes claim execution and result reporting to the required direct `organization` input
+- does not create or reconcile organizations or resource groups
+- refreshes endpoint claim readiness inline from per-target `claim_username` plus either direct `claim_password` or env-backed `claim_password_ref` when serial/token data is not already present
 - skips duplicate logical targets after the first canonical endpoint
 - records already-claimed targets without resubmission when `claim_submission_required` is false
 

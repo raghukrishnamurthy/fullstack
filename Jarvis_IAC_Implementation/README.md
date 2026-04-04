@@ -30,7 +30,7 @@ Design requirement:
 
 Files:
 
-- `blueprints/onboard-intersight-devices.yaml`
+- `blueprints/claim-intersight-devices.yaml`
   Torque `spec_version: 2` blueprint
   uses `store: intersight-fullstack-repo` for grain sources
 - `catalog_ui.md`
@@ -81,7 +81,12 @@ Assumptions:
 
 - Torque launch-form complex inputs are passed as strings
 - YAML-shaped blueprint inputs should be avoided in Torque-facing contracts; prefer direct inputs or JSON strings and assemble internal YAML only inside the blueprint or automation layer when necessary
-- the focused claim blueprint now prefers direct user-facing inputs for endpoint, org, and secrets, and internally builds `platform_yaml`, `placement_yaml`, and `credential_candidates_yaml` for the reusable grains
+- the focused claim blueprint now prefers direct user-facing inputs for endpoint, org, and secrets
+- the blueprint internally builds:
+  - `platform_yaml` for the claim and context grains
+  - `placement_yaml` only for `ensure-intersight-context`
+  - `credential_candidates_yaml` only for `resolve-claim-target-credentials`
+- claim grains assume the organization/context is already prepared and consume direct `organization`
 - `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
 - `credential_candidates_yaml` is the current direct-input mechanism for target credential rotation candidates
 - blueprint and direct-Ansible orchestration can accept shared `credential_candidates_yaml`, but standalone claim grains are expected to consume per-target `claim_username` and `claim_password_ref`
@@ -136,4 +141,6 @@ Current checkpoint:
   - `resolve-claim-target-credentials`
   - `claim-to-saas` or `claim-to-appliance`
   - `normalize-claim-results`
+- `ensure-intersight-context` owns organization/context setup
+- claim grains intentionally assume org/resource-group prerequisites are already satisfied
 - rack password reset is split into its own grain and is no longer part of the main prepare-and-claim playbook

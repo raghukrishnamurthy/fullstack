@@ -41,7 +41,7 @@ It is optimized for:
 
 ## Repo Patterns
 - Public Torque blueprint path:
-  - `blueprints/onboard-intersight-devices.yaml`
+  - `blueprints/claim-intersight-devices.yaml`
 - Reusable claim chain:
   - `ensure_intersight_context`
   - `resolve_claim_target_credentials`

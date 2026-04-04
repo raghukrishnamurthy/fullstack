@@ -2,7 +2,7 @@
 
 Reusable first-run inputs for the current Torque blueprint:
 
-- [onboard-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/onboard-intersight-devices.yaml)
+- [claim-intersight-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/Jarvis_IAC_Implementation/blueprints/claim-intersight-devices.yaml)
 
 ## SaaS Small Mixed Test
 
@@ -196,3 +196,5 @@ admin
 - Use appliance endpoint for `claim_to_appliance`.
 - The blueprint now accepts direct secret inputs and internally uses an env bridge plus internal YAML refs for the reusable grains.
 - `validate_certs` and reuse-policy values are intentionally fixed inside the blueprint during development and are not exposed in the launch form.
+- `ensure_intersight_context` owns org/context setup before either claim grain runs.
+- `claim_to_saas` and `claim_to_appliance` assume the `organization` they receive is already prepared.

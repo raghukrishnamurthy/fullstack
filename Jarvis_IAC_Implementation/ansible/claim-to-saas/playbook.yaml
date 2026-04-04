@@ -9,8 +9,6 @@
     deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
     platform_root: "{{ (platform_yaml | from_yaml) if (platform_yaml | default('') | string | trim | length > 0) else {} }}"
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
-    placement_root: "{{ (placement_yaml | from_yaml) if (placement_yaml | default('') | string | trim | length > 0) else {} }}"
-    placement_data: "{{ placement_root.placement | default(placement_root) }}"
     claim_targets_input: >-
       {{
         hostvars['localhost'].saas_claim_targets_json_runtime
@@ -71,8 +69,7 @@
     claim_endpoint_validate_certs: "{{ endpoint_validate_certs | default(false) | bool }}"
     internal_debug_enabled: "{{ debug_enabled | default('false') }}"
     internal_helper_timeout_seconds: "{{ helper_timeout_seconds | default(20) }}"
-    direct_organization: "{{ hostvars['localhost'].org_name | default(organization | default('')) | string | trim }}"
-    internal_organization: "{{ direct_organization if (direct_organization | length > 0) else (placement_data.intersight.organization | default('')) }}"
+    internal_organization: "{{ organization | default('') | string | trim }}"
     internal_deployment_name: "{{ deployment_data.id | default('') }}"
     debug_artifact_dir: "/tmp/jarvis-debug/claim-to-saas"
   pre_tasks:
@@ -88,8 +85,9 @@
         that:
           - claim_targets | type_debug == 'list'
           - platform_data | type_debug == 'dict'
+          - internal_organization | string | trim | length > 0
           - (internal_helper_timeout_seconds | int) > 0
-        fail_msg: "claim-to-saas requires claim_targets_json plus valid platform/placement YAML and a positive helper timeout"
+        fail_msg: "claim-to-saas requires claim_targets_json, a prepared organization, valid platform_yaml, and a positive helper timeout"
       tags:
         - always
         - validate

@@ -175,13 +175,6 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - placement_yaml: |
-            placement:
-              intersight:
-                organization: {{ .inputs.organization }}
-                policy:
-                  reuse_existing_organization: true
-                  reuse_existing_resource_group: false
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:
@@ -232,13 +225,6 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - placement_yaml: |
-            placement:
-              intersight:
-                organization: {{ .inputs.organization }}
-                policy:
-                  reuse_existing_organization: true
-                  reuse_existing_resource_group: false
         - organization: '{{ .grains.ensure_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
       outputs:

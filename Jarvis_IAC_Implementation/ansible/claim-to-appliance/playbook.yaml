@@ -9,8 +9,6 @@
     deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
     platform_root: "{{ (platform_yaml | from_yaml) if (platform_yaml | default('') | string | trim | length > 0) else {} }}"
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
-    placement_root: "{{ (placement_yaml | from_yaml) if (placement_yaml | default('') | string | trim | length > 0) else {} }}"
-    placement_data: "{{ placement_root.placement | default(placement_root) }}"
     claim_targets_input: >-
       {{
         hostvars['localhost'].appliance_claim_targets_json_runtime
@@ -66,8 +64,7 @@
         else ''
       }}
     claim_validate_certs: "{{ platform_data.intersight.validate_certs | default(false) | bool }}"
-    direct_organization: "{{ hostvars['localhost'].org_name | default(organization | default('')) | string | trim }}"
-    internal_organization: "{{ direct_organization if (direct_organization | length > 0) else (placement_data.intersight.organization | default('')) }}"
+    internal_organization: "{{ organization | default('') | string | trim }}"
     internal_deployment_name: "{{ deployment_data.id | default('') }}"
     internal_debug_enabled: "{{ debug_enabled | default('false') }}"
   pre_tasks:
@@ -83,8 +80,9 @@
         that:
           - claim_targets | type_debug == 'list'
           - platform_data | type_debug == 'dict'
+          - internal_organization | string | trim | length > 0
           - normalized_intersight_endpoint | string | trim | length > 0
-        fail_msg: "claim-to-appliance requires claim_targets_json plus valid platform_yaml"
+        fail_msg: "claim-to-appliance requires claim_targets_json, a prepared organization, and valid platform_yaml"
       tags:
         - always
         - validate

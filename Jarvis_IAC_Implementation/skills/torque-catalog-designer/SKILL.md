@@ -34,7 +34,7 @@ Focus on:
 
 ## Repo Patterns
 - Public blueprint:
-  - `blueprints/onboard-intersight-devices.yaml`
+  - `blueprints/claim-intersight-devices.yaml`
 - Wiring map:
   - `wiring-table.md`
 - Example launch inputs:
