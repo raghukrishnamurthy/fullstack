@@ -1,0 +1,161 @@
+---
+- name: Validate infrastructure onboarding completion
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    discovery_model: "{{ discovery_model_json | from_json }}"
+    onboarding_readiness: "{{ discovery_model.derived.onboarding_readiness | default({}) }}"
+    onboarding_action_execution: "{{ discovery_model.derived.onboarding_action_execution | default({}) }}"
+    intersight_validation: "{{ discovery_model.derived.intersight_validation | default({}) }}"
+    placement_validation: "{{ discovery_model.derived.placement_validation | default({}) }}"
+    baseline_expectation_validation: "{{ discovery_model.derived.baseline_expectation_validation | default({}) }}"
+    claim_candidate_targets: "{{ onboarding_readiness.claim_candidate_targets | default([]) }}"
+    claim_execution_results: "{{ onboarding_action_execution.claim_execution_results | default([]) }}"
+    missing_devices: "{{ intersight_validation.missing_devices | default([]) }}"
+    not_ready_devices: "{{ intersight_validation.not_ready_devices | default([]) }}"
+    live_validation_enabled: "{{ discovery_model.derived.intersight_live_validation_enabled | default(false) | bool }}"
+
+  pre_tasks:
+    - name: Validate onboarding completion input contract
+      ansible.builtin.assert:
+        that:
+          - discovery_model_json is defined
+          - discovery_model_json | string | trim | length > 0
+        fail_msg: "discovery_model_json is required"
+      tags:
+        - always
+        - validate
+        - precheck
+
+  tasks:
+    - name: Summarize claim execution outcomes
+      ansible.builtin.set_fact:
+        successful_claim_results: >-
+          {{
+            claim_execution_results
+            | selectattr('status', 'defined')
+            | selectattr('status', 'in', ['submitted', 'already_claimed', 'already_compliant'])
+            | list
+          }}
+        blocking_claim_results: >-
+          {{
+            claim_execution_results
+            | selectattr('status', 'defined')
+            | rejectattr('status', 'in', ['submitted', 'already_claimed', 'already_compliant', 'not_applicable'])
+            | list
+          }}
+      tags:
+        - validate
+        - completion
+
+    - name: Build onboarding completion result
+      ansible.builtin.set_fact:
+        onboarding_completion:
+          ready: "{{ completion_ready }}"
+          status: "{{ completion_status }}"
+          next_action: "{{ completion_next_action }}"
+          blockers: "{{ completion_blockers }}"
+          summary:
+            claim_candidate_count: "{{ claim_candidate_targets | length }}"
+            successful_claim_result_count: "{{ successful_claim_results | length }}"
+            blocking_claim_result_count: "{{ blocking_claim_results | length }}"
+            live_validation_enabled: "{{ live_validation_enabled }}"
+            missing_device_count: "{{ missing_devices | length }}"
+            not_ready_device_count: "{{ not_ready_devices | length }}"
+          source_checks:
+            preflight_status: "{{ onboarding_readiness.status | default('unknown') }}"
+            preflight_ready: "{{ onboarding_readiness.ready | default(false) | bool }}"
+            action_requested: "{{ onboarding_action_execution.requested | default(false) | bool }}"
+            action_status: "{{ onboarding_action_execution.status | default('not_requested') }}"
+            placement_ready: "{{ placement_validation.ready | default(true) | bool }}"
+            baseline_expectation_error_count: "{{ baseline_expectation_validation.errors | default([]) | length }}"
+      vars:
+        preflight_ready: "{{ onboarding_readiness.ready | default(false) | bool }}"
+        action_requested: "{{ onboarding_action_execution.requested | default(false) | bool }}"
+        live_completion_ready: >-
+          {{
+            live_validation_enabled
+            and (missing_devices | length == 0)
+            and (not_ready_devices | length == 0)
+            and preflight_ready
+          }}
+        claim_submission_succeeded: >-
+          {{
+            action_requested
+            and (claim_candidate_targets | length > 0)
+            and (blocking_claim_results | length == 0)
+            and (successful_claim_results | length > 0)
+          }}
+        completion_blockers: >-
+          {%- set blockers = [] -%}
+          {%- if not preflight_ready -%}
+          {%- for blocker in (onboarding_readiness.blockers | default([])) -%}
+          {%- set _ = blockers.append(blocker) -%}
+          {%- endfor -%}
+          {%- endif -%}
+          {%- if action_requested and (blocking_claim_results | length > 0) -%}
+          {%- set _ = blockers.append('One or more onboarding claim actions ended in a blocking state') -%}
+          {%- endif -%}
+          {%- if action_requested and (blocking_claim_results | length == 0) and (successful_claim_results | length == 0) and ((claim_candidate_targets | length) > 0) -%}
+          {%- set _ = blockers.append('Onboarding apply was requested, but no successful claim-capable action results were produced') -%}
+          {%- endif -%}
+          {%- if (not action_requested) and preflight_ready and (not live_completion_ready) -%}
+          {%- set _ = blockers.append('Onboarding actions have not been executed or verified complete for all claim-capable targets') -%}
+          {%- endif -%}
+          {{ blockers }}
+        completion_ready: "{{ live_completion_ready }}"
+        completion_status: >-
+          {{
+            'completed'
+            if live_completion_ready
+            else 'blocked'
+            if (completion_blockers | length > 0 and not preflight_ready)
+            else 'action_failed'
+            if (action_requested and (blocking_claim_results | length > 0))
+            else 'onboarding_submitted'
+            if claim_submission_succeeded
+            else 'ready_for_execution'
+            if preflight_ready
+            else 'blocked'
+          }}
+        completion_next_action: >-
+          {{
+            'proceed_to_infrastructure_network_provisioning'
+            if live_completion_ready
+            else 'review_validation_results'
+            if (completion_status == 'blocked')
+            else 'review_claim_failures'
+            if (completion_status == 'action_failed')
+            else 'wait_for_intersight_management_settlement'
+            if (completion_status == 'onboarding_submitted')
+            else 'run_onboarding_apply'
+          }}
+      tags:
+        - validate
+        - completion
+
+  post_tasks:
+    - name: Validate onboarding completion output contract
+      ansible.builtin.assert:
+        that:
+          - onboarding_completion is defined
+          - onboarding_completion.status is defined
+          - onboarding_completion.next_action is defined
+        fail_msg: "validate-infrastructure-onboarding-completion did not produce the expected output contract"
+      tags:
+        - always
+        - verify
+
+    - name: Export outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          phase_ready: "{{ 'true' if (onboarding_completion.ready | bool) else 'false' }}"
+          phase_status: "{{ onboarding_completion.status }}"
+          phase_readiness_json: "{{ onboarding_completion | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

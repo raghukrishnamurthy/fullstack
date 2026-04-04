@@ -47,6 +47,7 @@ Blueprint promotion and handoff standard:
 - middle layers should remain reusable grains until they clearly need promotion to a user-facing phase or stack boundary
 - grain-to-grain information flow is expected within a phase, but inter-phase contracts should stay minimal because later phases re-read durable state from Intersight
 - current model/discovery behavior can continue to live in `resolve-intersight-deployment-model` for now, with a planned future rename toward `build-infrastructure-domain-model` as the stack model solidifies
+- separate validation/completeness grains are encouraged where a phase must publish a reusable completion authority that later blueprints can fail on, wait on, or run independently
 
 Implementation scope note:
 
@@ -113,6 +114,8 @@ Files:
   Unified claim grain that routes internally to SaaS or appliance logic and exports one stable final claim contract
 - `ansible/infrastructure-network-provisioning/`
   First working planning grain for shared FI and fabric/network foundation under the infrastructure stack model
+- `ansible/validate-infrastructure-onboarding-completion/`
+  Validation and completion grain that owns the final onboarding phase readiness contract
 - `examples/ai-pod-sjc01-prod/`
   Local example inputs that mirror the blueprint contract
 - `scripts/run_example_strict.sh`
@@ -134,6 +137,8 @@ Published automation sources:
 | `blueprints/cisco-standalone-rack-reset-password.yaml` | `intersight-fullstack-repo` | Public blueprint | Focused standalone rack reset workflow |
 | `blueprints/infrastructure-onboard-devices.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working infrastructure onboarding phase |
 | `blueprints/infrastructure-network-provisioning.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working infrastructure network phase |
+| `ansible/validate-infrastructure-onboarding-completion/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Final onboarding completion validation |
+| `ansible/validate-infrastructure-onboarding-completion/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 | `ansible/claim-devices-to-intersight/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Unified claim execution |
 | `ansible/claim-devices-to-intersight/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
 | `ansible/cisco-standalone-rack-reset-password/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Standalone rack password reset |

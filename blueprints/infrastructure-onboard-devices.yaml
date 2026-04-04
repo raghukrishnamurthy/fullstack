@@ -95,6 +95,36 @@ grains:
             hosts:
               localhost:
                 ansible_connection: local
+  validate_infrastructure_onboarding_completion:
+    kind: ansible
+    depends-on: build_infrastructure_domain_model
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/validate-infrastructure-onboarding-completion/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - discovery_model_json: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_model_json }}'
+      outputs:
+        - phase_ready
+        - phase_status
+        - phase_readiness_json
+    on-destroy:
+      - source:
+          store: intersight-fullstack-repo
+          path: ansible/validate-infrastructure-onboarding-completion/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
   render_infrastructure_onboarding_summary:
     kind: ansible
     depends-on: build_infrastructure_domain_model
@@ -127,11 +157,11 @@ grains:
                 ansible_connection: local
 outputs:
   phase_ready:
-    value: '{{ .grains.build_infrastructure_domain_model.outputs.phase_ready }}'
+    value: '{{ .grains.validate_infrastructure_onboarding_completion.outputs.phase_ready }}'
   phase_status:
-    value: '{{ .grains.build_infrastructure_domain_model.outputs.phase_status }}'
+    value: '{{ .grains.validate_infrastructure_onboarding_completion.outputs.phase_status }}'
   phase_readiness_json:
-    value: '{{ .grains.build_infrastructure_domain_model.outputs.phase_readiness_json }}'
+    value: '{{ .grains.validate_infrastructure_onboarding_completion.outputs.phase_readiness_json }}'
   claim_candidate_targets_json:
     value: '{{ .grains.build_infrastructure_domain_model.outputs.claim_candidate_targets_json }}'
   reachability_only_targets_json:

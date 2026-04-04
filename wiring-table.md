@@ -28,6 +28,8 @@ Blueprint file:
 | `blueprints/infrastructure-network-provisioning.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working all-YAML network phase |
 | `ansible/infrastructure-network-provisioning/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Shared FI and fabric/network foundation planning |
 | `ansible/infrastructure-network-provisioning/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
+| `ansible/validate-infrastructure-onboarding-completion/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Final onboarding completion validation |
+| `ansible/validate-infrastructure-onboarding-completion/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 
 
 ## Launch Inputs
@@ -113,6 +115,7 @@ Blueprint file:
 
 | Upstream Output | Downstream Grain | Torque Grain Input |
 | --- | --- | --- |
+| `discovery_model_json` | `validate_infrastructure_onboarding_completion` | `discovery_model_json` |
 | `discovery_model_json` | `render_infrastructure_onboarding_summary` | `discovery_model_json` |
 | `discovery_summary_json` | `render_infrastructure_onboarding_summary` | `discovery_summary_json` |
 
@@ -122,9 +125,9 @@ Blueprint file:
 | --- | --- |
 | `build_infrastructure_domain_model` | `discovery_model_json` |
 | `build_infrastructure_domain_model` | `discovery_summary_json` |
-| `build_infrastructure_domain_model` | `phase_ready` |
-| `build_infrastructure_domain_model` | `phase_status` |
-| `build_infrastructure_domain_model` | `phase_readiness_json` |
+| `validate_infrastructure_onboarding_completion` | `phase_ready` |
+| `validate_infrastructure_onboarding_completion` | `phase_status` |
+| `validate_infrastructure_onboarding_completion` | `phase_readiness_json` |
 | `build_infrastructure_domain_model` | `claim_candidate_targets_json` |
 | `build_infrastructure_domain_model` | `reachability_only_targets_json` |
 | `build_infrastructure_domain_model` | `onboarding_action_execution_json` |

@@ -40,7 +40,9 @@ Credential inputs:
 
 Initial implementation note:
 
-- the first working implementation of this phase reuses `resolve-intersight-deployment-model` directly together with summary rendering
+- the current implementation uses `resolve-intersight-deployment-model` for discovery, preflight readiness, and guarded onboarding action execution
+- a dedicated `validate-infrastructure-onboarding-completion` grain now owns the final phase completion contract so higher-level stacks can depend on a separate validation/completeness step
+- over time, this validator grain is the right place for customer-defined static rules, full inventory/device presence checks, and Intersight-side logical discovery/completion checks
 - standalone rack reset remains available through the separate focused `cisco-standalone-rack-reset-password` workflow until inventory-to-reset-target derivation is promoted into this phase
 
 Planned internal grain composition:
@@ -62,9 +64,12 @@ Planned internal grain composition:
    - claims prepared FI and rack targets into the requested Intersight backend
    - assumes organization/context and other claim prerequisites are already satisfied within the higher stack orchestration model
 
-5. validation and phase report build
-   - confirm devices are now onboarded, manageable, and ready for the next infrastructure phase
-   - summarize phase readiness without requiring later phases to consume a large transient payload
+5. `validate-infrastructure-onboarding-completion`
+   - interpret preflight readiness, onboarding action execution, and live-validation evidence
+   - publish the final phase completion contract that later stacks can fail, wait on, or depend on
+
+6. validation and phase report build
+   - summarize discovery and onboarding outputs without requiring later phases to consume a large transient payload
 
 Phase output model:
 
