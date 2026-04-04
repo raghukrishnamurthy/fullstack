@@ -8,9 +8,21 @@ inputs:
   deployment_yaml:
     type: string
     description: YAML deployment context for the infrastructure domain
+  api_uri:
+    type: string
+    description: Intersight SaaS or appliance API base URI
+    default: https://intersight.com/api/v1
+  intersight_api_key_id:
+    type: string
+    description: Intersight API key id
+  intersight_api_private_key:
+    type: string
+    description: Intersight API private key PEM content
+    sensitive: true
   platform_yaml:
     type: string
-    description: YAML platform context including Intersight endpoint and credential refs
+    description: Optional YAML platform context override including Intersight endpoint and credential refs
+    default: ''
   placement_yaml:
     type: string
     description: YAML placement context for Intersight organization and related settings
@@ -20,9 +32,33 @@ inputs:
   solution_yaml:
     type: string
     description: YAML solution profile context used to resolve built-in baseline selection
+  fi_target_username:
+    type: string
+    description: Username for fabric interconnect onboarding targets
+    default: admin
+  fi_target_password:
+    type: string
+    description: Password for fabric interconnect onboarding targets
+    sensitive: true
+  rack_target_username:
+    type: string
+    description: Username for standalone rack onboarding targets
+    default: admin
+  rack_target_password:
+    type: string
+    description: Password for standalone rack onboarding targets
+    sensitive: true
+  manufacturing_rack_username:
+    type: string
+    description: Username for manufacturing or factory-default standalone rack login
+    default: admin
+  manufacturing_rack_password:
+    type: string
+    description: Password for manufacturing or factory-default standalone rack login
+    sensitive: true
   credential_candidates_yaml:
     type: string
-    description: YAML credential-candidate contract for onboarding-capable targets
+    description: Optional YAML credential-candidate contract override for onboarding-capable targets
     default: ''
   site_yaml:
     type: string
@@ -43,23 +79,23 @@ inputs:
   validation_mode:
     type: string
     description: Validation mode for discovery and optional live Intersight validation
-    default: strict
+    default: live
   execution_intent:
     type: string
     description: Execution intent for the onboarding phase
-    default: validate_only
+    default: apply
   wait_for_completion:
     type: string
     description: Optional polling mode for asynchronous onboarding validation
-    default: 'false'
+    default: 'true'
   validation_poll_interval:
     type: string
     description: Poll interval in seconds when wait_for_completion is enabled
-    default: '60'
+    default: '30'
   validation_timeout_seconds:
     type: string
     description: Total timeout in seconds when wait_for_completion is enabled
-    default: '3600'
+    default: '600'
 grains:
   prepare_intersight_context:
     kind: ansible
@@ -70,13 +106,27 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
             localhost:
               ansible_connection: local
       inputs:
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - platform_yaml: |
+            {{ if ne .inputs.platform_yaml "" -}}
+            {{ .inputs.platform_yaml }}
+            {{- else -}}
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+            {{- end }}
         - placement_yaml: '{{ .inputs.placement_yaml }}'
       outputs:
         - context_status
@@ -135,6 +185,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - MANUFACTURING_RACK_PASSWORD: '{{ .inputs.manufacturing_rack_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -143,7 +196,24 @@ grains:
       inputs:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
         - targets_json: '{{ .grains.build_infrastructure_onboarding_targets.outputs.reset_targets_json }}'
-        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
+        - credential_candidates_yaml: |
+            {{ if ne .inputs.credential_candidates_yaml "" -}}
+            {{ .inputs.credential_candidates_yaml }}
+            {{- else -}}
+            credential_candidates:
+              - credential_role: manufacturing
+                target_category: server
+                target_form_factor: rack
+                target_management_type: standalone
+                username: {{ .inputs.manufacturing_rack_username }}
+                password_ref: env://MANUFACTURING_RACK_PASSWORD
+              - credential_role: target
+                target_category: server
+                target_form_factor: rack
+                target_management_type: standalone
+                username: {{ .inputs.rack_target_username }}
+                password_ref: env://RACK_TARGET_PASSWORD
+            {{- end }}
         - validation_mode: '{{ .inputs.validation_mode }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:
@@ -170,6 +240,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -177,7 +250,22 @@ grains:
               ansible_connection: local
       inputs:
         - claim_targets_json: '{{ .grains.build_infrastructure_onboarding_targets.outputs.claim_targets_json }}'
-        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
+        - credential_candidates_yaml: |
+            {{ if ne .inputs.credential_candidates_yaml "" -}}
+            {{ .inputs.credential_candidates_yaml }}
+            {{- else -}}
+            credential_candidates:
+              - credential_role: target
+                target_category: server
+                target_form_factor: rack
+                target_management_type: standalone
+                username: {{ .inputs.rack_target_username }}
+                password_ref: env://RACK_TARGET_PASSWORD
+              - credential_role: target
+                target_category: fabric_interconnect
+                username: {{ .inputs.fi_target_username }}
+                password_ref: env://FI_TARGET_PASSWORD
+            {{- end }}
       outputs:
         - resolved_claim_targets_json
     on-destroy:
@@ -207,7 +295,18 @@ grains:
               ansible_connection: local
       inputs:
         - claim_targets_json: '{{ .grains.prepare_claim_target_credentials.outputs.resolved_claim_targets_json }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - platform_yaml: |
+            {{ if ne .inputs.platform_yaml "" -}}
+            {{ .inputs.platform_yaml }}
+            {{- else -}}
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+            {{- end }}
         - validation_mode: '{{ .inputs.validation_mode }}'
       outputs:
         - connector_prep_results_json
@@ -232,6 +331,11 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -239,7 +343,18 @@ grains:
               ansible_connection: local
       inputs:
         - claim_targets_json: '{{ .grains.prepare_device_connector.outputs.prepared_claim_targets_json }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - platform_yaml: |
+            {{ if ne .inputs.platform_yaml "" -}}
+            {{ .inputs.platform_yaml }}
+            {{- else -}}
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+            {{- end }}
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
         - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
       outputs:
@@ -268,13 +383,27 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
             localhost:
               ansible_connection: local
       inputs:
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - platform_yaml: |
+            {{ if ne .inputs.platform_yaml "" -}}
+            {{ .inputs.platform_yaml }}
+            {{- else -}}
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+            {{- end }}
         - inventory_yaml: '{{ .inputs.inventory_yaml }}'
         - claim_execution_results_json: '{{ .grains.claim_devices_to_intersight.outputs.results_json }}'
         - wait_for_completion: '{{ .inputs.wait_for_completion }}'
