@@ -40,6 +40,14 @@ Higher-level orchestration blueprint boundary:
 - it should continue to use reusable grains such as `resolve-intersight-deployment-model`, `prepare-intersight-context`, and `render-intersight-deployment-summary` for broader flow composition
 - focused operational blueprints should remain narrow wrappers for a single operational task, while the higher-level blueprint becomes the place where sequencing, policy, and shared inventory normalization are expressed
 
+Blueprint promotion and handoff standard:
+
+- top-level stack workflows should get blueprint surfaces
+- lowest-level user-facing operational workflows should get blueprint surfaces
+- middle layers should remain reusable grains until they clearly need promotion to a user-facing phase or stack boundary
+- grain-to-grain information flow is expected within a phase, but inter-phase contracts should stay minimal because later phases re-read durable state from Intersight
+- current model/discovery behavior can continue to live in `resolve-intersight-deployment-model` for now, with a planned future rename toward `build-infrastructure-domain-model` as the stack model solidifies
+
 Planned stack architecture:
 
 - [infrastructure-stack-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-stack-architecture.md)
