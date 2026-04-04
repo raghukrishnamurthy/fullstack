@@ -108,6 +108,7 @@
             completeness_check_summary: "{{ onboarding_completeness_checks }}"
       vars:
         preflight_ready: "{{ onboarding_readiness.ready | default(false) | bool }}"
+        preflight_status: "{{ onboarding_readiness.status | default('unknown') | string }}"
         action_requested: "{{ onboarding_action_execution.requested | default(false) | bool }}"
         baseline_expectations_passed: "{{ (baseline_expectation_errors | length) == 0 }}"
         live_completion_ready: >-
@@ -158,6 +159,12 @@
           {{
             'completed'
             if live_completion_ready
+            else 'needs_live_validation'
+            if (preflight_status == 'needs_live_validation')
+            else 'fix_baseline_expectations'
+            if (baseline_expectation_errors | length > 0)
+            else preflight_status
+            if ((not preflight_ready) and (preflight_status | length > 0) and (preflight_status != 'blocked'))
             else 'blocked'
             if (completion_blockers | length > 0 and not preflight_ready)
             else 'action_failed'
@@ -172,6 +179,10 @@
           {{
             'proceed_to_infrastructure_network_provisioning'
             if live_completion_ready
+            else 'run_live_intersight_validation'
+            if (completion_status == 'needs_live_validation')
+            else 'fix_baseline_expectations'
+            if (completion_status == 'fix_baseline_expectations')
             else 'review_validation_results'
             if (completion_status == 'blocked')
             else 'review_claim_failures'
