@@ -13,6 +13,7 @@
         if (staged_file_name_runtime.startswith('/'))
         else ((runtime_pwd | string | trim) ~ '/' ~ staged_file_name_runtime)
       }}
+    runtime_repo_relative_candidate_path: "{{ runtime_pwd | string | trim }}/assets/secrets/{{ staged_file_name_runtime }}"
 
   tasks:
     - name: Check staged file at runtime candidate path
@@ -31,12 +32,54 @@
         - always
         - verify
 
+    - name: Check staged file at repo-relative candidate path
+      ansible.builtin.stat:
+        path: "{{ runtime_repo_relative_candidate_path }}"
+      register: runtime_repo_relative_staged_file_stat
+      tags:
+        - always
+        - verify
+
+    - name: Read repo-relative staged file content when present
+      ansible.builtin.set_fact:
+        staged_file_content: "{{ lookup('ansible.builtin.file', runtime_repo_relative_candidate_path) }}"
+      when:
+        - not (runtime_staged_file_stat.stat.exists | default(false))
+        - runtime_repo_relative_staged_file_stat.stat.exists | default(false)
+      tags:
+        - always
+        - verify
+
+    - name: Find staged file under runtime workspace
+      ansible.builtin.command:
+        argv:
+          - find
+          - "{{ runtime_pwd }}"
+          - -name
+          - "{{ staged_file_name_runtime }}"
+          - -print
+      register: runtime_find_staged_file
+      changed_when: false
+      failed_when: false
+      tags:
+        - always
+        - verify
+
     - name: Build staged file outputs
       ansible.builtin.set_fact:
         staged_file_pwd: "{{ runtime_pwd }}"
         staged_file_candidate_path: "{{ runtime_candidate_path }}"
-        staged_file_exists: "{{ runtime_staged_file_stat.stat.exists | default(false) | ternary('true', 'false') }}"
+        staged_file_repo_relative_candidate_path: "{{ runtime_repo_relative_candidate_path }}"
+        staged_file_exists: >-
+          {{
+            (
+              (runtime_staged_file_stat.stat.exists | default(false))
+              or
+              (runtime_repo_relative_staged_file_stat.stat.exists | default(false))
+            ) | ternary('true', 'false')
+          }}
         staged_file_content_export: "{{ staged_file_content | default('') }}"
+        staged_file_find_output: "{{ runtime_find_staged_file.stdout | default('') }}"
       tags:
         - always
         - outputs
@@ -46,8 +89,10 @@
         outputs:
           staged_file_pwd: "{{ staged_file_pwd }}"
           staged_file_candidate_path: "{{ staged_file_candidate_path }}"
+          staged_file_repo_relative_candidate_path: "{{ staged_file_repo_relative_candidate_path }}"
           staged_file_exists: "{{ staged_file_exists }}"
           staged_file_content: "{{ staged_file_content_export }}"
+          staged_file_find_output: "{{ staged_file_find_output }}"
       delegate_to: localhost
       run_once: true
       ignore_errors: true
