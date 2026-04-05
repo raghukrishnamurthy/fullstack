@@ -151,6 +151,7 @@ grains:
         - deployment_yaml: |
             deployment:
               id: claim-devices-to-intersight
+        - bootstrap_python_requirements: 'true'
         - internal_debug_enabled: 'true'
         - platform_yaml: |
             platform:
@@ -200,6 +201,7 @@ grains:
         - deployment_yaml: |
             deployment:
               id: claim-devices-to-intersight
+        - bootstrap_python_requirements: 'true'
         - internal_debug_enabled: 'true'
         - platform_yaml: |
             platform:
@@ -249,6 +251,7 @@ grains:
         - deployment_yaml: |
             deployment:
               id: claim-devices-to-intersight
+        - bootstrap_python_requirements: 'true'
         - internal_debug_enabled: 'true'
         - platform_yaml: |
             platform:
