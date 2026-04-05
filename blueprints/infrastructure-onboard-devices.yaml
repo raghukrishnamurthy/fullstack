@@ -7,7 +7,7 @@ inputs:
     description: Torque agent that runs this workflow.
   deployment_yaml:
     type: string
-    description: YAML deployment context for the infrastructure domain
+    description: JSON deployment context for the infrastructure domain
   api_uri:
     type: string
     description: Intersight SaaS or appliance API base URI
@@ -19,19 +19,19 @@ inputs:
     type: string
     description: Intersight API private key PEM content
     sensitive: true
-  platform_yaml:
+  platform_json:
     type: string
-    description: Optional YAML platform context override including Intersight endpoint and credential refs
+    description: Optional JSON platform context override including Intersight endpoint and non-secret settings
     default: ''
-  placement_yaml:
+  placement_json:
     type: string
-    description: YAML placement context for Intersight organization and related settings
-  inventory_yaml:
+    description: JSON placement context for Intersight organization and related settings
+  inventory_json:
     type: string
-    description: YAML inventory context for the infrastructure domain
-  solution_yaml:
+    description: JSON inventory context for the infrastructure domain
+  solution_json:
     type: string
-    description: YAML solution profile context used to resolve built-in baseline selection
+    description: JSON solution profile context used to resolve built-in baseline selection
   fi_target_username:
     type: string
     description: Username for fabric interconnect onboarding targets
@@ -56,13 +56,13 @@ inputs:
     type: string
     description: Password for manufacturing or factory-default standalone rack login
     sensitive: true
-  credential_candidates_yaml:
+  credential_candidates_json:
     type: string
-    description: Optional YAML credential-candidate contract override for onboarding-capable targets
+    description: Optional JSON credential-candidate contract override for onboarding-capable targets
     default: ''
-  site_yaml:
+  site_json:
     type: string
-    description: Optional YAML site context for shared operational defaults
+    description: Optional JSON site context for shared operational defaults
     default: ''
   baseline_input_source:
     type: string
@@ -72,9 +72,9 @@ inputs:
     type: string
     description: Optional local customer baseline directory
     default: ''
-  overrides_yaml:
+  overrides_json:
     type: string
-    description: Optional YAML overrides applied after baseline resolution
+    description: Optional JSON overrides applied after baseline resolution
     default: ''
   validation_mode:
     type: string
@@ -123,7 +123,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_json }}'
       outputs:
         - context_status
         - org_status
@@ -157,7 +157,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
+        - inventory_yaml: '{{ .inputs.inventory_json }}'
       outputs:
         - claim_targets_json
         - reset_targets_json
@@ -193,19 +193,7 @@ grains:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
         - targets_json: '{{ .grains.build_infrastructure_onboarding_targets.outputs.reset_targets_json }}'
         - credential_candidates_yaml: |
-            credential_candidates:
-              - credential_role: manufacturing
-                target_category: server
-                target_form_factor: rack
-                target_management_type: standalone
-                username: {{ .inputs.manufacturing_rack_username }}
-                password_ref: env://MANUFACTURING_RACK_PASSWORD
-              - credential_role: target
-                target_category: server
-                target_form_factor: rack
-                target_management_type: standalone
-                username: {{ .inputs.rack_target_username }}
-                password_ref: env://RACK_TARGET_PASSWORD
+            {{ .inputs.credential_candidates_json }}
         - validation_mode: '{{ .inputs.validation_mode }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:
@@ -243,17 +231,7 @@ grains:
       inputs:
         - claim_targets_json: '{{ .grains.build_infrastructure_onboarding_targets.outputs.claim_targets_json }}'
         - credential_candidates_yaml: |
-            credential_candidates:
-              - credential_role: target
-                target_category: server
-                target_form_factor: rack
-                target_management_type: standalone
-                username: {{ .inputs.rack_target_username }}
-                password_ref: env://RACK_TARGET_PASSWORD
-              - credential_role: target
-                target_category: fabric_interconnect
-                username: {{ .inputs.fi_target_username }}
-                password_ref: env://FI_TARGET_PASSWORD
+            {{ .inputs.credential_candidates_json }}
       outputs:
         - resolved_claim_targets_json
     on-destroy:
@@ -380,7 +358,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
+        - inventory_yaml: '{{ .inputs.inventory_json }}'
         - claim_execution_results_json: '{{ .grains.claim_devices_to_intersight.outputs.results_json }}'
         - wait_for_completion: '{{ .inputs.wait_for_completion }}'
         - validation_poll_interval: '{{ .inputs.validation_poll_interval }}'
