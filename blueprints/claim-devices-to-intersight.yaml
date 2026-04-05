@@ -9,13 +9,14 @@ inputs:
     type: string
     description: Intersight SaaS or appliance API base URI
     default: https://intersight.com/api/v1
-  intersight_api_key_id:
+  intersight_api_key_id_ref:
     type: string
-    description: Intersight API key id
-  intersight_api_private_key:
+    description: Secret reference for Intersight API key id, for example env://... or file://...
+    default: env://INTERSIGHT_API_KEY_ID
+  intersight_api_private_key_ref:
     type: string
-    description: Intersight API private key PEM content
-    sensitive: true
+    description: Secret reference for Intersight API private key, for example env://... or file://...
+    default: env://INTERSIGHT_API_PRIVATE_KEY
   organization:
     type: string
     description: Intersight organization
@@ -24,18 +25,18 @@ inputs:
     type: string
     description: Username for fabric interconnect claim readiness and appliance claim
     default: admin
-  fi_target_password:
+  fi_target_password_ref:
     type: string
-    description: Password for fabric interconnect claim readiness and appliance claim
-    sensitive: true
+    description: Secret reference for fabric interconnect password, for example env://... or file://...
+    default: env://FI_TARGET_PASSWORD
   rack_target_username:
     type: string
     description: Username for standalone rack claim readiness and appliance claim
     default: admin
-  rack_target_password:
+  rack_target_password_ref:
     type: string
-    description: Password for standalone rack claim readiness and appliance claim
-    sensitive: true
+    description: Secret reference for standalone rack password, for example env://... or file://...
+    default: env://RACK_TARGET_PASSWORD
   claim_targets_json:
     type: string
     description: JSON array of Intersight claim targets to process
@@ -50,9 +51,6 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
-      env-vars:
-        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
-        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -68,11 +66,11 @@ grains:
                 target_form_factor: rack
                 target_management_type: standalone
                 username: {{ .inputs.rack_target_username }}
-                password_ref: env://RACK_TARGET_PASSWORD
+                password_ref: {{ .inputs.rack_target_password_ref }}
               - credential_role: target
                 target_category: fabric_interconnect
                 username: {{ .inputs.fi_target_username }}
-                password_ref: env://FI_TARGET_PASSWORD
+                password_ref: {{ .inputs.fi_target_password_ref }}
       outputs:
         - resolved_claim_targets_json
     on-destroy:
@@ -125,11 +123,6 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
-      env-vars:
-        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
-        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
-        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
-        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -146,8 +139,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
+                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
         - organization: '{{ .inputs.organization }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.assist_claim_targets_json }}'
       outputs:
@@ -176,11 +169,6 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
-      env-vars:
-        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
-        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
-        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
-        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -197,8 +185,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
+                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
         - organization: '{{ .inputs.organization }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.direct_claim_targets_json }}'
       outputs:
@@ -227,11 +215,6 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
-      env-vars:
-        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
-        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
-        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
-        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -248,8 +231,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
+                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
         - organization: '{{ .inputs.organization }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.assist_dependent_claim_targets_json }}'
       outputs:

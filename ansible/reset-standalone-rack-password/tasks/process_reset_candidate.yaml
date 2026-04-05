@@ -101,48 +101,33 @@
   ansible.builtin.set_fact:
     rack_reset_selected_manufacturing_credential: "{{ (rack_reset_manufacturing_credential_candidates | first) | default({}, true) }}"
     rack_reset_selected_target_credential: "{{ (rack_reset_target_credential_candidates | first) | default({}, true) }}"
-    rack_reset_manufacturing_password_env_name: >-
-      {{
-        (
-          ((rack_reset_manufacturing_credential_candidates | first) | default({}, true)).password_ref | default('')
-        )
-        | regex_replace('^env://', '')
-        if (
-          ((((rack_reset_manufacturing_credential_candidates | first) | default({}, true)).password_ref | default('')) is string)
-          and ((((rack_reset_manufacturing_credential_candidates | first) | default({}, true)).password_ref | default('')).startswith('env://'))
-        )
-        else ''
-      }}
-    rack_reset_target_password_env_name: >-
-      {{
-        (
-          ((rack_reset_target_credential_candidates | first) | default({}, true)).password_ref | default('')
-        )
-        | regex_replace('^env://', '')
-        if (
-          ((((rack_reset_target_credential_candidates | first) | default({}, true)).password_ref | default('')) is string)
-          and ((((rack_reset_target_credential_candidates | first) | default({}, true)).password_ref | default('')).startswith('env://'))
-        )
-        else ''
-      }}
   tags:
     - reset
     - rack
 
-- name: Resolve actual rack reset secret values
-  ansible.builtin.set_fact:
-    rack_reset_manufacturing_password: >-
-      {{
-        lookup('ansible.builtin.env', rack_reset_manufacturing_password_env_name)
-        if (rack_reset_manufacturing_password_env_name | default('') | length) > 0
-        else ''
-      }}
-    rack_reset_target_password: >-
-      {{
-        lookup('ansible.builtin.env', rack_reset_target_password_env_name)
-        if (rack_reset_target_password_env_name | default('') | length) > 0
-        else ''
-      }}
+- name: Resolve manufacturing rack reset secret value
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
+  vars:
+    secret_value_direct: "{{ rack_reset_selected_manufacturing_credential.password | default('') }}"
+    secret_value_ref: "{{ rack_reset_selected_manufacturing_credential.password_ref | default('') }}"
+    secret_resolved_fact_name: rack_reset_manufacturing_password
+    secret_ref_fact_name: rack_reset_manufacturing_password_ref_normalized
+    secret_env_name_fact_name: rack_reset_manufacturing_password_env_name
+    secret_file_path_fact_name: rack_reset_manufacturing_password_file_path
+    secret_source_fact_name: rack_reset_manufacturing_password_source
+  no_log: true
+
+- name: Resolve target rack reset secret value
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
+  vars:
+    secret_value_direct: "{{ rack_reset_selected_target_credential.password | default('') }}"
+    secret_value_ref: "{{ rack_reset_selected_target_credential.password_ref | default('') }}"
+    secret_resolved_fact_name: rack_reset_target_password
+    secret_ref_fact_name: rack_reset_target_password_ref_normalized
+    secret_env_name_fact_name: rack_reset_target_password_env_name
+    secret_file_path_fact_name: rack_reset_target_password_file_path
+    secret_source_fact_name: rack_reset_target_password_source
+  no_log: true
   tags:
     - reset
     - rack

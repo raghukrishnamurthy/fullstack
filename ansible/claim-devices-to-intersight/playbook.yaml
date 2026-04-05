@@ -55,7 +55,7 @@
     claim_readiness_helper_path: "{{ playbook_dir }}/tools/run_claim_readiness.py"
   pre_tasks:
     - name: Resolve shared Intersight API key id secret
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_secret_value.yaml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
       vars:
         secret_value_direct: "{{ intersight_api_key_id_direct }}"
         secret_value_ref: "{{ intersight_api_key_id_ref }}"
@@ -69,7 +69,7 @@
         - precheck
 
     - name: Resolve shared Intersight API private key secret
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_secret_value.yaml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
       vars:
         secret_value_direct: "{{ intersight_api_private_key_direct }}"
         secret_value_ref: "{{ intersight_api_private_key_ref }}"

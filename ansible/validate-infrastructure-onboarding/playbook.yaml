@@ -88,12 +88,10 @@
         in ['true', '1', 'yes']
       }}
     intersight_query_rules: "{{ default_intersight_query_rules_json | from_json }}"
+    api_key_id_direct: "{{ platform_intersight.credentials.api_key_id | default('') | string | trim }}"
+    api_private_key_direct: "{{ platform_intersight.credentials.api_private_key | default('') | string }}"
     api_key_id_ref: "{{ platform_intersight.credentials.api_key_id_ref | default('') }}"
     api_private_key_ref: "{{ platform_intersight.credentials.api_private_key_ref | default('') }}"
-    api_key_id_env_name: "{{ (api_key_id_ref is string and api_key_id_ref.startswith('env://')) | ternary(api_key_id_ref | regex_replace('^env://', ''), '') }}"
-    api_private_key_env_name: "{{ (api_private_key_ref is string and api_private_key_ref.startswith('env://')) | ternary(api_private_key_ref | regex_replace('^env://', ''), '') }}"
-    resolved_api_key_id: "{{ lookup('ansible.builtin.env', api_key_id_env_name) if (api_key_id_env_name | length > 0) else '' }}"
-    resolved_api_private_key: "{{ lookup('ansible.builtin.env', api_private_key_env_name) if (api_private_key_env_name | length > 0) else '' }}"
     wait_for_completion_requested: "{{ wait_for_completion | default('false') }}"
     validation_poll_interval_requested: "{{ validation_poll_interval | default(60) }}"
     validation_timeout_seconds_requested: "{{ validation_timeout_seconds | default(3600) }}"
@@ -167,6 +165,36 @@
     present_direct_target_count: "{{ (present_direct_rack_count | int) + (present_direct_fi_pair_count | int) }}"
 
   pre_tasks:
+    - name: Resolve shared Intersight API key id secret
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
+      vars:
+        secret_value_direct: "{{ api_key_id_direct }}"
+        secret_value_ref: "{{ api_key_id_ref }}"
+        secret_resolved_fact_name: resolved_api_key_id
+        secret_ref_fact_name: resolved_api_key_id_ref_normalized
+        secret_env_name_fact_name: resolved_api_key_id_env_name
+        secret_file_path_fact_name: resolved_api_key_id_file_path
+        secret_source_fact_name: resolved_api_key_id_source
+      tags:
+        - always
+        - validate
+        - precheck
+
+    - name: Resolve shared Intersight API private key secret
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
+      vars:
+        secret_value_direct: "{{ api_private_key_direct }}"
+        secret_value_ref: "{{ api_private_key_ref }}"
+        secret_resolved_fact_name: resolved_api_private_key
+        secret_ref_fact_name: resolved_api_private_key_ref_normalized
+        secret_env_name_fact_name: resolved_api_private_key_env_name
+        secret_file_path_fact_name: resolved_api_private_key_file_path
+        secret_source_fact_name: resolved_api_private_key_source
+      tags:
+        - always
+        - validate
+        - precheck
+
     - name: Normalize polling configuration inputs
       ansible.builtin.set_fact:
         wait_for_completion_normalized: "{{ (wait_for_completion_requested | string | lower) in ['true', '1', 'yes'] }}"

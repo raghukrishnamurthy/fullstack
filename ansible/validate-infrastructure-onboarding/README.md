@@ -41,3 +41,13 @@ Validation and completion grain for the `infrastructure-onboard-devices` phase.
 - can poll Intersight for asynchronous onboarding settlement when `wait_for_completion` is enabled
 - polling exits after the first successful completion pass instead of continuing through the remaining loop window
 - `phase_readiness_json.summary.present_direct_target_count` is exported as a numeric total of direct racks plus settled FI pairs
+- resolves Intersight control-plane credentials from platform context using the shared direct/file/env secret resolver
+
+## Credential model
+
+- this grain uses workflow-scoped Intersight credentials only
+- expected supported inputs in `platform_yaml.intersight.credentials` are:
+  - direct values
+  - `env://...` references
+  - `file://...` references
+- in the current Torque-oriented model, Intersight control-plane credentials are expected to remain env-backed, while device-facing secrets are handled upstream through structured credential mappings

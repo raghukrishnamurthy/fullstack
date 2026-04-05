@@ -20,30 +20,6 @@
     intersight_api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
     intersight_api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') }}"
     intersight_api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') }}"
-    resolved_api_key_id: >-
-      {{
-        intersight_api_key_id_direct
-        if (intersight_api_key_id_direct | length) > 0
-        else
-        lookup('ansible.builtin.env', intersight_api_key_id_ref | regex_replace('^env://', ''))
-        if (
-          (intersight_api_key_id_ref | string | trim | length) > 0
-          and (intersight_api_key_id_ref | string).startswith('env://')
-        )
-        else ''
-      }}
-    resolved_api_private_key: >-
-      {{
-        intersight_api_private_key_direct
-        if (intersight_api_private_key_direct | trim | length) > 0
-        else
-        lookup('ansible.builtin.env', intersight_api_private_key_ref | regex_replace('^env://', ''))
-        if (
-          (intersight_api_private_key_ref | string | trim | length) > 0
-          and (intersight_api_private_key_ref | string).startswith('env://')
-        )
-        else ''
-      }}
     direct_organization: "{{ organization | default('') | string | trim }}"
     requested_organization: "{{ direct_organization if (direct_organization | length > 0) else (placement_data.intersight.organization | default('') | string | trim) }}"
     context_validate_certs: "{{ platform_data.intersight.validate_certs | default(true) | bool }}"
@@ -60,6 +36,34 @@
         )
       }}
   pre_tasks:
+    - name: Resolve shared Intersight API key id secret
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
+      vars:
+        secret_value_direct: "{{ intersight_api_key_id_direct }}"
+        secret_value_ref: "{{ intersight_api_key_id_ref }}"
+        secret_resolved_fact_name: resolved_api_key_id
+        secret_ref_fact_name: resolved_api_key_id_ref_normalized
+        secret_env_name_fact_name: resolved_api_key_id_env_name
+        secret_file_path_fact_name: resolved_api_key_id_file_path
+        secret_source_fact_name: resolved_api_key_id_source
+      tags:
+        - always
+        - precheck
+
+    - name: Resolve shared Intersight API private key secret
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
+      vars:
+        secret_value_direct: "{{ intersight_api_private_key_direct }}"
+        secret_value_ref: "{{ intersight_api_private_key_ref }}"
+        secret_resolved_fact_name: resolved_api_private_key
+        secret_ref_fact_name: resolved_api_private_key_ref_normalized
+        secret_env_name_fact_name: resolved_api_private_key_env_name
+        secret_file_path_fact_name: resolved_api_private_key_file_path
+        secret_source_fact_name: resolved_api_private_key_source
+      tags:
+        - always
+        - precheck
+
     - name: Install shared Python requirements
       ansible.builtin.pip:
         requirements: "{{ playbook_dir }}/../requirements.txt"
@@ -74,7 +78,7 @@
           - platform_data | type_debug == 'dict'
           - resolved_api_key_id | string | trim | length > 0
           - resolved_api_private_key | string | trim | length > 0
-        fail_msg: "prepare-intersight-context requires platform_yaml with direct or env-backed Intersight API credentials"
+        fail_msg: "prepare-intersight-context requires platform_yaml with direct, file-backed, or env-backed Intersight API credentials"
       tags:
         - always
         - validate

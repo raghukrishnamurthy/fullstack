@@ -51,13 +51,11 @@
 - name: Validate live Intersight mode uses supported credential references
   ansible.builtin.assert:
     that:
-      - api_key_id_ref.startswith('env://')
-      - api_private_key_ref.startswith('env://')
       - resolved_api_key_id | string | trim | length > 0
       - resolved_api_private_key | string | trim | length > 0
     fail_msg: >-
-      validation_mode=live currently supports env:// credential references only,
-      and the referenced environment variables must be present.
+      validation_mode=live requires direct, file-backed, or env-backed Intersight
+      API credentials, and the referenced values must be present.
   when: intersight_live_validation_requested
   tags:
     - always
