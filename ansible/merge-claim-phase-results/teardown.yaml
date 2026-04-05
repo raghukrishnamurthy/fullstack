@@ -1,0 +1,9 @@
+---
+- name: merge-claim-phase-results teardown
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Report no-op destroy for merge-claim-phase-results
+      ansible.builtin.debug:
+        msg: "merge-claim-phase-results has no destroy behavior"

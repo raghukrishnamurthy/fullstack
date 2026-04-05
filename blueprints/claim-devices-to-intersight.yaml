@@ -84,9 +84,40 @@ grains:
             hosts:
               localhost:
                 ansible_connection: local
-  claim_devices_to_intersight:
+  split_claim_target_phases:
     kind: ansible
     depends-on: resolve_claim_target_credentials
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/split-claim-target-phases/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
+      outputs:
+        - assist_claim_targets_json
+        - direct_claim_targets_json
+        - assist_dependent_claim_targets_json
+    on-destroy:
+      - source:
+          store: intersight-fullstack-repo
+          path: ansible/split-claim-target-phases/teardown.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
+
+  claim_assist_targets_to_intersight:
+    kind: ansible
+    depends-on: split_claim_target_phases
     spec:
       source:
         store: intersight-fullstack-repo
@@ -118,7 +149,144 @@ grains:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - organization: '{{ .inputs.organization }}'
-        - claim_targets_json: '{{ .grains.resolve_claim_target_credentials.outputs.resolved_claim_targets_json }}'
+        - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.assist_claim_targets_json }}'
+      outputs:
+        - batch_status
+        - successful_targets
+        - failed_targets
+        - conflict_targets
+        - skipped_targets
+        - changed_targets
+        - results_json
+        - normalized_claim_results_json
+        - normalized_claim_batch_status
+        - normalized_claim_successful_count
+        - normalized_claim_failed_count
+        - normalized_claim_conflict_count
+        - normalized_claim_skipped_count
+        - normalized_claim_changed_count
+
+  claim_direct_targets_to_intersight:
+    kind: ansible
+    depends-on: claim_assist_targets_to_intersight
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/claim-devices-to-intersight/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: |
+            deployment:
+              id: claim-devices-to-intersight
+        - internal_debug_enabled: 'true'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+        - organization: '{{ .inputs.organization }}'
+        - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.direct_claim_targets_json }}'
+      outputs:
+        - batch_status
+        - successful_targets
+        - failed_targets
+        - conflict_targets
+        - skipped_targets
+        - changed_targets
+        - results_json
+        - normalized_claim_results_json
+        - normalized_claim_batch_status
+        - normalized_claim_successful_count
+        - normalized_claim_failed_count
+        - normalized_claim_conflict_count
+        - normalized_claim_skipped_count
+        - normalized_claim_changed_count
+
+  claim_assist_dependent_targets_to_intersight:
+    kind: ansible
+    depends-on: claim_direct_targets_to_intersight
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/claim-devices-to-intersight/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
+        - FI_TARGET_PASSWORD: '{{ .inputs.fi_target_password }}'
+        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: |
+            deployment:
+              id: claim-devices-to-intersight
+        - internal_debug_enabled: 'true'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+        - organization: '{{ .inputs.organization }}'
+        - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.assist_dependent_claim_targets_json }}'
+      outputs:
+        - batch_status
+        - successful_targets
+        - failed_targets
+        - conflict_targets
+        - skipped_targets
+        - changed_targets
+        - results_json
+        - normalized_claim_results_json
+        - normalized_claim_batch_status
+        - normalized_claim_successful_count
+        - normalized_claim_failed_count
+        - normalized_claim_conflict_count
+        - normalized_claim_skipped_count
+        - normalized_claim_changed_count
+
+  merge_claim_phase_results:
+    kind: ansible
+    depends-on: claim_assist_dependent_targets_to_intersight
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/merge-claim-phase-results/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - assist_results_json: '{{ .grains.claim_assist_targets_to_intersight.outputs.results_json }}'
+        - direct_results_json: '{{ .grains.claim_direct_targets_to_intersight.outputs.results_json }}'
+        - assist_dependent_results_json: '{{ .grains.claim_assist_dependent_targets_to_intersight.outputs.results_json }}'
       outputs:
         - batch_status
         - successful_targets
@@ -145,18 +313,18 @@ grains:
                 ansible_connection: local
 outputs:
   claim_results_json:
-    value: '{{ .grains.claim_devices_to_intersight.outputs.results_json }}'
+    value: '{{ .grains.merge_claim_phase_results.outputs.results_json }}'
   normalized_claim_results_json:
-    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_results_json }}'
+    value: '{{ .grains.merge_claim_phase_results.outputs.normalized_claim_results_json }}'
   normalized_claim_batch_status:
-    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_batch_status }}'
+    value: '{{ .grains.merge_claim_phase_results.outputs.normalized_claim_batch_status }}'
   normalized_claim_successful_count:
-    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_successful_count }}'
+    value: '{{ .grains.merge_claim_phase_results.outputs.normalized_claim_successful_count }}'
   normalized_claim_failed_count:
-    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_failed_count }}'
+    value: '{{ .grains.merge_claim_phase_results.outputs.normalized_claim_failed_count }}'
   normalized_claim_conflict_count:
-    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_conflict_count }}'
+    value: '{{ .grains.merge_claim_phase_results.outputs.normalized_claim_conflict_count }}'
   normalized_claim_skipped_count:
-    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_skipped_count }}'
+    value: '{{ .grains.merge_claim_phase_results.outputs.normalized_claim_skipped_count }}'
   normalized_claim_changed_count:
-    value: '{{ .grains.claim_devices_to_intersight.outputs.normalized_claim_changed_count }}'
+    value: '{{ .grains.merge_claim_phase_results.outputs.normalized_claim_changed_count }}'

@@ -1,0 +1,9 @@
+---
+- name: split-claim-target-phases teardown
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Report no-op destroy for split-claim-target-phases
+      ansible.builtin.debug:
+        msg: "split-claim-target-phases has no destroy behavior"

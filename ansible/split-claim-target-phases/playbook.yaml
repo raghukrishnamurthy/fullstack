@@ -1,0 +1,105 @@
+---
+- name: Split claim targets into execution phases
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    claim_targets_input: "{{ claim_targets_json | default('[]') }}"
+    claim_targets: >-
+      {{
+        claim_targets_input
+        if (claim_targets_input is not string)
+        else (
+          (claim_targets_input | from_yaml)
+          if (claim_targets_input | string | trim | length) > 0
+          else [])
+        )
+      }}
+
+  pre_tasks:
+    - name: Validate split-claim-target-phases contract
+      ansible.builtin.assert:
+        that:
+          - claim_targets | type_debug == 'list'
+        fail_msg: "split-claim-target-phases requires claim_targets_json as a JSON or YAML list"
+      tags:
+        - always
+        - validate
+
+  tasks:
+    - name: Build phased claim target groups
+      ansible.builtin.set_fact:
+        assist_claim_targets: >-
+          {{
+            claim_targets
+            | selectattr('target_category', 'defined')
+            | selectattr('target_category', 'equalto', 'assist')
+            | list
+          }}
+        assist_dependent_claim_targets: >-
+          {{
+            claim_targets
+            | rejectattr('target_category', 'defined')
+            | selectattr('management_type', 'defined')
+            | selectattr('management_type', 'equalto', 'assist_managed')
+            | list
+            +
+            (
+              claim_targets
+              | selectattr('target_category', 'defined')
+              | rejectattr('target_category', 'equalto', 'assist')
+              | selectattr('management_type', 'defined')
+              | selectattr('management_type', 'equalto', 'assist_managed')
+              | list
+            )
+          }}
+        direct_claim_targets: >-
+          {{
+            claim_targets
+            | rejectattr('target_category', 'defined')
+            | rejectattr('management_type', 'defined')
+            | list
+            +
+            (
+              claim_targets
+              | selectattr('target_category', 'defined')
+              | rejectattr('target_category', 'equalto', 'assist')
+              | rejectattr('management_type', 'defined')
+              | list
+            )
+            +
+            (
+              claim_targets
+              | selectattr('target_category', 'defined')
+              | rejectattr('target_category', 'equalto', 'assist')
+              | selectattr('management_type', 'defined')
+              | rejectattr('management_type', 'equalto', 'assist_managed')
+              | list
+            )
+          }}
+      tags:
+        - split
+        - outputs
+
+    - name: Export split claim target outputs
+      ansible.builtin.set_fact:
+        assist_claim_targets_json: "{{ assist_claim_targets | default([]) | to_json }}"
+        direct_claim_targets_json: "{{ direct_claim_targets | default([]) | to_json }}"
+        assist_dependent_claim_targets_json: "{{ assist_dependent_claim_targets | default([]) | to_json }}"
+      tags:
+        - outputs
+
+    - name: Export split-claim-target-phases outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          assist_claim_targets_json: "{{ assist_claim_targets_json }}"
+          direct_claim_targets_json: "{{ direct_claim_targets_json }}"
+          assist_dependent_claim_targets_json: "{{ assist_dependent_claim_targets_json }}"
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
+      tags:
+        - always
+        - outputs
