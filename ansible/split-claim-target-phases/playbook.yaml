@@ -6,19 +6,25 @@
   any_errors_fatal: true
 
   vars:
-    claim_targets_input: "{{ claim_targets_json | default('[]') }}"
-    claim_targets: >-
-      {{
-        claim_targets_input
-        if (claim_targets_input is not string)
-        else (
-          (claim_targets_input | from_yaml)
-          if (claim_targets_input | string | trim | length) > 0
-          else [])
-        )
-      }}
+    claim_targets_input: "{{ claim_targets_json | default([]) }}"
 
   pre_tasks:
+    - name: Normalize split-claim-target-phases inputs
+      ansible.builtin.set_fact:
+        claim_targets: >-
+          {{
+            claim_targets_input
+            if (claim_targets_input is not string)
+            else (
+              (claim_targets_input | from_yaml)
+              if (claim_targets_input | string | trim | length) > 0
+              else []
+            )
+          }}
+      tags:
+        - always
+        - validate
+
     - name: Validate split-claim-target-phases contract
       ansible.builtin.assert:
         that:

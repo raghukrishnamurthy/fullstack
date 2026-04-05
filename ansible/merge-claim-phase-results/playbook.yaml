@@ -6,41 +6,47 @@
   any_errors_fatal: true
 
   vars:
-    assist_results_input: "{{ assist_results_json | default('[]') }}"
-    direct_results_input: "{{ direct_results_json | default('[]') }}"
-    assist_dependent_results_input: "{{ assist_dependent_results_json | default('[]') }}"
-    assist_results: >-
-      {{
-        assist_results_input
-        if (assist_results_input is not string)
-        else (
-          (assist_results_input | from_yaml)
-          if (assist_results_input | string | trim | length) > 0
-          else []
-        )
-      }}
-    direct_results: >-
-      {{
-        direct_results_input
-        if (direct_results_input is not string)
-        else (
-          (direct_results_input | from_yaml)
-          if (direct_results_input | string | trim | length) > 0
-          else []
-        )
-      }}
-    assist_dependent_results: >-
-      {{
-        assist_dependent_results_input
-        if (assist_dependent_results_input is not string)
-        else (
-          (assist_dependent_results_input | from_yaml)
-          if (assist_dependent_results_input | string | trim | length) > 0
-          else []
-        )
-      }}
+    assist_results_input: "{{ assist_results_json | default([]) }}"
+    direct_results_input: "{{ direct_results_json | default([]) }}"
+    assist_dependent_results_input: "{{ assist_dependent_results_json | default([]) }}"
 
   pre_tasks:
+    - name: Normalize merge-claim-phase-results inputs
+      ansible.builtin.set_fact:
+        assist_results: >-
+          {{
+            assist_results_input
+            if (assist_results_input is not string)
+            else (
+              (assist_results_input | from_yaml)
+              if (assist_results_input | string | trim | length) > 0
+              else []
+            )
+          }}
+        direct_results: >-
+          {{
+            direct_results_input
+            if (direct_results_input is not string)
+            else (
+              (direct_results_input | from_yaml)
+              if (direct_results_input | string | trim | length) > 0
+              else []
+            )
+          }}
+        assist_dependent_results: >-
+          {{
+            assist_dependent_results_input
+            if (assist_dependent_results_input is not string)
+            else (
+              (assist_dependent_results_input | from_yaml)
+              if (assist_dependent_results_input | string | trim | length) > 0
+              else []
+            )
+          }}
+      tags:
+        - always
+        - validate
+
     - name: Validate merge-claim-phase-results contract
       ansible.builtin.assert:
         that:
@@ -116,6 +122,12 @@
             changed_count: "{{ changed_result_items | length }}"
             batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
           results: "{{ claim_results }}"
+      tags:
+        - merge
+        - outputs
+
+    - name: Finalize merged claim aggregate outputs
+      ansible.builtin.set_fact:
         normalized_claim_results_json: "{{ normalized_claim_results | to_json }}"
         normalized_claim_batch_status: "{{ normalized_claim_results.summary.batch_status }}"
         normalized_claim_successful_count: "{{ normalized_claim_results.summary.successful_count | string }}"
