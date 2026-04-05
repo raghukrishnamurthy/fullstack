@@ -9,34 +9,20 @@ inputs:
     type: string
     description: Intersight SaaS or appliance API base URI
     default: https://intersight.com/api/v1
-  intersight_api_key_id_ref:
+  intersight_api_key_id:
     type: string
-    description: Secret reference for Intersight API key id, for example env://... or file://...
-    default: env://INTERSIGHT_API_KEY_ID
-  intersight_api_private_key_ref:
+    description: Intersight API key id
+  intersight_api_private_key:
     type: string
-    description: Secret reference for Intersight API private key, for example env://... or file://...
-    default: env://INTERSIGHT_API_PRIVATE_KEY
+    description: Intersight API private key PEM content
   organization:
     type: string
     description: Intersight organization
     default: ai-prod
-  fi_target_username:
+  credential_candidates_yaml:
     type: string
-    description: Username for fabric interconnect claim readiness and appliance claim
-    default: admin
-  fi_target_password_ref:
-    type: string
-    description: Secret reference for fabric interconnect password, for example env://... or file://...
-    default: env://FI_TARGET_PASSWORD
-  rack_target_username:
-    type: string
-    description: Username for standalone rack claim readiness and appliance claim
-    default: admin
-  rack_target_password_ref:
-    type: string
-    description: Secret reference for standalone rack password, for example env://... or file://...
-    default: env://RACK_TARGET_PASSWORD
+    description: Structured YAML or JSON device credential contract, including credential_candidates or device_credentials
+    default: '{}'
   claim_targets_json:
     type: string
     description: JSON array of Intersight claim targets to process
@@ -60,17 +46,7 @@ grains:
         - claim_targets_json: '{{ .inputs.claim_targets_json }}'
         - internal_debug_enabled: 'true'
         - credential_candidates_yaml: |
-            credential_candidates:
-              - credential_role: target
-                target_category: server
-                target_form_factor: rack
-                target_management_type: standalone
-                username: {{ .inputs.rack_target_username }}
-                password_ref: {{ .inputs.rack_target_password_ref }}
-              - credential_role: target
-                target_category: fabric_interconnect
-                username: {{ .inputs.fi_target_username }}
-                password_ref: {{ .inputs.fi_target_password_ref }}
+            {{ .inputs.credential_candidates_yaml }}
       outputs:
         - resolved_claim_targets_json
     on-destroy:
@@ -92,6 +68,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -139,8 +118,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - organization: '{{ .inputs.organization }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.assist_claim_targets_json }}'
       outputs:
@@ -169,6 +148,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -185,8 +167,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - organization: '{{ .inputs.organization }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.direct_claim_targets_json }}'
       outputs:
@@ -215,6 +197,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -231,8 +216,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - organization: '{{ .inputs.organization }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.assist_dependent_claim_targets_json }}'
       outputs:

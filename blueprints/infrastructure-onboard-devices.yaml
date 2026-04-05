@@ -18,14 +18,6 @@ inputs:
   intersight_api_private_key:
     type: string
     description: Intersight API private key PEM content
-  intersight_api_key_id_ref:
-    type: string
-    description: Secret reference for Intersight API key id, for example env://... or file://...
-    default: env://INTERSIGHT_API_KEY_ID
-  intersight_api_private_key_ref:
-    type: string
-    description: Secret reference for Intersight API private key, for example env://... or file://...
-    default: env://INTERSIGHT_API_PRIVATE_KEY
   platform_json:
     type: string
     description: Optional JSON platform context override including Intersight endpoint and non-secret settings
@@ -39,31 +31,10 @@ inputs:
   solution_json:
     type: string
     description: JSON solution profile context used to resolve built-in baseline selection
-  fi_target_username:
-    type: string
-    description: Username for fabric interconnect onboarding targets
-    default: admin
-  fi_target_password:
-    type: string
-    description: Password for fabric interconnect onboarding targets
-  rack_target_username:
-    type: string
-    description: Username for standalone rack onboarding targets
-    default: admin
-  rack_target_password:
-    type: string
-    description: Password for standalone rack onboarding targets
-  manufacturing_rack_username:
-    type: string
-    description: Username for manufacturing or factory-default standalone rack login
-    default: admin
-  manufacturing_rack_password:
-    type: string
-    description: Password for manufacturing or factory-default standalone rack login
   credential_candidates_json:
     type: string
-    description: Optional JSON credential-candidate contract override for onboarding-capable targets
-    default: ''
+    description: Structured YAML or JSON device credential contract for onboarding-capable targets
+    default: '{}'
   site_json:
     type: string
     description: Optional JSON site context for shared operational defaults
@@ -126,8 +97,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_json }}'
       outputs:
         - context_status
@@ -186,9 +157,6 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
-      env-vars:
-        - MANUFACTURING_RACK_PASSWORD: '{{ .inputs.manufacturing_rack_password }}'
-        - RACK_TARGET_PASSWORD: '{{ .inputs.rack_target_password }}'
       inventory-file:
         localhost:
           hosts:
@@ -269,8 +237,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - validation_mode: '{{ .inputs.validation_mode }}'
       outputs:
         - connector_prep_results_json
@@ -343,8 +311,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - deployment_json: '{{ .inputs.deployment_json }}'
         - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
       outputs:
@@ -390,8 +358,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - deployment_json: '{{ .inputs.deployment_json }}'
         - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
       outputs:
@@ -437,8 +405,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - deployment_json: '{{ .inputs.deployment_json }}'
         - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
       outputs:
@@ -518,8 +486,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: {{ .inputs.intersight_api_key_id_ref }}
-                  api_private_key_ref: {{ .inputs.intersight_api_private_key_ref }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - inventory_yaml: '{{ .inputs.inventory_json }}'
         - claim_execution_results_json: '{{ .grains.merge_claim_phase_results.outputs.results_json }}'
         - wait_for_completion: '{{ .inputs.wait_for_completion }}'

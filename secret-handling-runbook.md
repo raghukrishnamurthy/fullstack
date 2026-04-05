@@ -163,6 +163,35 @@ For Torque-style execution, the current validated direction is:
 
 This keeps the control-plane auth path simple and keeps device secret handling scalable.
 
+## Blueprint Contract
+
+The blueprint-facing contract should separate customer-facing orchestration credentials from device-secret mapping.
+
+- Control-plane inputs:
+  - `api_uri`
+  - `organization`
+  - `intersight_api_key_id`
+  - `intersight_api_private_key`
+- Device credential input:
+  - one structured `credential_candidates_yaml` or `credential_candidates_json` payload
+  - may contain either:
+    - `credential_candidates`
+    - `device_credentials`
+- Inventory and model inputs:
+  - `claim_targets_json`
+  - `inventory_json`
+  - `placement_json`
+  - `deployment_json`
+  - `solution_json`
+
+Expected runtime wiring:
+
+- blueprints inject Intersight credentials into environment variables
+- `platform_yaml` references those values through:
+  - `env://INTERSIGHT_API_KEY_ID`
+  - `env://INTERSIGHT_API_PRIVATE_KEY`
+- device credentials flow through the structured credential bundle and are resolved only in device-facing grains
+
 ## Validated Branch Behavior
 
 Validated locally on the current branch:
