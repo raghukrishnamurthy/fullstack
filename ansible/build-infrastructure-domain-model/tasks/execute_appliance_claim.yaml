@@ -14,21 +14,44 @@
         )
         else ''
       }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Resolve appliance platform type for target
+  ansible.builtin.set_fact:
+    pva_claim_platform_type: >-
+      {{
+        claim_target_payload.platform_type
+        | default(
+            'IMCRack'
+            if (
+              (claim_target_payload.target_category | default('')) == 'server'
+              and (claim_target_payload.form_factor | default('')) == 'rack'
+              and (claim_target_payload.management_type | default('')) == 'standalone'
+            )
+            else (
+              'UCSFIISM'
+              if ((claim_target_payload.target_category | default('')) == 'fabric_interconnect')
+              else ''
+            )
+          )
+      }}
+  tags:
+    - onboarding
+    - action
+    - claim
+
+- name: Determine whether appliance claim submission is supported
+  ansible.builtin.set_fact:
     pva_claim_submission_supported: >-
       {{
         (derived_intersight_mode | default('')) == 'pva'
         and ((validation_mode | default('strict') | string | lower) in ['live', 'intersight_live'])
         and ((claim_target_payload.preclaim_workflow | default('')) == 'direct_claim_preparation')
         and (
-          (
-            (claim_target_payload.target_category | default('')) == 'server'
-            and (claim_target_payload.form_factor | default('')) == 'rack'
-            and (claim_target_payload.management_type | default('')) == 'standalone'
-          )
-          or
-          (
-            (claim_target_payload.target_category | default('')) == 'fabric_interconnect'
-          )
+          (pva_claim_platform_type | default('') | string | trim | length) > 0
         )
         and ((claim_target_payload.endpoint | default('') | string | trim | length) > 0)
         and ((claim_target_payload.selected_target_credential.username | default('') | string | trim | length) > 0)
@@ -40,20 +63,6 @@
           (
             (connector_prepare_execution_result.status | default('not_applicable')) == 'ready_for_claim'
           )
-        )
-      }}
-    pva_claim_platform_type: >-
-      {{
-        'IMCRack'
-        if (
-          (claim_target_payload.target_category | default('')) == 'server'
-          and (claim_target_payload.form_factor | default('')) == 'rack'
-          and (claim_target_payload.management_type | default('')) == 'standalone'
-        )
-        else (
-          'UCSFIISM'
-          if ((claim_target_payload.target_category | default('')) == 'fabric_interconnect')
-          else ''
         )
       }}
   tags:
