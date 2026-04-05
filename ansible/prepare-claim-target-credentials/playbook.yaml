@@ -18,18 +18,12 @@
       }}
     credential_candidates_root: "{{ (credential_candidates_yaml | from_yaml) if (credential_candidates_yaml | default('') | string | trim | length > 0) else {} }}"
     credential_candidates: "{{ credential_candidates_root.credential_candidates | default([]) }}"
-    device_credentials_bundle: >-
-      {{
-        credential_candidates_root.device_credentials
-        | default({})
-      }}
   pre_tasks:
     - name: Validate prepare-claim-target-credentials contract
       ansible.builtin.assert:
         that:
           - claim_targets | type_debug == 'list'
           - credential_candidates | type_debug == 'list'
-          - device_credentials_bundle | type_debug == 'dict'
         fail_msg: "prepare-claim-target-credentials requires claim_targets_json and credential_candidates_yaml to decode to lists"
       tags:
         - always

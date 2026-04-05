@@ -40,28 +40,9 @@ Unified Jarvis grain for claiming prepared targets into either Intersight SaaS o
   - current appliance defaults are 600 seconds timeout with 30 second polling to better accommodate fresh Assist claim and control-plane convergence
 - appliance direct claims perform a post-submit follow-up enrichment pass so the final aggregate preserves workflow and DeviceClaim evidence
 - SaaS direct claims build normalized results through the shared direct-claim result helper without recursive include-var shadowing
-- shared secret resolution within this grain now supports:
-  - direct values
-  - `file://...` references
-  - legacy `env://...` references for local and developer-driven execution
 - emits both:
   - `results_json`
   - normalized claim outputs matching the previous normalize grain contract
-
-## Credential model
-
-- secret handling in this grain is organized into three buckets:
-  - device credentials
-  - Intersight context credentials
-  - management-plane policy or object credentials
-- device credentials remain target-scoped and can be supplied either directly on the target or through the selected target credential selected upstream
-- device secret precedence is:
-  - target-specific direct secret
-  - target-specific secret reference
-  - upstream selected target credential
-- Intersight context credentials remain workflow-scoped through `platform_yaml.intersight.credentials`
-- for Torque-oriented execution, `file://...` is the preferred secret-reference scheme because the runtime executes inside a sandboxed workspace
-- `env://...` remains supported for local and developer-focused execution, but it is now treated as a compatibility path instead of the preferred Torque contract
 
 ## Appliance storage behavior
 
@@ -156,9 +137,8 @@ Unified Jarvis grain for claiming prepared targets into either Intersight SaaS o
 ## Notes
 
 - This grain intentionally keeps the public blueprint contract stable while allowing backend-specific claim mechanics to evolve internally.
-- Today, the broader onboarding wrappers still commonly pass FI, rack, and manufacturing passwords through direct blueprint inputs or compatibility-oriented environment wiring.
+- Today, the public onboarding and claim wrappers still pass FI, rack, and manufacturing passwords through direct blueprint inputs that are mapped to environment variables such as `env://FI_TARGET_PASSWORD` and `env://RACK_TARGET_PASSWORD`.
 - Current examples and test runs often use shared FI and rack passwords for convenience; per-device credential values and refs should also be considered supported by the claim target contract and credential-resolution path, even though that is not the primary test shape today.
-- `file://...` is the preferred proof-of-concept secret-reference contract for Torque-backed runs because it maps cleanly to sandbox-local runtime files.
-- Secret-manager-native references such as `vault://...` are expected to be revisited in a later hardening pass after the shared direct and file-backed contract is stabilized.
+- Secret-manager-native references such as `vault://...` are expected to be revisited in a later hardening pass; the current implementation keeps the credential contract explicit so the phased claim flow can be validated end to end first.
 - Validation timing can still exceed claim submission timing, especially on appliance backends where inventory convergence lags behind `appliance.DeviceClaim` submission.
 - Customers can omit Assist and storage entirely; Assist dependency handling only applies when a storage target references an Assist in the current claim run.

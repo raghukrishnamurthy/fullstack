@@ -13,74 +13,6 @@
     - configure
     - verify
 
-- name: Resolve per-device credential from serial-keyed bundle
-  ansible.builtin.set_fact:
-    bundle_per_device_credential: >-
-      {{
-        (
-          (
-            device_credentials_bundle.per_device
-            | default({})
-          )
-          [
-            claim_target.serial | default('')
-          ]
-        )
-        if (
-          (claim_target.serial | default('') | string | trim | length) > 0
-          and (
-            device_credentials_bundle.per_device
-            | default({})
-          ) is mapping
-          and (
-            claim_target.serial | default('')
-          ) in (
-            device_credentials_bundle.per_device
-            | default({})
-          )
-        )
-        else {}
-      }}
-  when: not (target_has_direct_claim_credentials | bool)
-  tags:
-    - configure
-    - verify
-
-- name: Resolve global credential fallback from bundle
-  ansible.builtin.set_fact:
-    bundle_global_credential: >-
-      {{
-        (
-          bundle_globals[claim_target.target_category]
-          if (
-            (claim_target.target_category | default('') | string | trim | length) > 0
-            and (claim_target.target_category in bundle_globals)
-          )
-          else
-          bundle_globals[claim_target.form_factor]
-          if (
-            (claim_target.form_factor | default('') | string | trim | length) > 0
-            and (claim_target.form_factor in bundle_globals)
-          )
-          else
-          bundle_globals[claim_target.management_type]
-          if (
-            (claim_target.management_type | default('') | string | trim | length) > 0
-            and (claim_target.management_type in bundle_globals)
-          )
-          else
-          bundle_globals['global']
-          if ('global' in bundle_globals)
-          else {}
-        )
-      }}
-  vars:
-    bundle_globals: "{{ device_credentials_bundle.globals | default({}) }}"
-  when: not (target_has_direct_claim_credentials | bool)
-  tags:
-    - configure
-    - verify
-
 - name: Derive matching credential candidates for claim target
   ansible.builtin.set_fact:
     matching_target_credentials: >-
@@ -147,16 +79,7 @@
 
 - name: Resolve selected target credential for claim target
   ansible.builtin.set_fact:
-    selected_target_credential: >-
-      {{
-        bundle_per_device_credential
-        if (bundle_per_device_credential | default({}) | length) > 0
-        else
-        bundle_global_credential
-        if (bundle_global_credential | default({}) | length) > 0
-        else
-        ((matching_target_credentials | default([]) | first) | default({}, true))
-      }}
+    selected_target_credential: "{{ (matching_target_credentials | default([]) | first) | default({}, true) }}"
   when: not (target_has_direct_claim_credentials | bool)
   tags:
     - configure
