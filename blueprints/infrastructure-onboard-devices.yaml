@@ -115,6 +115,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
+        - bootstrap_python_requirements: 'true'
         - platform_yaml: |
             platform:
               intersight:
@@ -304,6 +305,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
+        - bootstrap_python_requirements: 'true'
         - claim_targets_json: '{{ .grains.prepare_device_connector.outputs.prepared_claim_targets_json }}'
         - platform_yaml: |
             platform:
@@ -350,6 +352,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
+        - bootstrap_python_requirements: 'true'
         - platform_yaml: |
             platform:
               intersight:
