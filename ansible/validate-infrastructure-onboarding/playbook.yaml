@@ -258,10 +258,12 @@
           {{
             (
               inventory_devices
+              | selectattr('id', 'defined')
+              | selectattr('id', 'in', (item.members | default([])))
               | selectattr('serial', 'defined')
+              | map(attribute='serial')
               | list
             )
-            | json_query("[?contains(`" ~ ((item.members | default([])) | to_json) ~ "`, id)].serial")
             | map('string')
             | map('trim')
             | reject('equalto', '')
