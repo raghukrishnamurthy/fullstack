@@ -138,13 +138,11 @@
   retries: "{{ storage_assist_wait_retries }}"
   delay: "{{ storage_assist_wait_interval_seconds_normalized }}"
   until: >-
-    {{
-      (storage_assist_lookup.api_response | default([]) | length) > 0
-      and (
-        ((storage_assist_lookup.api_response | default([]) | first | default({})).Status | default('') | string | lower)
-        == 'connected'
-      )
-    }}
+    (storage_assist_lookup.api_response | default([]) | length) > 0
+    and (
+      ((storage_assist_lookup.api_response | default([]) | first | default({})).Status | default('') | string | lower)
+      == 'connected'
+    )
   when: claim_result is not defined
   tags:
     - claim
@@ -248,14 +246,12 @@
   retries: "{{ storage_assist_wait_retries }}"
   delay: "{{ storage_assist_wait_interval_seconds_normalized }}"
   until: >-
-    {{
-      not (
-        (
-          ((appliance_storage_claim_result.msg | default('')) ~ ' ' ~ (appliance_storage_claim_result.api_response | default({}) | to_json))
-          | lower
-        ) is search('aurora_target_assist_not_setup')
-      )
-    }}
+    not (
+      (
+        ((appliance_storage_claim_result.msg | default('')) ~ ' ' ~ (appliance_storage_claim_result.api_response | default({}) | to_json))
+        | lower
+      ) is search('aurora_target_assist_not_setup')
+    )
   no_log: true
   when: claim_result is not defined
   tags:
@@ -289,9 +285,7 @@
   retries: "{{ storage_assist_wait_retries }}"
   delay: "{{ storage_assist_wait_interval_seconds_normalized }}"
   until: >-
-    {{
-      (submitted_storage_target_lookup.api_response | default([]) | length) > 0
-    }}
+    (submitted_storage_target_lookup.api_response | default([]) | length) > 0
   when:
     - claim_result is not defined
     - appliance_storage_claim_result is defined
