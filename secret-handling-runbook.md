@@ -8,6 +8,7 @@ This runbook captures the secret-handling model validated on the `codex/secrets-
 - Device credentials stay target-scoped.
 - Control-plane credentials are expected to be supplied as environment-backed inputs.
 - Device credentials are expected to be supplied through structured YAML with secret references.
+- Encrypted device-secret bundles can be supplied separately and unwrapped at runtime into the same structured YAML contract.
 - Secret references can use:
   - `env://NAME`
   - `file:///absolute/path`
@@ -172,6 +173,9 @@ The blueprint-facing contract should separate customer-facing orchestration cred
   - `organization`
   - `intersight_api_key_id`
   - `intersight_api_private_key`
+- Optional encrypted bundle inputs:
+  - `encrypted_device_secret_bundle_path`
+  - `device_secret_bundle_key`
 - Device credential input:
   - one structured `credential_candidates_yaml` or `credential_candidates_json` payload
   - may contain either:
@@ -190,7 +194,35 @@ Expected runtime wiring:
 - `platform_yaml` references those values through:
   - `env://INTERSIGHT_API_KEY_ID`
   - `env://INTERSIGHT_API_PRIVATE_KEY`
+- when an encrypted device-secret bundle path is supplied, a prep grain decrypts it into sandbox-local files and emits `resolved_credential_candidates_yaml`
 - device credentials flow through the structured credential bundle and are resolved only in device-facing grains
+
+## Encrypted Bundle POC
+
+The focused claim blueprint now supports an optional encrypted bundle flow:
+
+- `encrypted_device_secret_bundle_path`
+- `device_secret_bundle_key`
+
+The encrypted archive should contain:
+
+- `credential_candidates.yaml`
+- referenced password files such as `fi-password.txt` and `rack-password.txt`
+
+Inside `credential_candidates.yaml`, use `__BUNDLE_ROOT__` as a placeholder for the runtime unpack path:
+
+```yaml
+device_credentials:
+  per_device:
+    FDO272406DE:
+      username: admin
+      password_ref: file://__BUNDLE_ROOT__/fi-password.txt
+    WZP270500PQ:
+      username: admin
+      password_ref: file://__BUNDLE_ROOT__/rack-password.txt
+```
+
+The prep grain decrypts and unpacks the archive into `/tmp`, rewrites `__BUNDLE_ROOT__`, and passes the resulting YAML contract downstream unchanged.
 
 ## Validated Branch Behavior
 

@@ -1,0 +1,142 @@
+---
+- name: Prepare device secret bundle
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    bundle_path_input: "{{ encrypted_device_secret_bundle_path | default('') | string | trim }}"
+    bundle_key_input: "{{ device_secret_bundle_key | default('') | string }}"
+    raw_credential_candidates_yaml: "{{ credential_candidates_yaml | default('{}') | string }}"
+    use_encrypted_bundle: "{{ bundle_path_input | length > 0 }}"
+    normalized_bundle_path: >-
+      {{
+        bundle_path_input
+        if (bundle_path_input.startswith('/'))
+        else ((lookup('ansible.builtin.env', 'PWD') | string | trim) ~ '/' ~ bundle_path_input)
+      }}
+    bundle_runtime_root: >-
+      {{
+        (bundle_output_root | default('/tmp/jarvis-device-secret-bundle') | string | trim)
+        ~ '/'
+        ~ (normalized_bundle_path | hash('sha1'))
+      }}
+    bundle_archive_path: "{{ bundle_runtime_root }}/device-secret-bundle.tar.gz"
+    bundle_unpack_path: "{{ bundle_runtime_root }}/bundle"
+    bundle_contract_path: "{{ bundle_unpack_path }}/credential_candidates.yaml"
+
+  pre_tasks:
+    - name: Validate device secret bundle contract
+      ansible.builtin.assert:
+        that:
+          - not use_encrypted_bundle or (bundle_key_input | length > 0)
+        fail_msg: "device_secret_bundle_key is required when encrypted_device_secret_bundle_path is provided"
+      tags:
+        - always
+        - validate
+
+  tasks:
+    - name: Initialize resolved device secret bundle outputs
+      ansible.builtin.set_fact:
+        resolved_credential_candidates_yaml: "{{ raw_credential_candidates_yaml }}"
+        resolved_device_secret_bundle_root: ""
+      tags:
+        - always
+        - outputs
+
+    - name: Ensure bundle runtime root exists
+      ansible.builtin.file:
+        path: "{{ bundle_runtime_root }}"
+        state: directory
+        mode: "0700"
+      when: use_encrypted_bundle
+      tags:
+        - configure
+        - secrets
+
+    - name: Decrypt encrypted device secret bundle
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - enc
+          - -d
+          - -aes-256-cbc
+          - -pbkdf2
+          - -pass
+          - env:DEVICE_SECRET_BUNDLE_KEY
+          - -in
+          - "{{ normalized_bundle_path }}"
+          - -out
+          - "{{ bundle_archive_path }}"
+      environment:
+        DEVICE_SECRET_BUNDLE_KEY: "{{ bundle_key_input }}"
+      when: use_encrypted_bundle
+      no_log: true
+      tags:
+        - configure
+        - secrets
+
+    - name: Ensure decrypted bundle extraction path exists
+      ansible.builtin.file:
+        path: "{{ bundle_unpack_path }}"
+        state: directory
+        mode: "0700"
+      when: use_encrypted_bundle
+      tags:
+        - configure
+        - secrets
+
+    - name: Extract decrypted device secret bundle
+      ansible.builtin.unarchive:
+        src: "{{ bundle_archive_path }}"
+        dest: "{{ bundle_unpack_path }}"
+        remote_src: true
+      when: use_encrypted_bundle
+      tags:
+        - configure
+        - secrets
+
+    - name: Validate decrypted bundle contract file exists
+      ansible.builtin.stat:
+        path: "{{ bundle_contract_path }}"
+      register: bundle_contract_stat
+      when: use_encrypted_bundle
+      tags:
+        - configure
+        - validate
+
+    - name: Assert decrypted bundle contains credential contract
+      ansible.builtin.assert:
+        that:
+          - bundle_contract_stat.stat.exists
+        fail_msg: "Encrypted bundle must contain credential_candidates.yaml at its archive root"
+      when: use_encrypted_bundle
+      tags:
+        - configure
+        - validate
+
+    - name: Read decrypted credential contract
+      ansible.builtin.set_fact:
+        resolved_credential_candidates_yaml: >-
+          {{
+            lookup('ansible.builtin.file', bundle_contract_path)
+            | regex_replace('__BUNDLE_ROOT__', bundle_unpack_path)
+          }}
+        resolved_device_secret_bundle_root: "{{ bundle_unpack_path }}"
+      when: use_encrypted_bundle
+      no_log: true
+      tags:
+        - configure
+        - outputs
+
+    - name: Export prepare-device-secret-bundle outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          resolved_credential_candidates_yaml: "{{ resolved_credential_candidates_yaml }}"
+          resolved_device_secret_bundle_root: "{{ resolved_device_secret_bundle_root }}"
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
+      tags:
+        - always
+        - outputs

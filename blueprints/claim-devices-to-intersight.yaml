@@ -19,6 +19,14 @@ inputs:
     type: string
     description: Intersight organization
     default: ai-prod
+  encrypted_device_secret_bundle_path:
+    type: string
+    description: Optional sandbox-local path to an encrypted device secret bundle archive
+    default: ''
+  device_secret_bundle_key:
+    type: string
+    description: Optional unwrap key used to decrypt encrypted_device_secret_bundle_path at runtime
+    default: ''
   credential_candidates_yaml:
     type: string
     description: Structured YAML or JSON device credential contract, including credential_candidates or device_credentials
@@ -28,8 +36,40 @@ inputs:
     description: JSON array of Intersight claim targets to process
     default: '[]'
 grains:
+  prepare_device_secret_bundle:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/prepare-device-secret-bundle/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - encrypted_device_secret_bundle_path: '{{ .inputs.encrypted_device_secret_bundle_path }}'
+        - device_secret_bundle_key: '{{ .inputs.device_secret_bundle_key }}'
+        - credential_candidates_yaml: |
+            {{ .inputs.credential_candidates_yaml }}
+      outputs:
+        - resolved_credential_candidates_yaml
+        - resolved_device_secret_bundle_root
+    on-destroy:
+      - source:
+          store: intersight-fullstack-repo
+          path: ansible/prepare-device-secret-bundle/playbook.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
   resolve_claim_target_credentials:
     kind: ansible
+    depends-on: prepare_device_secret_bundle
     spec:
       source:
         store: intersight-fullstack-repo
@@ -46,7 +86,7 @@ grains:
         - claim_targets_json: '{{ .inputs.claim_targets_json }}'
         - internal_debug_enabled: 'true'
         - credential_candidates_yaml: |
-            {{ .inputs.credential_candidates_yaml }}
+            {{ .grains.prepare_device_secret_bundle.outputs.resolved_credential_candidates_yaml }}
       outputs:
         - resolved_claim_targets_json
     on-destroy:
