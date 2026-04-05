@@ -1,0 +1,91 @@
+deployment_yaml: |
+  deployment:
+    id: ai-pod-sjc01-prod
+    site: sjc01
+    environment: prod
+
+api_uri: https://intersight.com/api/v1
+
+intersight_api_key_id: <your-intersight-api-key-id>
+intersight_api_private_key: |
+  -----BEGIN EC PRIVATE KEY-----
+  ...
+  -----END EC PRIVATE KEY-----
+
+placement_yaml: |
+  placement:
+    intersight:
+      organization: ai-prod
+      resource_group: ai-prod
+
+inventory_yaml: |
+  inventory:
+    devices:
+      - id: fi-a
+        category: fabric_interconnect
+        serial: FDO272406DE
+        mgmt_ip: 10.29.135.101
+
+      - id: fi-b
+        category: fabric_interconnect
+        serial: FDO272406CK
+        mgmt_ip: 10.29.135.102
+
+      - id: rack-server-01
+        category: server
+        serial: WZP270500PQ
+        mgmt_ip: 10.29.135.106
+        attributes:
+          form_factor: rack
+          management_type: standalone
+
+      - id: rack-server-02
+        category: server
+        serial: WZP270500PV
+        mgmt_ip: 10.29.135.107
+        attributes:
+          form_factor: rack
+          management_type: standalone
+
+      - id: rack-server-03
+        category: server
+        serial: WZP270500PA
+        mgmt_ip: 10.29.135.108
+        attributes:
+          form_factor: rack
+          management_type: standalone
+
+      - id: rack-server-04
+        category: server
+        serial: WZP280393WA
+        mgmt_ip: 10.29.135.109
+        attributes:
+          form_factor: rack
+          management_type: standalone
+
+    domains:
+      - domain_id: domain-01
+        type: fi_pair
+        members:
+          - fi-a
+          - fi-b
+
+solution_yaml: |
+  solution:
+    profile: virtualization_foundation
+    delivery_scope: infrastructure
+
+fi_target_username: admin
+fi_target_password: <fi-target-password>
+
+rack_target_username: admin
+rack_target_password: <rack-target-password>
+
+manufacturing_rack_username: admin
+manufacturing_rack_password: <manufacturing-rack-password-if-needed>
+
+validation_mode: live
+execution_intent: apply
+wait_for_completion: "true"
+validation_poll_interval: "30"
+validation_timeout_seconds: "600"

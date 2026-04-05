@@ -1,0 +1,135 @@
+{
+  "deployment": {
+    "id": "ai-pod-sjc01-prod",
+    "site": "sjc01",
+    "environment": "prod"
+  },
+  "platform": {
+    "intersight": {
+      "endpoint": "https://intersight.com/api/v1",
+      "validate_certs": false
+    }
+  },
+  "placement": {
+    "intersight": {
+      "organization": "ai-prod",
+      "resource_group": "ai-prod"
+    }
+  },
+  "solution": {
+    "profile": "virtualization_foundation",
+    "delivery_scope": "infrastructure"
+  },
+  "site": {
+    "id": "sjc01"
+  },
+  "inventory": {
+    "defaults": {
+      "server_management_type": "standalone"
+    },
+    "devices": [
+      {
+        "id": "fi-a",
+        "category": "fabric_interconnect",
+        "serial": "FDO272406DE",
+        "mgmt_ip": "10.29.135.101"
+      },
+      {
+        "id": "fi-b",
+        "category": "fabric_interconnect",
+        "serial": "FDO272406CK",
+        "mgmt_ip": "10.29.135.102"
+      },
+      {
+        "id": "blade-01",
+        "category": "server",
+        "serial": "FCH270978FF",
+        "attributes": {
+          "form_factor": "blade",
+          "management_type": "fi_managed"
+        }
+      },
+      {
+        "id": "blade-02",
+        "category": "server",
+        "serial": "FCH270978GL",
+        "attributes": {
+          "form_factor": "blade",
+          "management_type": "fi_managed"
+        }
+      },
+      {
+        "id": "blade-03",
+        "category": "server",
+        "serial": "FCH264272FA",
+        "attributes": {
+          "form_factor": "blade",
+          "management_type": "fi_managed"
+        }
+      },
+      {
+        "id": "blade-04",
+        "category": "server",
+        "serial": "FCH270177BF",
+        "attributes": {
+          "form_factor": "blade",
+          "management_type": "fi_managed"
+        }
+      },
+      {
+        "id": "rack-server-01",
+        "category": "server",
+        "serial": "WZP270500PQ",
+        "mgmt_ip": "10.29.135.106",
+        "attributes": {
+          "form_factor": "rack",
+          "management_type": "standalone"
+        }
+      },
+      {
+        "id": "rack-server-02",
+        "category": "server",
+        "serial": "WZP270500PV",
+        "mgmt_ip": "10.29.135.107",
+        "attributes": {
+          "form_factor": "rack",
+          "management_type": "standalone"
+        }
+      },
+      {
+        "id": "rack-server-03",
+        "category": "server",
+        "serial": "WZP270500PA",
+        "mgmt_ip": "10.29.135.108",
+        "attributes": {
+          "form_factor": "rack",
+          "management_type": "standalone"
+        }
+      },
+      {
+        "id": "rack-server-04",
+        "category": "server",
+        "serial": "WZP280393WA",
+        "mgmt_ip": "10.29.135.109",
+        "attributes": {
+          "form_factor": "rack",
+          "management_type": "standalone"
+        }
+      }
+    ],
+    "domains": [
+      {
+        "domain_id": "domain-01",
+        "type": "fi_pair",
+        "members": [
+          "fi-a",
+          "fi-b"
+        ],
+        "summary": {
+          "chassis_count": 1,
+          "blade_count": 4
+        }
+      }
+    ]
+  }
+}
