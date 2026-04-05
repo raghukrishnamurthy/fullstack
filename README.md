@@ -181,6 +181,7 @@ Assumptions:
 - `credential_candidates_json` is an optional override contract for target credential candidates
 - the public onboarding blueprint now primarily uses direct credential inputs such as `fi_target_password`, `rack_target_password`, and `manufacturing_rack_password`, and only falls back to `credential_candidates_json` when an explicit override is needed
 - today those password values are still provided through blueprint inputs and mapped into env-backed refs during execution; this is intentional for the current implementation and will be revisited later when we harden the secret-management story
+- current examples and test runs often assume one shared FI password and one shared rack password for convenience; per-device credentials should also be considered supported by the underlying credential-candidate and claim-target contracts, even though that path is not the primary test shape today
 - rack-server flows can use typed candidates such as:
   `manufacturing` for factory/default login and `target` for the desired post-rotation credential
 - in the main prepare-and-claim flow, standalone rack targets are expected to already use the desired credential

@@ -82,6 +82,7 @@ Unified Jarvis grain for claiming prepared targets into either Intersight SaaS o
 
 - This grain intentionally keeps the public blueprint contract stable while allowing backend-specific claim mechanics to evolve internally.
 - Today, the public onboarding and claim wrappers still pass FI, rack, and manufacturing passwords through direct blueprint inputs that are mapped to environment variables such as `env://FI_TARGET_PASSWORD` and `env://RACK_TARGET_PASSWORD`.
+- Current examples and test runs often use shared FI and rack passwords for convenience; per-device credential values and refs should also be considered supported by the claim target contract and credential-resolution path, even though that is not the primary test shape today.
 - Secret-manager-native references such as `vault://...` are expected to be revisited in a later hardening pass; the current implementation keeps the credential contract explicit so the phased claim flow can be validated end to end first.
 - Validation timing can still exceed claim submission timing, especially on appliance backends where inventory convergence lags behind `appliance.DeviceClaim` submission.
 - Customers can omit Assist and storage entirely; Assist dependency handling only applies when a storage target references an Assist in the current claim run.
