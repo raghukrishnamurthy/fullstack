@@ -22,7 +22,18 @@
       results: "{{ claim_results }}"
   vars:
     claim_aggregate_batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
-    claim_aggregate_appliance_result_count: "{{ (claim_results | selectattr('execution_mode', 'defined') | selectattr('execution_mode', 'equalto', 'appliance_claim') | list | length) if claim_backend_type == 'appliance' else 0 }}"
+    claim_aggregate_appliance_result_count: >-
+      {{
+        (
+          claim_results
+          | selectattr('execution_mode', 'defined')
+          | selectattr('execution_mode', 'match', '^appliance_')
+          | list
+          | length
+        )
+        if claim_backend_type == 'appliance'
+        else 0
+      }}
     claim_aggregate_saas_result_count: "{{ (claim_results | length) if claim_backend_type == 'saas' else 0 }}"
   tags:
     - outputs

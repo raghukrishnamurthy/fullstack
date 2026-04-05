@@ -168,7 +168,14 @@
       {%- else -%}
       claimed_and_configured
       {%- endif -%}
-    direct_claim_message: "{{ pva_appliance_claim_result.msg | default('Claim submitted successfully.') }}"
+    direct_claim_message: >-
+      {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
+      Claim target is already claimed and compliant.
+      {%- elif 'already exists' in pva_claim_error_text_lower -%}
+      Claim target is already claimed and compliant.
+      {%- else -%}
+      {{ pva_appliance_claim_result.msg | default('Claim submitted successfully.') }}
+      {%- endif -%}
   no_log: false
   when: claim_result is not defined
   tags:
