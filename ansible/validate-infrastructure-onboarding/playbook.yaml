@@ -94,20 +94,9 @@
     api_private_key_env_name: "{{ (api_private_key_ref is string and api_private_key_ref.startswith('env://')) | ternary(api_private_key_ref | regex_replace('^env://', ''), '') }}"
     resolved_api_key_id: "{{ lookup('ansible.builtin.env', api_key_id_env_name) if (api_key_id_env_name | length > 0) else '' }}"
     resolved_api_private_key: "{{ lookup('ansible.builtin.env', api_private_key_env_name) if (api_private_key_env_name | length > 0) else '' }}"
-    wait_for_completion_normalized: "{{ (wait_for_completion | default('false') | string | lower) in ['true', '1', 'yes'] }}"
-    validation_poll_interval_normalized: "{{ validation_poll_interval | default(60) | int }}"
-    validation_timeout_seconds_normalized: "{{ validation_timeout_seconds | default(3600) | int }}"
-    validation_max_attempts_normalized: >-
-      {{
-        1
-        if not wait_for_completion_normalized
-        else
-        (
-          ((validation_timeout_seconds_normalized | float) / (((validation_poll_interval_normalized | int) if (validation_poll_interval_normalized | int) > 0 else 1) | float))
-          | round(0, 'ceil')
-          | int
-        ) + 1
-      }}
+    wait_for_completion_requested: "{{ wait_for_completion | default('false') }}"
+    validation_poll_interval_requested: "{{ validation_poll_interval | default(60) }}"
+    validation_timeout_seconds_requested: "{{ validation_timeout_seconds | default(3600) }}"
     runtime_live_validation_capable: >-
       {{
         (normalized_intersight_endpoint | length > 0)
@@ -178,6 +167,34 @@
     present_direct_target_count: "{{ present_direct_rack_count + present_direct_fi_pair_count }}"
 
   pre_tasks:
+    - name: Normalize polling configuration inputs
+      ansible.builtin.set_fact:
+        wait_for_completion_normalized: "{{ (wait_for_completion_requested | string | lower) in ['true', '1', 'yes'] }}"
+        validation_poll_interval_normalized: "{{ validation_poll_interval_requested | int }}"
+        validation_timeout_seconds_normalized: "{{ validation_timeout_seconds_requested | int }}"
+      tags:
+        - always
+        - validate
+        - precheck
+
+    - name: Compute max validation attempts
+      ansible.builtin.set_fact:
+        validation_max_attempts_normalized: >-
+          {{
+            1
+            if not wait_for_completion_normalized
+            else
+            (
+              ((validation_timeout_seconds_normalized | float) / (((validation_poll_interval_normalized | int) if (validation_poll_interval_normalized | int) > 0 else 1) | float))
+              | round(0, 'ceil')
+              | int
+            ) + 1
+          }}
+      tags:
+        - always
+        - validate
+        - precheck
+
     - name: Validate onboarding completion input contract
       ansible.builtin.assert:
         that:
@@ -202,9 +219,9 @@
     - name: Validate polling configuration inputs
       ansible.builtin.assert:
         that:
-          - validation_poll_interval_normalized >= 0
-          - validation_timeout_seconds_normalized >= 0
-          - validation_max_attempts_normalized > 0
+          - (validation_poll_interval_normalized | int) >= 0
+          - (validation_timeout_seconds_normalized | int) >= 0
+          - (validation_max_attempts_normalized | int) > 0
         fail_msg: "validation_poll_interval and validation_timeout_seconds must be 0 or greater"
       tags:
         - always
