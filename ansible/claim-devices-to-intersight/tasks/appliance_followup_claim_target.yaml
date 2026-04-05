@@ -66,47 +66,7 @@
     - verify
 
 - name: Build enriched appliance claim result
-  ansible.builtin.set_fact:
-    current_enriched_claim_result: >-
-      {{
-        claim_result_item
-        | combine(
-            {
-              'status': enriched_claim_status,
-              'reason': enriched_claim_reason,
-              'appliance_claim_execution': (
-                claim_result_item.appliance_claim_execution
-                | combine(
-                    {
-                      'status': enriched_claim_status,
-                      'reason': enriched_claim_reason,
-                      'payload': (
-                        (claim_result_item.appliance_claim_execution.payload | default({}))
-                        | combine(
-                            {
-                              'workflow_found': ((pva_claim_workflow_results | default([])) | length) > 0,
-                              'workflow_count': (pva_claim_workflow_results | default([]) | length),
-                              'latest_workflow_status': (pva_claim_latest_workflow.Status | default('')),
-                              'latest_workflow_moid': (pva_claim_latest_workflow.Moid | default('')),
-                              'latest_workflow_name': (pva_claim_latest_workflow.Name | default('')),
-                              'latest_workflow_progress': (pva_claim_latest_workflow.Progress | default(0)),
-                              'device_claim_found': ((pva_claim_device_claim_results | default([])) | length) > 0,
-                              'device_claim_count': (pva_claim_device_claim_results | default([]) | length),
-                              'latest_device_claim_status': (pva_claim_latest_device_claim.Status | default('')),
-                              'latest_device_claim_moid': (pva_claim_latest_device_claim.Moid | default('')),
-                              'latest_device_claim_message': (pva_claim_latest_device_claim.Message | default(''))
-                            },
-                            recursive=True
-                          )
-                      )
-                    },
-                    recursive=True
-                  )
-              )
-            },
-            recursive=True
-          )
-      }}
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_appliance_followup_claim_result.yaml"
   vars:
     latest_workflow_status: "{{ pva_claim_latest_workflow.Status | default('') | string | upper }}"
     latest_device_claim_status: "{{ pva_claim_latest_device_claim.Status | default('') | string | lower }}"
@@ -126,6 +86,17 @@
       {%- else -%}
       {{ claim_result_item.reason }}
       {%- endif -%}
+    appliance_followup_workflow_found: "{{ ((pva_claim_workflow_results | default([])) | length) > 0 }}"
+    appliance_followup_workflow_count: "{{ pva_claim_workflow_results | default([]) | length }}"
+    appliance_followup_latest_workflow_status: "{{ pva_claim_latest_workflow.Status | default('') }}"
+    appliance_followup_latest_workflow_moid: "{{ pva_claim_latest_workflow.Moid | default('') }}"
+    appliance_followup_latest_workflow_name: "{{ pva_claim_latest_workflow.Name | default('') }}"
+    appliance_followup_latest_workflow_progress: "{{ pva_claim_latest_workflow.Progress | default(0) }}"
+    appliance_followup_device_claim_found: "{{ ((pva_claim_device_claim_results | default([])) | length) > 0 }}"
+    appliance_followup_device_claim_count: "{{ pva_claim_device_claim_results | default([]) | length }}"
+    appliance_followup_latest_device_claim_status: "{{ pva_claim_latest_device_claim.Status | default('') }}"
+    appliance_followup_latest_device_claim_moid: "{{ pva_claim_latest_device_claim.Moid | default('') }}"
+    appliance_followup_latest_device_claim_message: "{{ pva_claim_latest_device_claim.Message | default('') }}"
   when:
     - (claim_result_item.execution_mode | default('')) == 'appliance_claim'
     - (claim_result_item.status | default('')) == 'submitted'

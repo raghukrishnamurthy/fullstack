@@ -1,0 +1,46 @@
+---
+- name: Build enriched appliance follow-up claim result
+  ansible.builtin.set_fact:
+    current_enriched_claim_result: >-
+      {{
+        claim_result_item
+        | combine(
+            {
+              'status': enriched_claim_status,
+              'reason': enriched_claim_reason,
+              'appliance_claim_execution': (
+                claim_result_item.appliance_claim_execution
+                | combine(
+                    {
+                      'status': enriched_claim_status,
+                      'reason': enriched_claim_reason,
+                      'payload': (
+                        (claim_result_item.appliance_claim_execution.payload | default({}))
+                        | combine(
+                            {
+                              'workflow_found': appliance_followup_workflow_found | bool,
+                              'workflow_count': appliance_followup_workflow_count | int,
+                              'latest_workflow_status': appliance_followup_latest_workflow_status | default(''),
+                              'latest_workflow_moid': appliance_followup_latest_workflow_moid | default(''),
+                              'latest_workflow_name': appliance_followup_latest_workflow_name | default(''),
+                              'latest_workflow_progress': appliance_followup_latest_workflow_progress | default(0),
+                              'device_claim_found': appliance_followup_device_claim_found | bool,
+                              'device_claim_count': appliance_followup_device_claim_count | int,
+                              'latest_device_claim_status': appliance_followup_latest_device_claim_status | default(''),
+                              'latest_device_claim_moid': appliance_followup_latest_device_claim_moid | default(''),
+                              'latest_device_claim_message': appliance_followup_latest_device_claim_message | default('')
+                            },
+                            recursive=True
+                          )
+                      )
+                    },
+                    recursive=True
+                  )
+              )
+            },
+            recursive=True
+          )
+      }}
+  tags:
+    - claim
+    - verify
