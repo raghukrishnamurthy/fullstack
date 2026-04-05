@@ -74,8 +74,9 @@ Planned internal grain composition:
    - remains an internal reusable resolver grain rather than a user-facing phase blueprint
 
 4. `claim-devices-to-intersight`
-   - claims prepared FI and rack targets into the requested Intersight backend
+   - claims prepared FI, rack, Assist, and supported storage targets into the requested Intersight backend
    - assumes organization/context and other claim prerequisites are already satisfied within the higher stack orchestration model
+   - handles storage through a referenced Assist path when storage targets are present, without forcing Assist dependency into direct-only onboarding runs
 
 5. `validate-infrastructure-onboarding`
    - interpret preflight readiness, onboarding action execution, and live-validation evidence
@@ -104,6 +105,7 @@ This phase should be considered ready when:
 - declared direct onboarding targets have been discovered or reconciled against current Intersight state
 - standalone rack devices needing credential normalization have either been corrected or clearly reported as blockers
 - direct onboarding targets have been claimed or confirmed already onboarded
+- referenced Assist-backed storage targets, when requested, have either been submitted cleanly or reported with explicit Assist dependency failures
 - resulting direct onboarding targets are validated as ready for downstream infrastructure provisioning phases
 
 Behavior expectations:

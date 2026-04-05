@@ -321,5 +321,6 @@ solution:
 - `inventory.storage` is for third-party storage onboarding.
   Use a user-facing `platform` such as `pure`; the claim grain maps that to the API target type internally.
   For the currently wired Pure flow, reference the Assist by inventory name via `assist: assist01`.
+  Storage introduces an Assist dependency only when storage targets are present in the run; customers can still onboard direct infrastructure first and add Assist or storage later.
 - The public blueprint surface now uses JSON-string inputs such as `deployment_json`, `placement_json`, `inventory_json`, and `solution_json`.
 - `execution_intent: validate_only` is the safest first run.

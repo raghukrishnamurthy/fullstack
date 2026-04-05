@@ -11,7 +11,7 @@ Blueprint file:
 
 | Repo Path | Torque Store | Blueprint Use | Notes |
 | --- | --- | --- | --- |
-| `ansible/claim-devices-to-intersight/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Unified claim execution |
+| `ansible/claim-devices-to-intersight/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Unified claim execution with shared helper-task library and normalized outputs |
 | `ansible/claim-devices-to-intersight/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |
 | `ansible/reset-standalone-rack-password/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Standalone rack password reset |
 | `ansible/reset-standalone-rack-password/teardown.yaml` | `intersight-fullstack-repo` | Grain source | Explicit no-op destroy |

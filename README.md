@@ -111,7 +111,7 @@ Files:
 - `ansible/prepare-device-connector/`
   Explicit device-connector preparation grain used in the shared onboarding flow
 - `ansible/claim-devices-to-intersight/`
-  Unified claim grain that routes internally to SaaS or appliance logic and exports one stable final claim contract
+  Unified claim grain that routes internally to SaaS or appliance logic, uses shared helper tasks for claim/result handling, and exports one stable final claim contract
 - `ansible/infrastructure-network-provisioning/`
   First working planning grain for shared FI and fabric/network foundation under the infrastructure stack model
 - `ansible/validate-infrastructure-onboarding/`
@@ -236,6 +236,8 @@ Current checkpoint:
 - PVA flow is proven live for:
   - one FI pair claim unit derived from a declared `fi_pair` domain
   - standalone rack claim targets
+- storage claim now depends on the referenced Assist only when storage targets are included in the run
+- appliance storage short-circuits existing storage targets first, then waits for the referenced Assist to reach `Connected` before submitting new storage claims
 - appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
 - the focused claim blueprint now uses the simplified grain-level chain:
   - `prepare-claim-target-credentials`
