@@ -1,4 +1,4 @@
-deployment_yaml: |
+deployment_json: |
   deployment:
     id: ai-pod-sjc01-prod
     site: sjc01

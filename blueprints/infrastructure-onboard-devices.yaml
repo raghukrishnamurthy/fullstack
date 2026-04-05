@@ -5,7 +5,7 @@ inputs:
     type: agent
     title: Torque Agent
     description: Torque agent that runs this workflow.
-  deployment_yaml:
+  deployment_json:
     type: string
     description: JSON deployment context for the infrastructure domain
   api_uri:
@@ -190,7 +190,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - deployment_json: '{{ .inputs.deployment_json }}'
         - targets_json: '{{ .grains.build_infrastructure_onboarding_targets.outputs.reset_targets_json }}'
         - credential_candidates_yaml: |
             {{ .inputs.credential_candidates_json }}
@@ -313,7 +313,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - deployment_json: '{{ .inputs.deployment_json }}'
         - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
       outputs:
         - batch_status
