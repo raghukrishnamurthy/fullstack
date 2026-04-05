@@ -164,7 +164,7 @@
         ) == (direct_fi_pair_serials | length)
         else 0
       }}
-    present_direct_target_count: "{{ present_direct_rack_count + present_direct_fi_pair_count }}"
+    present_direct_target_count: "{{ (present_direct_rack_count | int) + (present_direct_fi_pair_count | int) }}"
 
   pre_tasks:
     - name: Normalize polling configuration inputs
