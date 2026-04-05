@@ -573,7 +573,7 @@
 
 - name: Resolve SaaS direct claim outcome
   ansible.builtin.set_fact:
-    direct_claim_status: >-
+    saas_direct_claim_status: >-
       {%- if (saas_claim_result.failed | default(false) | bool) -%}
       failed
       {%- elif 'conflict' in claim_error_text_lower -%}
@@ -583,7 +583,7 @@
       {%- else -%}
       submitted
       {%- endif -%}
-    direct_claim_reason: >-
+    saas_direct_claim_reason: >-
       {%- if (saas_claim_result.failed | default(false) | bool) -%}
       claim_submission_failed
       {%- elif 'conflict' in claim_error_text_lower -%}
@@ -593,7 +593,7 @@
       {%- else -%}
       claimed_and_configured
       {%- endif -%}
-    direct_claim_message: >-
+    saas_direct_claim_message: >-
       {%- if (saas_claim_result.failed | default(false) | bool) -%}
       {{ saas_claim_result.msg | default('Claim submission failed') }}
       {%- elif 'conflict' in claim_error_text_lower -%}
@@ -622,9 +622,9 @@
     direct_claim_management_type: "{{ effective_target_context.management_type | default(claim_target_context.management_type | default('')) }}"
     direct_claim_canonical_endpoint: "{{ resolved_endpoint }}"
     direct_claim_execution_mode: saas_claim
-    direct_claim_status: "{{ direct_claim_status }}"
-    direct_claim_reason: "{{ direct_claim_reason }}"
-    direct_claim_message: "{{ direct_claim_message }}"
+    direct_claim_status: "{{ saas_direct_claim_status }}"
+    direct_claim_reason: "{{ saas_direct_claim_reason }}"
+    direct_claim_message: "{{ saas_direct_claim_message }}"
     direct_claim_include_changed: true
     direct_claim_changed: "{{ saas_claim_result.changed | default(false) | bool }}"
     direct_claim_include_device_type: true
