@@ -1,0 +1,23 @@
+---
+- name: Resolve shared claim target base context
+  ansible.builtin.set_fact:
+    claim_target_context: "{{ hostvars[inventory_hostname].claim_target_context | default({}) }}"
+    resolved_endpoint: "{{ (claim_target_context.endpoint | default(claim_target_context.canonical_endpoint | default(''))) | string | trim }}"
+  tags:
+    - claim
+    - aggregate
+
+- name: Resolve shared normalized claim key
+  ansible.builtin.set_fact:
+    normalized_claim_key: >-
+      {{
+        (
+          claim_target_context.normalized_claim_key
+          | default(claim_normalized_key_fallback | default(resolved_endpoint))
+        )
+        | string
+        | trim
+      }}
+  tags:
+    - claim
+    - aggregate

@@ -1,0 +1,59 @@
+---
+- name: Build normalized direct claim result
+  ansible.builtin.set_fact:
+    claim_result: >-
+      {{
+        {
+          'target_id': direct_claim_target_id,
+          'target_category': direct_claim_target_category,
+          'serial': direct_claim_serial,
+          'mgmt_ip': direct_claim_mgmt_ip,
+          'form_factor': direct_claim_form_factor,
+          'management_type': direct_claim_management_type,
+          'endpoint': resolved_endpoint,
+          'canonical_endpoint': direct_claim_canonical_endpoint,
+          'normalized_claim_key': normalized_claim_key,
+          'deployment_name': internal_deployment_name | default(''),
+          'organization': internal_organization | default(''),
+          'execution_mode': direct_claim_execution_mode,
+          'status': direct_claim_status,
+          'reason': direct_claim_reason,
+          'messages': [direct_claim_message]
+        }
+        | combine(
+            {'executed': direct_claim_executed | bool}
+            if (direct_claim_include_executed | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'changed': direct_claim_changed | bool}
+            if (direct_claim_include_changed | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'device_type': direct_claim_device_type}
+            if (direct_claim_include_device_type | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {
+              'registration_found': direct_claim_registration_found | default(false) | bool,
+              'registration_moid': direct_claim_registration_moid | default('')
+            }
+            if (direct_claim_include_registration_fields | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'appliance_claim_execution': direct_claim_execution_payload}
+            if (direct_claim_include_execution_payload | default(false) | bool)
+            else {},
+            recursive=True
+          )
+      }}
+  tags:
+    - claim
+    - aggregate

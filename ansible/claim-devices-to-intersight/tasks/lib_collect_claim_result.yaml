@@ -1,0 +1,81 @@
+---
+- name: Collect normalized claim result on localhost
+  ansible.builtin.set_fact:
+    claim_results: "{{ (hostvars['localhost'].claim_results | default([])) + [claim_result] }}"
+    successful_result_items: >-
+      {{
+        (hostvars['localhost'].successful_result_items | default([]))
+        + ([claim_result] if (claim_result.status | default('')) in (claim_success_statuses | default(['submitted', 'already_claimed'])) else [])
+      }}
+    failed_result_items: >-
+      {{
+        (hostvars['localhost'].failed_result_items | default([]))
+        + ([claim_result] if (claim_result.status | default('')) == 'failed' else [])
+      }}
+    conflict_result_items: >-
+      {{
+        (hostvars['localhost'].conflict_result_items | default([]))
+        + ([claim_result] if (claim_result.status | default('')) == 'conflict' else [])
+      }}
+    skipped_result_items: >-
+      {{
+        (hostvars['localhost'].skipped_result_items | default([]))
+        + ([claim_result] if (claim_result.status | default('')) == 'skipped' else [])
+      }}
+    changed_result_items: >-
+      {{
+        (hostvars['localhost'].changed_result_items | default([]))
+        + (
+            [claim_result]
+            if (
+              claim_result.changed
+              | default(
+                  (
+                    claim_result.executed | default(false) | bool
+                  )
+                  and (
+                    (claim_result.status | default('')) == 'submitted'
+                  )
+                )
+              | bool
+            )
+            else []
+          )
+      }}
+    seen_claim_target_map: >-
+      {{
+        (hostvars['localhost'].seen_claim_target_map | default({}))
+        | combine(
+            (
+              {
+                (claim_result.normalized_claim_key): (
+                  claim_result.canonical_endpoint | default(claim_result.endpoint)
+                )
+              }
+              if (
+                claim_track_seen_map | default(false) | bool
+                and (claim_result.normalized_claim_key | default('') | string | trim | length) > 0
+                and (claim_result.status | default('')) not in (claim_seen_map_status_exclusions | default(['failed']))
+                and (
+                  not (claim_seen_map_only_if_absent | default(true) | bool)
+                  or (
+                    (
+                      (hostvars['localhost'].seen_claim_target_map | default({}))
+                      .get(claim_result.normalized_claim_key | default(''), '')
+                    )
+                    | string
+                    | trim
+                    | length
+                  ) == 0
+                )
+              )
+              else {}
+            ),
+            recursive=True
+          )
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  tags:
+    - claim
+    - aggregate

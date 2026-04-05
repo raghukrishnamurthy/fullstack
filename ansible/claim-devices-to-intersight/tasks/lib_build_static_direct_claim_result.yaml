@@ -1,0 +1,62 @@
+---
+- name: Build static direct claim result
+  ansible.builtin.set_fact:
+    claim_result: >-
+      {{
+        {
+          'target_id': static_direct_target_id | default(claim_target_context.target_id | default('')),
+          'target_category': static_direct_target_category | default(claim_target_context.target_category | default('unknown')),
+          'serial': static_direct_serial | default(claim_target_context.serial | default('')),
+          'mgmt_ip': static_direct_mgmt_ip | default(claim_target_context.mgmt_ip | default('')),
+          'form_factor': static_direct_form_factor | default(claim_target_context.form_factor | default('')),
+          'management_type': static_direct_management_type | default(claim_target_context.management_type | default('')),
+          'endpoint': static_direct_endpoint | default(resolved_endpoint),
+          'canonical_endpoint': static_direct_canonical_endpoint | default(resolved_endpoint),
+          'normalized_claim_key': static_direct_normalized_claim_key | default(normalized_claim_key),
+          'deployment_name': internal_deployment_name | default(''),
+          'organization': internal_organization | default(''),
+          'execution_mode': static_direct_execution_mode,
+          'status': static_direct_status,
+          'reason': static_direct_reason,
+          'messages': (
+            static_direct_messages
+            | default([static_direct_message])
+          )
+        }
+        | combine(
+            {'executed': static_direct_executed | bool}
+            if (static_direct_include_executed | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'changed': static_direct_changed | bool}
+            if (static_direct_include_changed | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'device_type': static_direct_device_type}
+            if (static_direct_include_device_type | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {
+              'registration_found': static_direct_registration_found | default(false) | bool,
+              'registration_moid': static_direct_registration_moid | default('')
+            }
+            if (static_direct_include_registration_fields | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'appliance_claim_execution': static_direct_execution_payload}
+            if (static_direct_include_execution_payload | default(false) | bool)
+            else {},
+            recursive=True
+          )
+      }}
+  tags:
+    - claim
+    - aggregate

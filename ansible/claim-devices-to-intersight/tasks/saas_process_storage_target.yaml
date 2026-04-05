@@ -1,19 +1,8 @@
 ---
 - name: Resolve SaaS storage claim target context
-  ansible.builtin.set_fact:
-    claim_target_context: "{{ hostvars[inventory_hostname].claim_target_context | default({}) }}"
-    resolved_endpoint: "{{ (claim_target_context.endpoint | default(claim_target_context.canonical_endpoint | default(''))) | string | trim }}"
-    storage_platform: "{{ claim_target_context.storage_platform | default('') | string | trim | lower }}"
-    assist_name: "{{ claim_target_context.assist_name | default('') | string | trim }}"
-    normalized_claim_key: >-
-      {{
-        (
-          claim_target_context.normalized_claim_key
-          | default(claim_target_context.target_id | default(resolved_endpoint))
-        )
-        | string
-        | trim
-      }}
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_claim_context.yaml"
+  vars:
+    claim_normalized_key_fallback: "{{ (hostvars[inventory_hostname].claim_target_context | default({})).target_id | default('') }}"
   tags:
     - claim
     - aggregate
@@ -26,34 +15,16 @@
           'pure': 'PureStorageFlashArray'
         }.get(storage_platform, '')
       }}
-    claim_target_username: "{{ claim_target_context.claim_username | default('') | string | trim }}"
-    claim_target_password_ref: "{{ claim_target_context.claim_password_ref | default('') | string | trim }}"
-    claim_target_password_direct: "{{ claim_target_context.claim_password | default('') | string }}"
-    claim_target_password_env_name: >-
-      {{
-        (claim_target_context.claim_password_ref | regex_replace('^env://', ''))
-        if (
-          (claim_target_context.claim_password_ref | default('') | string | trim | length) > 0
-          and (claim_target_context.claim_password_ref | string).startswith('env://')
-        )
-        else ''
-      }}
+    storage_platform: "{{ claim_target_context.storage_platform | default('') | string | trim | lower }}"
+    assist_name: "{{ claim_target_context.assist_name | default('') | string | trim }}"
   tags:
     - claim
     - aggregate
 
-- name: Resolve SaaS storage target password value
-  ansible.builtin.set_fact:
-    claim_target_password: >-
-      {{
-        claim_target_password_direct
-        if (claim_target_password_direct | trim | length) > 0
-        else
-        lookup('ansible.builtin.env', claim_target_password_env_name)
-        if (claim_target_password_env_name | string | trim | length) > 0
-        else ''
-      }}
-  no_log: true
+- name: Resolve SaaS storage claim credentials
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_claim_credentials.yaml"
+  vars:
+    claim_credentials_no_log: true
   tags:
     - claim
     - aggregate
@@ -84,28 +55,18 @@
     - aggregate
 
 - name: Skip duplicate logical SaaS storage target before submission
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ canonical_claim_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: storage
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      execution_mode: saas_storage_target_claim
-      status: skipped
-      changed: false
-      reason: duplicate_logical_target
-      registration_found: false
-      registration_moid: ''
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - "Skipped storage claim submission because this target resolves to the same logical target as {{ canonical_claim_endpoint }}."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_storage_claim_result.yaml"
+  vars:
+    static_storage_execution_mode: saas_storage_target_claim
+    static_storage_status: skipped
+    static_storage_reason: duplicate_logical_target
+    static_storage_message: "Skipped storage claim submission because this target resolves to the same logical target as {{ canonical_claim_endpoint }}."
+    static_storage_canonical_endpoint: "{{ canonical_claim_endpoint }}"
+    static_storage_include_changed: true
+    static_storage_changed: false
+    static_storage_include_registration_fields: true
+    static_storage_registration_found: false
+    static_storage_registration_moid: ''
   when: claim_duplicate_detected | default(false) | bool
   tags:
     - claim
@@ -165,28 +126,17 @@
     - verify
 
 - name: Record missing Assist lookup for SaaS storage claim
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: storage
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      execution_mode: saas_storage_target_claim
-      status: failed
-      changed: false
-      reason: assist_not_found
-      registration_found: false
-      registration_moid: ''
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - "Storage target Assist '{{ assist_name }}' was not found in the current Intersight control plane."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_storage_claim_result.yaml"
+  vars:
+    static_storage_execution_mode: saas_storage_target_claim
+    static_storage_status: failed
+    static_storage_reason: assist_not_found
+    static_storage_message: "Storage target Assist '{{ assist_name }}' was not found in the current Intersight control plane."
+    static_storage_include_changed: true
+    static_storage_changed: false
+    static_storage_include_registration_fields: true
+    static_storage_registration_found: false
+    static_storage_registration_moid: ''
   when:
     - claim_result is not defined
     - (storage_assist_lookup.api_response | default([]) | length) == 0
@@ -195,28 +145,17 @@
     - aggregate
 
 - name: Record unusable Assist state for SaaS storage claim
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: storage
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      execution_mode: saas_storage_target_claim
-      status: failed
-      changed: false
-      reason: assist_not_ready
-      registration_found: false
-      registration_moid: ''
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - "Storage target Assist '{{ assist_name }}' exists but is not Connected."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_storage_claim_result.yaml"
+  vars:
+    static_storage_execution_mode: saas_storage_target_claim
+    static_storage_status: failed
+    static_storage_reason: assist_not_ready
+    static_storage_message: "Storage target Assist '{{ assist_name }}' exists but is not Connected."
+    static_storage_include_changed: true
+    static_storage_changed: false
+    static_storage_include_registration_fields: true
+    static_storage_registration_found: false
+    static_storage_registration_moid: ''
   when:
     - claim_result is not defined
     - (storage_assist_lookup.api_response | default([]) | length) > 0
@@ -228,30 +167,29 @@
 - name: Record existing SaaS storage target without resubmission
   ansible.builtin.set_fact:
     existing_storage_target: "{{ existing_storage_target_lookup.api_response | default([]) | first | default({}) }}"
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: storage
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      execution_mode: saas_storage_target_claim
-      status: already_claimed
-      changed: false
-      reason: already_compliant
-      registration_found: false
-      registration_moid: ''
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      target_moid: "{{ existing_storage_target.Moid | default('') }}"
-      target_status: "{{ existing_storage_target.Status | default('') }}"
-      target_workflow_moid: "{{ (existing_storage_target.WorkflowInfo | default({})).Moid | default('') }}"
-      messages:
-        - "Storage target already exists and does not require claim resubmission."
+  when:
+    - claim_result is not defined
+    - (existing_storage_target_lookup.api_response | default([]) | length) > 0
+  tags:
+    - claim
+    - aggregate
+
+- name: Record existing SaaS storage target without resubmission
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_storage_claim_result.yaml"
+  vars:
+    static_storage_execution_mode: saas_storage_target_claim
+    static_storage_status: already_claimed
+    static_storage_reason: already_compliant
+    static_storage_message: "Storage target already exists and does not require claim resubmission."
+    static_storage_include_changed: true
+    static_storage_changed: false
+    static_storage_include_registration_fields: true
+    static_storage_registration_found: false
+    static_storage_registration_moid: ''
+    static_storage_include_target_fields: true
+    static_storage_target_moid: "{{ existing_storage_target.Moid | default('') }}"
+    static_storage_target_status: "{{ existing_storage_target.Status | default('') }}"
+    static_storage_target_workflow_moid: "{{ (existing_storage_target.WorkflowInfo | default({})).Moid | default('') }}"
   when:
     - claim_result is not defined
     - (existing_storage_target_lookup.api_response | default([]) | length) > 0
@@ -319,91 +257,27 @@
     - claim
 
 - name: Record SaaS storage claim result
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: storage
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      execution_mode: saas_storage_target_claim
-      status: >-
-        {%- if (saas_storage_claim_result.failed | default(false) | bool) -%}
-        failed
-        {%- elif 'already exists' in storage_claim_error_text_lower -%}
-        already_claimed
-        {%- elif 'conflict' in storage_claim_error_text_lower -%}
-        conflict
-        {%- else -%}
-        submitted
-        {%- endif -%}
-      changed: "{{ saas_storage_claim_result.changed | default(false) | bool }}"
-      reason: >-
-        {%- if (saas_storage_claim_result.failed | default(false) | bool) -%}
-        claim_submission_failed
-        {%- elif 'already exists' in storage_claim_error_text_lower -%}
-        already_compliant
-        {%- elif 'conflict' in storage_claim_error_text_lower -%}
-        conflict
-        {%- else -%}
-        claimed_and_configured
-        {%- endif -%}
-      registration_found: false
-      registration_moid: ''
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      target_moid: "{{ (saas_storage_claim_result.api_response | default({})).Moid | default('') }}"
-      target_status: "{{ (saas_storage_claim_result.api_response | default({})).Status | default('') }}"
-      target_workflow_moid: "{{ ((saas_storage_claim_result.api_response | default({})).WorkflowInfo | default({})).Moid | default('') }}"
-      assist_name: "{{ assist_name }}"
-      storage_platform: "{{ storage_platform }}"
-      messages:
-        - >-
-          {%- if (saas_storage_claim_result.failed | default(false) | bool) -%}
-          {{ saas_storage_claim_result.msg | default('Storage target claim submission failed') }}
-          {%- elif 'already exists' in storage_claim_error_text_lower -%}
-          Storage target already exists.
-          {%- elif 'conflict' in storage_claim_error_text_lower -%}
-          Intersight reported a conflict while attempting the storage claim.
-          {%- else -%}
-          Storage target claim submitted successfully.
-          {%- endif -%}
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_storage_claim_result.yaml"
+  vars:
+    storage_claim_execution_mode: saas_storage_target_claim
+    storage_claim_api_failed: "{{ saas_storage_claim_result.failed | default(false) | bool }}"
+    storage_claim_api_message: "{{ saas_storage_claim_result.msg | default('Storage target claim submission failed') }}"
+    storage_claim_api_response: "{{ saas_storage_claim_result.api_response | default({}) }}"
+    storage_claim_conflict_message: "Intersight reported a conflict while attempting the storage claim."
+    storage_claim_include_changed: true
+    storage_claim_changed: "{{ saas_storage_claim_result.changed | default(false) | bool }}"
+    storage_claim_include_registration_fields: true
+    storage_claim_registration_found: false
+    storage_claim_registration_moid: ''
   when: claim_result is not defined
   tags:
     - claim
     - aggregate
 
 - name: Collect SaaS storage claim result for target on localhost
-  ansible.builtin.set_fact:
-    claim_results: "{{ (hostvars['localhost'].claim_results | default([])) + [claim_result] }}"
-    successful_result_items: >-
-      {{ (hostvars['localhost'].successful_result_items | default([])) + ([claim_result] if claim_result.status in ['submitted', 'already_claimed'] else []) }}
-    failed_result_items: >-
-      {{ (hostvars['localhost'].failed_result_items | default([])) + ([claim_result] if claim_result.status == 'failed' else []) }}
-    conflict_result_items: >-
-      {{ (hostvars['localhost'].conflict_result_items | default([])) + ([claim_result] if claim_result.status == 'conflict' else []) }}
-    skipped_result_items: >-
-      {{ (hostvars['localhost'].skipped_result_items | default([])) + ([claim_result] if claim_result.status == 'skipped' else []) }}
-    changed_result_items: >-
-      {{ (hostvars['localhost'].changed_result_items | default([])) + ([claim_result] if (claim_result.changed | default(false) | bool) else []) }}
-    seen_claim_target_map: >-
-      {{
-        (hostvars['localhost'].seen_claim_target_map | default({}))
-        | combine(
-            {
-              (claim_result.normalized_claim_key): (claim_result.canonical_endpoint | default(claim_result.endpoint))
-            },
-            recursive=True
-          )
-        if ((claim_result.normalized_claim_key | default('') | string | trim | length) > 0 and (claim_result.status | default('')) != 'failed')
-        else (hostvars['localhost'].seen_claim_target_map | default({}))
-      }}
-  delegate_to: localhost
-  delegate_facts: true
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_collect_claim_result.yaml"
+  vars:
+    claim_track_seen_map: true
+    claim_seen_map_only_if_absent: false
   tags:
     - aggregate

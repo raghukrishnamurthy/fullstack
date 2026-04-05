@@ -1,0 +1,66 @@
+---
+- name: Build static storage claim result
+  ansible.builtin.set_fact:
+    claim_result: >-
+      {{
+        {
+          'target_id': claim_target_context.target_id | default(''),
+          'target_category': 'storage',
+          'serial': '',
+          'mgmt_ip': '',
+          'form_factor': '',
+          'management_type': claim_target_context.management_type | default('assist_managed'),
+          'endpoint': resolved_endpoint,
+          'canonical_endpoint': static_storage_canonical_endpoint | default(resolved_endpoint),
+          'organization': internal_organization | default(''),
+          'device_type': 'storage',
+          'normalized_claim_key': normalized_claim_key,
+          'execution_mode': static_storage_execution_mode,
+          'status': static_storage_status,
+          'reason': static_storage_reason,
+          'deployment_name': internal_deployment_name | default(''),
+          'messages': [static_storage_message]
+        }
+        | combine(
+            {'executed': static_storage_executed | bool}
+            if (static_storage_include_executed | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'changed': static_storage_changed | bool}
+            if (static_storage_include_changed | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {
+              'registration_found': static_storage_registration_found | default(false) | bool,
+              'registration_moid': static_storage_registration_moid | default('')
+            }
+            if (static_storage_include_registration_fields | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'target_moid': static_storage_target_moid | default('')}
+            if (static_storage_include_target_fields | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'target_status': static_storage_target_status | default('')}
+            if (static_storage_include_target_fields | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'target_workflow_moid': static_storage_target_workflow_moid | default('')}
+            if (static_storage_include_target_fields | default(false) | bool)
+            else {},
+            recursive=True
+          )
+      }}
+  tags:
+    - claim
+    - aggregate

@@ -1,26 +1,14 @@
 ---
 - name: Resolve SaaS claim target context
-  ansible.builtin.set_fact:
-    claim_target_context: "{{ hostvars[inventory_hostname].claim_target_context | default({}) }}"
-    resolved_endpoint: "{{ (claim_target_context.endpoint | default(claim_target_context.canonical_endpoint | default(''))) | string | trim }}"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_claim_context.yaml"
   tags:
     - claim
     - aggregate
 
-- name: Resolve per-target SaaS claim credential inputs
-  ansible.builtin.set_fact:
-    claim_target_username: "{{ claim_target_context.claim_username | default('') | string | trim }}"
-    claim_target_password_ref: "{{ claim_target_context.claim_password_ref | default('') | string | trim }}"
-    claim_target_password_direct: "{{ claim_target_context.claim_password | default('') | string }}"
-    claim_target_password_env_name: >-
-      {{
-        (claim_target_context.claim_password_ref | regex_replace('^env://', ''))
-        if (
-          (claim_target_context.claim_password_ref | default('') | string | trim | length) > 0
-          and (claim_target_context.claim_password_ref | string).startswith('env://')
-        )
-        else ''
-      }}
+- name: Resolve per-target SaaS claim credentials
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_claim_credentials.yaml"
+  vars:
+    claim_credentials_no_log: false
   tags:
     - claim
     - aggregate
@@ -32,22 +20,6 @@
         (claim_target_context.target_category | default('')) == 'assist'
         or (claim_target_context.device_type | default('') | string | lower) == 'assist'
       }}
-  tags:
-    - claim
-    - aggregate
-
-- name: Resolve per-target SaaS claim password value
-  ansible.builtin.set_fact:
-    claim_target_password: >-
-      {{
-        claim_target_password_direct
-        if (claim_target_password_direct | trim | length) > 0
-        else
-        lookup('ansible.builtin.env', claim_target_password_env_name)
-        if (claim_target_password_env_name | string | trim | length) > 0
-        else ''
-      }}
-  no_log: false
   tags:
     - claim
     - aggregate
@@ -189,28 +161,22 @@
     - verify
 
 - name: Stop Assist SaaS claim when login or connector inspection fails
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: "{{ claim_target_context.target_category | default('assist') }}"
-      serial: "{{ claim_target_context.serial | default('') }}"
-      mgmt_ip: "{{ claim_target_context.mgmt_ip | default('') }}"
-      form_factor: "{{ claim_target_context.form_factor | default('') }}"
-      management_type: "{{ claim_target_context.management_type | default('device_connector') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: assist
-      normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(resolved_endpoint)) | string | trim }}"
-      execution_mode: saas_claim
-      status: failed
-      changed: false
-      reason: assist_login_or_connector_probe_failed
-      registration_found: false
-      registration_moid: ''
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - "Assist login or connector query failed during SaaS claim preparation."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_direct_claim_result.yaml"
+  vars:
+    static_direct_target_category: assist
+    static_direct_management_type: "{{ claim_target_context.management_type | default('device_connector') }}"
+    static_direct_normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(resolved_endpoint)) | string | trim }}"
+    static_direct_execution_mode: saas_claim
+    static_direct_status: failed
+    static_direct_reason: assist_login_or_connector_probe_failed
+    static_direct_message: "Assist login or connector query failed during SaaS claim preparation."
+    static_direct_include_changed: true
+    static_direct_changed: false
+    static_direct_include_device_type: true
+    static_direct_device_type: assist
+    static_direct_include_registration_fields: true
+    static_direct_registration_found: false
+    static_direct_registration_moid: ''
   when:
     - claim_result is not defined
     - assist_claim_target | default(false) | bool
@@ -220,28 +186,22 @@
     - aggregate
 
 - name: Record already-claimed Assist without SaaS resubmission
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: "{{ claim_target_context.target_category | default('assist') }}"
-      serial: "{{ claim_target_context.serial | default('') }}"
-      mgmt_ip: "{{ claim_target_context.mgmt_ip | default('') }}"
-      form_factor: "{{ claim_target_context.form_factor | default('') }}"
-      management_type: "{{ claim_target_context.management_type | default('device_connector') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: assist
-      normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(resolved_endpoint)) | string | trim }}"
-      execution_mode: saas_claim
-      status: already_claimed
-      changed: false
-      reason: already_compliant
-      registration_found: false
-      registration_moid: "{{ assist_systems_payload.DeviceRegistrationMoid | default('') }}"
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - "Assist is already claimed and does not require SaaS claim submission."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_direct_claim_result.yaml"
+  vars:
+    static_direct_target_category: assist
+    static_direct_management_type: "{{ claim_target_context.management_type | default('device_connector') }}"
+    static_direct_normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(resolved_endpoint)) | string | trim }}"
+    static_direct_execution_mode: saas_claim
+    static_direct_status: already_claimed
+    static_direct_reason: already_compliant
+    static_direct_message: "Assist is already claimed and does not require SaaS claim submission."
+    static_direct_include_changed: true
+    static_direct_changed: false
+    static_direct_include_device_type: true
+    static_direct_device_type: assist
+    static_direct_include_registration_fields: true
+    static_direct_registration_found: false
+    static_direct_registration_moid: "{{ assist_systems_payload.DeviceRegistrationMoid | default('') }}"
   when:
     - claim_result is not defined
     - assist_claim_target | default(false) | bool
@@ -335,28 +295,22 @@
     - verify
 
 - name: Stop Assist SaaS claim when identifier or token lookup fails
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: "{{ claim_target_context.target_category | default('assist') }}"
-      serial: "{{ claim_target_context.serial | default('') }}"
-      mgmt_ip: "{{ claim_target_context.mgmt_ip | default('') }}"
-      form_factor: "{{ claim_target_context.form_factor | default('') }}"
-      management_type: "{{ claim_target_context.management_type | default('device_connector') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: assist
-      normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(resolved_endpoint)) | string | trim }}"
-      execution_mode: saas_claim
-      status: failed
-      changed: false
-      reason: assist_claim_inputs_unavailable
-      registration_found: false
-      registration_moid: ''
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - "Assist device identifier or claim token could not be retrieved for SaaS claim."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_direct_claim_result.yaml"
+  vars:
+    static_direct_target_category: assist
+    static_direct_management_type: "{{ claim_target_context.management_type | default('device_connector') }}"
+    static_direct_normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(resolved_endpoint)) | string | trim }}"
+    static_direct_execution_mode: saas_claim
+    static_direct_status: failed
+    static_direct_reason: assist_claim_inputs_unavailable
+    static_direct_message: "Assist device identifier or claim token could not be retrieved for SaaS claim."
+    static_direct_include_changed: true
+    static_direct_changed: false
+    static_direct_include_device_type: true
+    static_direct_device_type: assist
+    static_direct_include_registration_fields: true
+    static_direct_registration_found: false
+    static_direct_registration_moid: ''
   when:
     - claim_result is not defined
     - assist_claim_target | default(false) | bool
@@ -398,19 +352,20 @@
     - verify
 
 - name: Stop SaaS claim when inline readiness failed
-  ansible.builtin.set_fact:
-    claim_result:
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: "{{ claim_target_context.device_type | default(claim_target_context.target_category | default('unknown')) }}"
-      normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(claim_target_context.claim_serial_number | default(resolved_endpoint))) | string | trim }}"
-      status: failed
-      changed: false
-      reason: "{{ claim_readiness_result.reason | default('claim_readiness_failed') }}"
-      registration_found: false
-      registration_moid: ''
-      messages: "{{ claim_readiness_result.messages | default(['Inline claim readiness failed']) }}"
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_direct_claim_result.yaml"
+  vars:
+    static_direct_device_type: "{{ claim_target_context.device_type | default(claim_target_context.target_category | default('unknown')) }}"
+    static_direct_normalized_claim_key: "{{ (claim_target_context.normalized_claim_key | default(claim_target_context.claim_serial_number | default(resolved_endpoint))) | string | trim }}"
+    static_direct_execution_mode: saas_claim
+    static_direct_status: failed
+    static_direct_reason: "{{ claim_readiness_result.reason | default('claim_readiness_failed') }}"
+    static_direct_messages: "{{ claim_readiness_result.messages | default(['Inline claim readiness failed']) }}"
+    static_direct_include_changed: true
+    static_direct_changed: false
+    static_direct_include_device_type: true
+    static_direct_include_registration_fields: true
+    static_direct_registration_found: false
+    static_direct_registration_moid: ''
   when:
     - claim_readiness_payload is defined
     - (claim_readiness_payload.claim_ready_target | default({}) | length) == 0
@@ -448,40 +403,53 @@
     - aggregate
 
 - name: Skip duplicate logical target before SaaS claim submission
-  ansible.builtin.set_fact:
-    claim_result:
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ canonical_claim_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      status: skipped
-      changed: false
-      reason: duplicate_logical_target
-      registration_found: false
-      registration_moid: ''
-      messages:
-        - "Skipped claim submission because this claim target resolves to the same logical target as {{ canonical_claim_endpoint }}."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_direct_claim_result.yaml"
+  vars:
+    static_direct_target_id: "{{ effective_target_context.target_id | default(claim_target_context.target_id | default('')) }}"
+    static_direct_target_category: "{{ effective_target_context.target_category | default(claim_target_context.target_category | default('unknown')) }}"
+    static_direct_serial: "{{ effective_target_context.serial | default(claim_target_context.serial | default('')) }}"
+    static_direct_mgmt_ip: "{{ effective_target_context.mgmt_ip | default(claim_target_context.mgmt_ip | default('')) }}"
+    static_direct_form_factor: "{{ effective_target_context.form_factor | default(claim_target_context.form_factor | default('')) }}"
+    static_direct_management_type: "{{ effective_target_context.management_type | default(claim_target_context.management_type | default('')) }}"
+    static_direct_canonical_endpoint: "{{ canonical_claim_endpoint }}"
+    static_direct_normalized_claim_key: "{{ normalized_claim_key }}"
+    static_direct_execution_mode: saas_claim
+    static_direct_status: skipped
+    static_direct_reason: duplicate_logical_target
+    static_direct_message: "Skipped claim submission because this claim target resolves to the same logical target as {{ canonical_claim_endpoint }}."
+    static_direct_include_changed: true
+    static_direct_changed: false
+    static_direct_include_device_type: true
+    static_direct_device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
+    static_direct_include_registration_fields: true
+    static_direct_registration_found: false
+    static_direct_registration_moid: ''
   when: claim_duplicate_detected | default(false) | bool
   tags:
     - claim
     - aggregate
 
 - name: Record already-claimed target without SaaS resubmission
-  ansible.builtin.set_fact:
-    claim_result:
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      status: already_claimed
-      changed: false
-      reason: already_compliant
-      registration_found: false
-      registration_moid: ''
-      messages:
-        - "Claim target is already claimed and does not require SaaS claim submission."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_direct_claim_result.yaml"
+  vars:
+    static_direct_target_id: "{{ effective_target_context.target_id | default(claim_target_context.target_id | default('')) }}"
+    static_direct_target_category: "{{ effective_target_context.target_category | default(claim_target_context.target_category | default('unknown')) }}"
+    static_direct_serial: "{{ effective_target_context.serial | default(claim_target_context.serial | default('')) }}"
+    static_direct_mgmt_ip: "{{ effective_target_context.mgmt_ip | default(claim_target_context.mgmt_ip | default('')) }}"
+    static_direct_form_factor: "{{ effective_target_context.form_factor | default(claim_target_context.form_factor | default('')) }}"
+    static_direct_management_type: "{{ effective_target_context.management_type | default(claim_target_context.management_type | default('')) }}"
+    static_direct_normalized_claim_key: "{{ normalized_claim_key }}"
+    static_direct_execution_mode: saas_claim
+    static_direct_status: already_claimed
+    static_direct_reason: already_compliant
+    static_direct_message: "Claim target is already claimed and does not require SaaS claim submission."
+    static_direct_include_changed: true
+    static_direct_changed: false
+    static_direct_include_device_type: true
+    static_direct_device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
+    static_direct_include_registration_fields: true
+    static_direct_registration_found: false
+    static_direct_registration_moid: ''
   when:
     - claim_result is not defined
     - not (claim_duplicate_detected | default(false) | bool)
@@ -603,56 +571,67 @@
     - claim
     - verify
 
-- name: Record SaaS claim result
+- name: Resolve SaaS direct claim outcome
   ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ effective_target_context.target_id | default(claim_target_context.target_id | default('')) }}"
-      target_category: "{{ effective_target_context.target_category | default(claim_target_context.target_category | default('unknown')) }}"
-      serial: "{{ effective_target_context.serial | default(claim_target_context.serial | default('')) }}"
-      mgmt_ip: "{{ effective_target_context.mgmt_ip | default(claim_target_context.mgmt_ip | default('')) }}"
-      form_factor: "{{ effective_target_context.form_factor | default(claim_target_context.form_factor | default('')) }}"
-      management_type: "{{ effective_target_context.management_type | default(claim_target_context.management_type | default('')) }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      execution_mode: saas_claim
-      status: >-
-        {%- if (saas_claim_result.failed | default(false) | bool) -%}
-        failed
-        {%- elif 'conflict' in claim_error_text_lower -%}
-        conflict
-        {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
-        conflict
-        {%- else -%}
-        submitted
-        {%- endif -%}
-      changed: "{{ saas_claim_result.changed | default(false) | bool }}"
-      reason: >-
-        {%- if (saas_claim_result.failed | default(false) | bool) -%}
-        claim_submission_failed
-        {%- elif 'conflict' in claim_error_text_lower -%}
-        conflict
-        {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
-        conflict
-        {%- else -%}
-        claimed_and_configured
-        {%- endif -%}
-      registration_found: "{{ (claimed_registration_moid | default('') | string | trim | length) > 0 }}"
-      registration_moid: "{{ claimed_registration_moid | default('') }}"
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - >-
-          {%- if (saas_claim_result.failed | default(false) | bool) -%}
-          {{ saas_claim_result.msg | default('Claim submission failed') }}
-          {%- elif 'conflict' in claim_error_text_lower -%}
-          Intersight reported a conflict while attempting the claim.
-          {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
-          Intersight reports the device is already claimed.
-          {%- else -%}
-          Claim submitted successfully.
-          {%- endif -%}
+    direct_claim_status: >-
+      {%- if (saas_claim_result.failed | default(false) | bool) -%}
+      failed
+      {%- elif 'conflict' in claim_error_text_lower -%}
+      conflict
+      {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+      conflict
+      {%- else -%}
+      submitted
+      {%- endif -%}
+    direct_claim_reason: >-
+      {%- if (saas_claim_result.failed | default(false) | bool) -%}
+      claim_submission_failed
+      {%- elif 'conflict' in claim_error_text_lower -%}
+      conflict
+      {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+      conflict
+      {%- else -%}
+      claimed_and_configured
+      {%- endif -%}
+    direct_claim_message: >-
+      {%- if (saas_claim_result.failed | default(false) | bool) -%}
+      {{ saas_claim_result.msg | default('Claim submission failed') }}
+      {%- elif 'conflict' in claim_error_text_lower -%}
+      Intersight reported a conflict while attempting the claim.
+      {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
+      Intersight reports the device is already claimed.
+      {%- else -%}
+      Claim submitted successfully.
+      {%- endif -%}
+  when:
+    - claim_result is not defined
+    - not (claim_duplicate_detected | default(false) | bool)
+    - effective_target_context.claim_submission_required | default(true) | bool
+  tags:
+    - claim
+    - aggregate
+
+- name: Record SaaS claim result
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_direct_claim_result.yaml"
+  vars:
+    direct_claim_target_id: "{{ effective_target_context.target_id | default(claim_target_context.target_id | default('')) }}"
+    direct_claim_target_category: "{{ effective_target_context.target_category | default(claim_target_context.target_category | default('unknown')) }}"
+    direct_claim_serial: "{{ effective_target_context.serial | default(claim_target_context.serial | default('')) }}"
+    direct_claim_mgmt_ip: "{{ effective_target_context.mgmt_ip | default(claim_target_context.mgmt_ip | default('')) }}"
+    direct_claim_form_factor: "{{ effective_target_context.form_factor | default(claim_target_context.form_factor | default('')) }}"
+    direct_claim_management_type: "{{ effective_target_context.management_type | default(claim_target_context.management_type | default('')) }}"
+    direct_claim_canonical_endpoint: "{{ resolved_endpoint }}"
+    direct_claim_execution_mode: saas_claim
+    direct_claim_status: "{{ direct_claim_status }}"
+    direct_claim_reason: "{{ direct_claim_reason }}"
+    direct_claim_message: "{{ direct_claim_message }}"
+    direct_claim_include_changed: true
+    direct_claim_changed: "{{ saas_claim_result.changed | default(false) | bool }}"
+    direct_claim_include_device_type: true
+    direct_claim_device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
+    direct_claim_include_registration_fields: true
+    direct_claim_registration_found: "{{ (claimed_registration_moid | default('') | string | trim | length) > 0 }}"
+    direct_claim_registration_moid: "{{ claimed_registration_moid | default('') }}"
   when:
     - claim_result is not defined
     - not (claim_duplicate_detected | default(false) | bool)
@@ -662,37 +641,12 @@
     - aggregate
 
 - name: Collect SaaS claim result for target on localhost
-  ansible.builtin.set_fact:
-    claim_results: "{{ (hostvars['localhost'].claim_results | default([])) + [claim_result] }}"
-    successful_result_items: >-
-      {{ (hostvars['localhost'].successful_result_items | default([])) + ([claim_result] if claim_result.status in ['successful', 'submitted', 'already_claimed'] else []) }}
-    failed_result_items: >-
-      {{ (hostvars['localhost'].failed_result_items | default([])) + ([claim_result] if claim_result.status == 'failed' else []) }}
-    conflict_result_items: >-
-      {{ (hostvars['localhost'].conflict_result_items | default([])) + ([claim_result] if claim_result.status == 'conflict' else []) }}
-    skipped_result_items: >-
-      {{ (hostvars['localhost'].skipped_result_items | default([])) + ([claim_result] if claim_result.status == 'skipped' else []) }}
-    changed_result_items: >-
-      {{ (hostvars['localhost'].changed_result_items | default([])) + ([claim_result] if (claim_result.changed | default(false) | bool) else []) }}
-    seen_claim_target_map: >-
-      {{
-        (hostvars['localhost'].seen_claim_target_map | default({}))
-        | combine(
-            (
-              {
-                (claim_result.normalized_claim_key): (claim_result.canonical_endpoint | default(claim_result.endpoint))
-              }
-              if (
-                (claim_result.normalized_claim_key | default('') | string | trim | length) > 0
-                and (claim_result.status | default('')) != 'failed'
-                and ((hostvars['localhost'].seen_claim_target_map | default({})).get(claim_result.normalized_claim_key | default(''), '') | string | trim | length) == 0
-              )
-              else {}
-            ),
-            recursive=True
-          )
-      }}
-  delegate_to: localhost
-  delegate_facts: true
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_collect_claim_result.yaml"
+  vars:
+    claim_success_statuses:
+      - successful
+      - submitted
+      - already_claimed
+    claim_track_seen_map: true
   tags:
     - aggregate

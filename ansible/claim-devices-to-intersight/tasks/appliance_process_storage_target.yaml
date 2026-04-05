@@ -1,19 +1,8 @@
 ---
 - name: Resolve appliance storage claim target context
-  ansible.builtin.set_fact:
-    claim_target_context: "{{ hostvars[inventory_hostname].claim_target_context | default({}) }}"
-    resolved_endpoint: "{{ (claim_target_context.endpoint | default(claim_target_context.canonical_endpoint | default(''))) | string | trim }}"
-    storage_platform: "{{ claim_target_context.storage_platform | default('') | string | trim | lower }}"
-    assist_name: "{{ claim_target_context.assist_name | default('') | string | trim }}"
-    normalized_claim_key: >-
-      {{
-        (
-          claim_target_context.normalized_claim_key
-          | default(claim_target_context.target_id | default(resolved_endpoint))
-        )
-        | string
-        | trim
-      }}
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_claim_context.yaml"
+  vars:
+    claim_normalized_key_fallback: "{{ (hostvars[inventory_hostname].claim_target_context | default({})).target_id | default('') }}"
   tags:
     - claim
     - aggregate
@@ -26,34 +15,16 @@
           'pure': 'PureStorageFlashArray'
         }.get(storage_platform, '')
       }}
-    claim_target_username: "{{ claim_target_context.claim_username | default('') | string | trim }}"
-    claim_target_password_ref: "{{ claim_target_context.claim_password_ref | default('') | string | trim }}"
-    claim_target_password_direct: "{{ claim_target_context.claim_password | default('') | string }}"
-    claim_target_password_env_name: >-
-      {{
-        (claim_target_context.claim_password_ref | regex_replace('^env://', ''))
-        if (
-          (claim_target_context.claim_password_ref | default('') | string | trim | length) > 0
-          and (claim_target_context.claim_password_ref | string).startswith('env://')
-        )
-        else ''
-      }}
+    storage_platform: "{{ claim_target_context.storage_platform | default('') | string | trim | lower }}"
+    assist_name: "{{ claim_target_context.assist_name | default('') | string | trim }}"
   tags:
     - claim
     - aggregate
 
-- name: Resolve appliance storage target password value
-  ansible.builtin.set_fact:
-    claim_target_password: >-
-      {{
-        claim_target_password_direct
-        if (claim_target_password_direct | trim | length) > 0
-        else
-        lookup('ansible.builtin.env', claim_target_password_env_name)
-        if (claim_target_password_env_name | string | trim | length) > 0
-        else ''
-      }}
-  no_log: true
+- name: Resolve appliance storage claim credentials
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_claim_credentials.yaml"
+  vars:
+    claim_credentials_no_log: true
   tags:
     - claim
     - aggregate
@@ -67,24 +38,6 @@
       - claim_target_username | length > 0
       - claim_target_password | length > 0
     fail_msg: "Storage claim requires endpoint, supported platform, assist name, username, and password"
-  tags:
-    - claim
-    - verify
-
-- name: Lookup referenced Assist target on appliance
-  cisco.intersight.intersight_rest_api:
-    api_key_id: "{{ claim_api_key_id }}"
-    api_private_key: "{{ claim_api_private_key }}"
-    api_uri: "{{ claim_api_uri }}"
-    use_proxy: false
-    validate_certs: "{{ claim_validate_certs | default(false) | bool }}"
-    resource_path: /asset/Targets
-    query_params:
-      $filter: "TargetType eq 'IntersightAssist' and Name eq '{{ assist_name }}'"
-      $top: 2
-    return_list: true
-  register: storage_assist_lookup
-  failed_when: false
   tags:
     - claim
     - verify
@@ -107,6 +60,90 @@
     - claim
     - verify
 
+- name: Record existing appliance storage target without resubmission
+  ansible.builtin.set_fact:
+    existing_storage_target: "{{ existing_storage_target_lookup.api_response | default([]) | first | default({}) }}"
+  when:
+    - claim_result is not defined
+    - (existing_storage_target_lookup.api_response | default([]) | length) > 0
+  tags:
+    - claim
+    - aggregate
+
+- name: Record existing appliance storage target without resubmission
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_storage_claim_result.yaml"
+  vars:
+    static_storage_execution_mode: appliance_storage_target_claim
+    static_storage_status: already_claimed
+    static_storage_reason: already_compliant
+    static_storage_message: "Storage target already exists and does not require appliance claim resubmission."
+    static_storage_include_executed: true
+    static_storage_executed: false
+    static_storage_include_target_fields: true
+    static_storage_target_moid: "{{ existing_storage_target.Moid | default('') }}"
+    static_storage_target_status: "{{ existing_storage_target.Status | default('') }}"
+    static_storage_target_workflow_moid: "{{ (existing_storage_target.WorkflowInfo | default({})).Moid | default('') }}"
+  when:
+    - claim_result is not defined
+    - (existing_storage_target_lookup.api_response | default([]) | length) > 0
+  tags:
+    - claim
+    - aggregate
+
+- name: Normalize Assist readiness wait configuration for appliance storage claim
+  ansible.builtin.set_fact:
+    storage_assist_wait_interval_seconds_normalized: "{{ [storage_assist_wait_interval_seconds | int, 1] | max }}"
+    storage_assist_wait_timeout_seconds_normalized: "{{ [storage_assist_wait_timeout_seconds | int, 0] | max }}"
+    storage_assist_wait_retries: >-
+      {{
+        [
+          (
+            (
+              (
+                ([storage_assist_wait_timeout_seconds | int, 0] | max) | float
+              ) / (
+                ([storage_assist_wait_interval_seconds | int, 1] | max) | float
+              )
+            ) | round(0, 'ceil') | int
+          ),
+          1
+        ] | max
+      }}
+  when: claim_result is not defined
+  tags:
+    - claim
+    - verify
+
+- name: Lookup referenced Assist target on appliance until Connected
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ claim_api_key_id }}"
+    api_private_key: "{{ claim_api_private_key }}"
+    api_uri: "{{ claim_api_uri }}"
+    use_proxy: false
+    validate_certs: "{{ claim_validate_certs | default(false) | bool }}"
+    resource_path: /asset/Targets
+    query_params:
+      $filter: "TargetType eq 'IntersightAssist' and Name eq '{{ assist_name }}'"
+      $top: 2
+    return_list: true
+  register: storage_assist_lookup
+  failed_when: false
+  ignore_errors: true
+  retries: "{{ storage_assist_wait_retries }}"
+  delay: "{{ storage_assist_wait_interval_seconds_normalized }}"
+  until: >-
+    {{
+      (storage_assist_lookup.api_response | default([]) | length) > 0
+      and (
+        ((storage_assist_lookup.api_response | default([]) | first | default({})).Status | default('') | string | lower)
+        == 'connected'
+      )
+    }}
+  when: claim_result is not defined
+  tags:
+    - claim
+    - verify
+
 - name: Resolve appliance account reference for storage target creation
   cisco.intersight.intersight_rest_api:
     api_key_id: "{{ claim_api_key_id }}"
@@ -125,88 +162,34 @@
     - verify
 
 - name: Record missing Assist lookup for appliance storage claim
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: storage
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      execution_mode: appliance_storage_target_claim
-      executed: false
-      status: failed
-      reason: assist_not_found
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - "Storage target Assist '{{ assist_name }}' was not found in the current appliance control plane."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_storage_claim_result.yaml"
+  vars:
+    static_storage_execution_mode: appliance_storage_target_claim
+    static_storage_status: failed
+    static_storage_reason: assist_not_found
+    static_storage_message: "Storage target Assist '{{ assist_name }}' was not found in the current appliance control plane after waiting {{ storage_assist_wait_timeout_seconds_normalized | default(storage_assist_wait_timeout_seconds | int) }} seconds."
+    static_storage_include_executed: true
+    static_storage_executed: false
   when:
+    - claim_result is not defined
     - (storage_assist_lookup.api_response | default([]) | length) == 0
   tags:
     - claim
     - aggregate
 
 - name: Record unusable Assist state for appliance storage claim
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      organization: "{{ internal_organization | default('') }}"
-      device_type: storage
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      execution_mode: appliance_storage_target_claim
-      executed: false
-      status: failed
-      reason: assist_not_ready
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      messages:
-        - "Storage target Assist '{{ assist_name }}' exists but is not Connected."
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_storage_claim_result.yaml"
+  vars:
+    static_storage_execution_mode: appliance_storage_target_claim
+    static_storage_status: failed
+    static_storage_reason: assist_not_ready
+    static_storage_message: "Storage target Assist '{{ assist_name }}' exists but did not reach Connected within {{ storage_assist_wait_timeout_seconds_normalized | default(storage_assist_wait_timeout_seconds | int) }} seconds."
+    static_storage_include_executed: true
+    static_storage_executed: false
   when:
     - claim_result is not defined
     - (storage_assist_lookup.api_response | default([]) | length) > 0
     - (((storage_assist_lookup.api_response | default([]) | first | default({})).Status | default('') | string | lower) != 'connected')
-  tags:
-    - claim
-    - aggregate
-
-- name: Record existing appliance storage target without resubmission
-  ansible.builtin.set_fact:
-    existing_storage_target: "{{ existing_storage_target_lookup.api_response | default([]) | first | default({}) }}"
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      organization: "{{ internal_organization | default('') }}"
-      execution_mode: appliance_storage_target_claim
-      executed: false
-      status: already_claimed
-      reason: already_compliant
-      target_moid: "{{ existing_storage_target.Moid | default('') }}"
-      target_status: "{{ existing_storage_target.Status | default('') }}"
-      target_workflow_moid: "{{ (existing_storage_target.WorkflowInfo | default({})).Moid | default('') }}"
-      messages:
-        - "Storage target already exists and does not require appliance claim resubmission."
-  when:
-    - claim_result is not defined
-    - (existing_storage_target_lookup.api_response | default([]) | length) > 0
   tags:
     - claim
     - aggregate
@@ -272,110 +255,39 @@
     - claim
 
 - name: Record appliance storage claim result
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: storage
-      serial: ''
-      mgmt_ip: ''
-      form_factor: ''
-      management_type: "{{ claim_target_context.management_type | default('assist_managed') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ resolved_endpoint }}"
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      organization: "{{ internal_organization | default('') }}"
-      execution_mode: appliance_storage_target_claim
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_storage_claim_result.yaml"
+  vars:
+    storage_claim_execution_mode: appliance_storage_target_claim
+    storage_claim_api_failed: "{{ appliance_storage_claim_result.failed | default(false) | bool }}"
+    storage_claim_api_message: "{{ appliance_storage_claim_result.msg | default('Storage target claim submission failed') }}"
+    storage_claim_api_response: "{{ appliance_storage_claim_result.api_response | default({}) }}"
+    storage_claim_conflict_message: "Appliance reported a conflict while attempting the storage claim."
+    storage_claim_include_execution_payload: true
+    storage_claim_execution_payload:
+      requested: true
       executed: true
-      status: >-
-        {%- if (appliance_storage_claim_result.failed | default(false) | bool) -%}
-        failed
-        {%- elif 'already exists' in storage_claim_error_text_lower -%}
-        already_claimed
-        {%- elif 'conflict' in storage_claim_error_text_lower -%}
-        conflict
-        {%- else -%}
-        submitted
-        {%- endif -%}
+      execution_mode: appliance_storage_target_claim
+      status: "{{ 'failed' if (appliance_storage_claim_result.failed | default(false) | bool) else 'submitted' }}"
       reason: >-
-        {%- if (appliance_storage_claim_result.failed | default(false) | bool) -%}
-        claim_submission_failed
-        {%- elif 'already exists' in storage_claim_error_text_lower -%}
-        already_compliant
-        {%- elif 'conflict' in storage_claim_error_text_lower -%}
-        conflict
-        {%- else -%}
-        claimed_and_configured
-        {%- endif -%}
-      target_moid: "{{ (appliance_storage_claim_result.api_response | default({})).Moid | default('') }}"
-      target_status: "{{ (appliance_storage_claim_result.api_response | default({})).Status | default('') }}"
-      target_workflow_moid: "{{ ((appliance_storage_claim_result.api_response | default({})).WorkflowInfo | default({})).Moid | default('') }}"
-      assist_name: "{{ assist_name }}"
-      storage_platform: "{{ storage_platform }}"
-      messages:
-        - >-
-          {%- if (appliance_storage_claim_result.failed | default(false) | bool) -%}
-          {{ appliance_storage_claim_result.msg | default('Storage target claim submission failed') }}
-          {%- elif 'already exists' in storage_claim_error_text_lower -%}
-          Storage target already exists.
-          {%- elif 'conflict' in storage_claim_error_text_lower -%}
-          Appliance reported a conflict while attempting the storage claim.
-          {%- else -%}
-          Storage target claim submitted successfully.
-          {%- endif -%}
-      appliance_claim_execution:
-        requested: true
-        executed: true
-        execution_mode: appliance_storage_target_claim
-        status: "{{ 'failed' if (appliance_storage_claim_result.failed | default(false) | bool) else 'submitted' }}"
-        reason: >-
-          {{
-            'claim_submission_failed'
-            if (appliance_storage_claim_result.failed | default(false) | bool)
-            else 'claimed_and_configured'
-          }}
-        payload:
-          endpoint: "{{ resolved_endpoint }}"
-          normalized_claim_key: "{{ normalized_claim_key }}"
-          target_type: "{{ storage_target_type }}"
-          assist_name: "{{ assist_name }}"
-          api_response: "{{ appliance_storage_claim_result.api_response | default({}) }}"
-          changed: "{{ appliance_storage_claim_result.changed | default(false) | bool }}"
+        {{
+          'claim_submission_failed'
+          if (appliance_storage_claim_result.failed | default(false) | bool)
+          else 'claimed_and_configured'
+        }}
+      payload:
+        endpoint: "{{ resolved_endpoint }}"
+        normalized_claim_key: "{{ normalized_claim_key }}"
+        target_type: "{{ storage_target_type }}"
+        assist_name: "{{ assist_name }}"
+        api_response: "{{ appliance_storage_claim_result.api_response | default({}) }}"
+        changed: "{{ appliance_storage_claim_result.changed | default(false) | bool }}"
   when: claim_result is not defined
   tags:
     - claim
     - aggregate
 
 - name: Append appliance storage claim result to aggregate
-  ansible.builtin.set_fact:
-    claim_results: "{{ (hostvars['localhost'].claim_results | default([])) + [claim_result] }}"
-    successful_result_items: >-
-      {{
-        (hostvars['localhost'].successful_result_items | default([]))
-        + ([claim_result] if (claim_result.status | default('')) in ['submitted', 'already_claimed'] else [])
-      }}
-    failed_result_items: >-
-      {{
-        (hostvars['localhost'].failed_result_items | default([]))
-        + ([claim_result] if (claim_result.status | default('')) == 'failed' else [])
-      }}
-    conflict_result_items: >-
-      {{
-        (hostvars['localhost'].conflict_result_items | default([]))
-        + ([claim_result] if (claim_result.status | default('')) == 'conflict' else [])
-      }}
-    skipped_result_items: >-
-      {{
-        (hostvars['localhost'].skipped_result_items | default([]))
-        + ([claim_result] if (claim_result.status | default('')) == 'skipped' else [])
-      }}
-    changed_result_items: >-
-      {{
-        (hostvars['localhost'].changed_result_items | default([]))
-        + ([claim_result] if (claim_result.executed | default(false) | bool and (claim_result.status | default('')) == 'submitted') else [])
-      }}
-  delegate_to: localhost
-  delegate_facts: true
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_collect_claim_result.yaml"
   tags:
     - claim
     - aggregate

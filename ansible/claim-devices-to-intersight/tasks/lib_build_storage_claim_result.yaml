@@ -1,0 +1,90 @@
+---
+- name: Resolve normalized storage claim outcome
+  ansible.builtin.set_fact:
+    storage_claim_status: >-
+      {%- if (storage_claim_api_failed | default(false) | bool) -%}
+      failed
+      {%- elif 'already exists' in (storage_claim_error_text_lower | default('')) -%}
+      already_claimed
+      {%- elif 'conflict' in (storage_claim_error_text_lower | default('')) -%}
+      conflict
+      {%- else -%}
+      submitted
+      {%- endif -%}
+    storage_claim_reason: >-
+      {%- if (storage_claim_api_failed | default(false) | bool) -%}
+      claim_submission_failed
+      {%- elif 'already exists' in (storage_claim_error_text_lower | default('')) -%}
+      already_compliant
+      {%- elif 'conflict' in (storage_claim_error_text_lower | default('')) -%}
+      conflict
+      {%- else -%}
+      claimed_and_configured
+      {%- endif -%}
+    storage_claim_message: >-
+      {%- if (storage_claim_api_failed | default(false) | bool) -%}
+      {{ storage_claim_failure_message | default(storage_claim_api_message | default('Storage target claim submission failed')) }}
+      {%- elif 'already exists' in (storage_claim_error_text_lower | default('')) -%}
+      Storage target already exists.
+      {%- elif 'conflict' in (storage_claim_error_text_lower | default('')) -%}
+      {{ storage_claim_conflict_message }}
+      {%- else -%}
+      Storage target claim submitted successfully.
+      {%- endif -%}
+  tags:
+    - claim
+    - aggregate
+
+- name: Build normalized storage claim result
+  ansible.builtin.set_fact:
+    claim_result: >-
+      {{
+        {
+          'target_id': claim_target_context.target_id | default(''),
+          'target_category': 'storage',
+          'serial': '',
+          'mgmt_ip': '',
+          'form_factor': '',
+          'management_type': claim_target_context.management_type | default('assist_managed'),
+          'endpoint': resolved_endpoint,
+          'canonical_endpoint': resolved_endpoint,
+          'organization': internal_organization | default(''),
+          'device_type': 'storage',
+          'normalized_claim_key': normalized_claim_key,
+          'execution_mode': storage_claim_execution_mode,
+          'executed': storage_claim_executed | default(true) | bool,
+          'status': storage_claim_status,
+          'reason': storage_claim_reason,
+          'deployment_name': internal_deployment_name | default(''),
+          'target_moid': (storage_claim_api_response | default({})).Moid | default(''),
+          'target_status': (storage_claim_api_response | default({})).Status | default(''),
+          'target_workflow_moid': ((storage_claim_api_response | default({})).WorkflowInfo | default({})).Moid | default(''),
+          'assist_name': assist_name,
+          'storage_platform': storage_platform,
+          'messages': [storage_claim_message]
+        }
+        | combine(
+            {'changed': storage_claim_changed | bool}
+            if (storage_claim_include_changed | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {
+              'registration_found': storage_claim_registration_found | default(false) | bool,
+              'registration_moid': storage_claim_registration_moid | default('')
+            }
+            if (storage_claim_include_registration_fields | default(false) | bool)
+            else {},
+            recursive=True
+          )
+        | combine(
+            {'appliance_claim_execution': storage_claim_execution_payload}
+            if (storage_claim_include_execution_payload | default(false) | bool)
+            else {},
+            recursive=True
+          )
+      }}
+  tags:
+    - claim
+    - aggregate

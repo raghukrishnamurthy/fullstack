@@ -1,17 +1,8 @@
 ---
 - name: Resolve appliance claim target context
-  ansible.builtin.set_fact:
-    claim_target_context: "{{ hostvars[inventory_hostname].claim_target_context | default({}) }}"
-    resolved_endpoint: "{{ (claim_target_context.endpoint | default(claim_target_context.canonical_endpoint | default(''))) | string | trim }}"
-    normalized_claim_key: >-
-      {{
-        (
-          claim_target_context.normalized_claim_key
-          | default(claim_target_context.claim_key | default(resolved_endpoint))
-        )
-        | string
-        | trim
-      }}
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_claim_context.yaml"
+  vars:
+    claim_normalized_key_fallback: "{{ (hostvars[inventory_hostname].claim_target_context | default({})).claim_key | default('') }}"
   tags:
     - claim
     - aggregate
@@ -39,88 +30,42 @@
             )
           )
       }}
-    pva_claim_username: >-
-      {{
-        claim_target_context.claim_username
-        | default(claim_target_context.selected_target_credential.username | default(''))
-      }}
-    pva_claim_password_ref: >-
-      {{
-        claim_target_context.claim_password_ref
-        | default(claim_target_context.selected_target_credential.password_ref | default(''))
-      }}
-    pva_claim_password_direct: >-
-      {{
-        claim_target_context.claim_password
-        | default(claim_target_context.selected_target_credential.password | default(''))
-      }}
   tags:
     - claim
     - aggregate
 
-- name: Resolve appliance claim password ref env name
-  ansible.builtin.set_fact:
-    pva_claim_password_env_name: >-
-      {{
-        pva_claim_password_ref | regex_replace('^env://', '')
-        if (
-          (pva_claim_password_ref | string | trim | length) > 0
-          and (pva_claim_password_ref | string).startswith('env://')
-        )
-        else ''
-      }}
-  tags:
-    - claim
-    - aggregate
-
-- name: Resolve appliance claim password value
-  ansible.builtin.set_fact:
-    pva_claim_password: >-
-      {{
-        pva_claim_password_direct
-        if (pva_claim_password_direct | trim | length) > 0
-        else
-        lookup('ansible.builtin.env', pva_claim_password_env_name)
-        if (pva_claim_password_env_name | string | trim | length) > 0
-        else ''
-      }}
-  no_log: false
+- name: Resolve appliance claim credentials
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_claim_credentials.yaml"
+  vars:
+    claim_use_selected_target_credential: true
+    claim_credentials_no_log: false
   tags:
     - claim
     - aggregate
 
 - name: Record appliance target as already claimed without resubmission
-  ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: "{{ claim_target_context.target_category | default('unknown') }}"
-      serial: "{{ claim_target_context.serial | default('') }}"
-      mgmt_ip: "{{ claim_target_context.mgmt_ip | default('') }}"
-      form_factor: "{{ claim_target_context.form_factor | default('') }}"
-      management_type: "{{ claim_target_context.management_type | default('') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      organization: "{{ internal_organization | default('') }}"
-      execution_mode: appliance_claim
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_direct_claim_result.yaml"
+  vars:
+    static_direct_canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
+    static_direct_execution_mode: appliance_claim
+    static_direct_status: already_claimed
+    static_direct_reason: already_compliant
+    static_direct_message: "Claim target is already claimed and does not require appliance claim submission."
+    static_direct_include_executed: true
+    static_direct_executed: false
+    static_direct_include_execution_payload: true
+    static_direct_execution_payload:
+      requested: false
       executed: false
+      execution_mode: appliance_claim
       status: already_claimed
       reason: already_compliant
-      messages:
-        - "Claim target is already claimed and does not require appliance claim submission."
-      appliance_claim_execution:
-        requested: false
-        executed: false
-        execution_mode: appliance_claim
-        status: already_claimed
-        reason: already_compliant
-        payload:
-          endpoint: "{{ resolved_endpoint }}"
-          canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
-          normalized_claim_key: "{{ normalized_claim_key }}"
-          platform_type: "{{ pva_claim_platform_type }}"
-          username: "{{ pva_claim_username }}"
+      payload:
+        endpoint: "{{ resolved_endpoint }}"
+        canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
+        normalized_claim_key: "{{ normalized_claim_key }}"
+        platform_type: "{{ pva_claim_platform_type }}"
+        username: "{{ claim_target_username }}"
   when: not (claim_target_context.claim_submission_required | default(true) | bool)
   tags:
     - claim
@@ -130,8 +75,8 @@
   ansible.builtin.assert:
     that:
       - resolved_endpoint | string | trim | length > 0
-      - pva_claim_username | string | trim | length > 0
-      - pva_claim_password | string | trim | length > 0
+      - claim_target_username | string | trim | length > 0
+      - claim_target_password | string | trim | length > 0
       - pva_claim_platform_type | string | trim | length > 0
     fail_msg: "Claim target is missing endpoint, platform type, or target credential required for appliance claim"
   when: claim_result is not defined
@@ -155,8 +100,8 @@
   ansible.builtin.set_fact:
     pva_claim_request_body:
       Hostname: "{{ resolved_endpoint }}"
-      Username: "{{ pva_claim_username }}"
-      Password: "{{ pva_claim_password }}"
+      Username: "{{ claim_target_username }}"
+      Password: "{{ claim_target_password }}"
       PlatformType: "{{ pva_claim_platform_type }}"
   no_log: false
   when: claim_result is not defined
@@ -199,121 +144,71 @@
 
 - name: Record appliance claim result
   ansible.builtin.set_fact:
-    claim_result:
-      target_id: "{{ claim_target_context.target_id | default('') }}"
-      target_category: "{{ claim_target_context.target_category | default('unknown') }}"
-      serial: "{{ claim_target_context.serial | default('') }}"
-      mgmt_ip: "{{ claim_target_context.mgmt_ip | default('') }}"
-      form_factor: "{{ claim_target_context.form_factor | default('') }}"
-      management_type: "{{ claim_target_context.management_type | default('') }}"
-      endpoint: "{{ resolved_endpoint }}"
-      canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
-      normalized_claim_key: "{{ normalized_claim_key }}"
-      deployment_name: "{{ internal_deployment_name | default('') }}"
-      organization: "{{ internal_organization | default('') }}"
-      execution_mode: appliance_claim
+    direct_claim_status: >-
+      {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
+      already_claimed
+      {%- elif 'already exists' in pva_claim_error_text_lower -%}
+      already_claimed
+      {%- elif 'conflict' in pva_claim_error_text_lower -%}
+      conflict
+      {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
+      failed
+      {%- else -%}
+      submitted
+      {%- endif -%}
+    direct_claim_reason: >-
+      {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
+      already_compliant
+      {%- elif 'already exists' in pva_claim_error_text_lower -%}
+      already_compliant
+      {%- elif 'conflict' in pva_claim_error_text_lower -%}
+      conflict
+      {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
+      claim_submission_failed
+      {%- else -%}
+      claimed_and_configured
+      {%- endif -%}
+    direct_claim_message: "{{ pva_appliance_claim_result.msg | default('Claim submitted successfully.') }}"
+  no_log: false
+  when: claim_result is not defined
+  tags:
+    - claim
+
+- name: Record appliance claim result
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_direct_claim_result.yaml"
+  vars:
+    direct_claim_target_id: "{{ claim_target_context.target_id | default('') }}"
+    direct_claim_target_category: "{{ claim_target_context.target_category | default('unknown') }}"
+    direct_claim_serial: "{{ claim_target_context.serial | default('') }}"
+    direct_claim_mgmt_ip: "{{ claim_target_context.mgmt_ip | default('') }}"
+    direct_claim_form_factor: "{{ claim_target_context.form_factor | default('') }}"
+    direct_claim_management_type: "{{ claim_target_context.management_type | default('') }}"
+    direct_claim_canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
+    direct_claim_execution_mode: appliance_claim
+    direct_claim_include_executed: true
+    direct_claim_executed: true
+    direct_claim_include_execution_payload: true
+    direct_claim_execution_payload:
+      requested: true
       executed: true
-      status: >-
-        {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
-        already_claimed
-        {%- elif 'already exists' in pva_claim_error_text_lower -%}
-        already_claimed
-        {%- elif 'conflict' in pva_claim_error_text_lower -%}
-        conflict
-        {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
-        failed
-        {%- else -%}
-        submitted
-        {%- endif -%}
-      reason: >-
-        {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
-        already_compliant
-        {%- elif 'already exists' in pva_claim_error_text_lower -%}
-        already_compliant
-        {%- elif 'conflict' in pva_claim_error_text_lower -%}
-        conflict
-        {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
-        claim_submission_failed
-        {%- else -%}
-        claimed_and_configured
-        {%- endif -%}
-      messages:
-        - >-
-          {{
-            pva_appliance_claim_result.msg
-            | default('Claim submitted successfully.')
-          }}
-      appliance_claim_execution:
-        requested: true
-        executed: true
-        execution_mode: appliance_claim
-        status: >-
-          {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
-          already_claimed
-          {%- elif 'already exists' in pva_claim_error_text_lower -%}
-          already_claimed
-          {%- elif 'conflict' in pva_claim_error_text_lower -%}
-          conflict
-          {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
-          failed
-          {%- else -%}
-          submitted
-          {%- endif -%}
-        reason: >-
-          {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
-          already_compliant
-          {%- elif 'already exists' in pva_claim_error_text_lower -%}
-          already_compliant
-          {%- elif 'conflict' in pva_claim_error_text_lower -%}
-          conflict
-          {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
-          claim_submission_failed
-          {%- else -%}
-          claimed_and_configured
-          {%- endif -%}
-        payload:
-          endpoint: "{{ resolved_endpoint }}"
-          canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
-          normalized_claim_key: "{{ normalized_claim_key }}"
-          platform_type: "{{ pva_claim_platform_type }}"
-          username: "{{ pva_claim_username }}"
-          api_response: "{{ pva_appliance_claim_result.api_response | default({}) }}"
-          changed: "{{ pva_appliance_claim_result.changed | default(false) | bool }}"
+      execution_mode: appliance_claim
+      status: "{{ direct_claim_status }}"
+      reason: "{{ direct_claim_reason }}"
+      payload:
+        endpoint: "{{ resolved_endpoint }}"
+        canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
+        normalized_claim_key: "{{ normalized_claim_key }}"
+        platform_type: "{{ pva_claim_platform_type }}"
+        username: "{{ claim_target_username }}"
+        api_response: "{{ pva_appliance_claim_result.api_response | default({}) }}"
+        changed: "{{ pva_appliance_claim_result.changed | default(false) | bool }}"
   no_log: false
   when: claim_result is not defined
   tags:
     - claim
 
 - name: Append appliance claim result to aggregate
-  ansible.builtin.set_fact:
-    claim_results: "{{ (hostvars['localhost'].claim_results | default([])) + [claim_result] }}"
-    successful_result_items: >-
-      {{
-        (hostvars['localhost'].successful_result_items | default([]))
-        + ([claim_result] if (claim_result.status | default('')) in ['submitted', 'already_claimed'] else [])
-      }}
-    failed_result_items: >-
-      {{
-        (hostvars['localhost'].failed_result_items | default([]))
-        + ([claim_result] if (claim_result.status | default('')) == 'failed' else [])
-      }}
-    conflict_result_items: >-
-      {{
-        (hostvars['localhost'].conflict_result_items | default([]))
-        + ([claim_result] if (claim_result.status | default('')) == 'conflict' else [])
-      }}
-    skipped_result_items: >-
-      {{
-        (hostvars['localhost'].skipped_result_items | default([]))
-        + ([claim_result] if (claim_result.status | default('')) == 'skipped' else [])
-      }}
-    changed_result_items: >-
-      {{
-        (hostvars['localhost'].changed_result_items | default([]))
-        + ([claim_result] if (claim_result.executed | default(false) | bool and (claim_result.status | default('')) == 'submitted') else [])
-      }}
-  delegate_to: localhost
-  delegate_facts: true
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_collect_claim_result.yaml"
   tags:
     - claim
     - aggregate
