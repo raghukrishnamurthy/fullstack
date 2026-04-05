@@ -571,35 +571,59 @@
     - claim
     - verify
 
+- name: Resolve SaaS registration verification state
+  ansible.builtin.set_fact:
+    saas_registration_lookup_failed: "{{ saas_registration_result.failed | default(false) | bool }}"
+    saas_registration_found: "{{ (claimed_registration_moid | default('') | string | trim | length) > 0 }}"
+  when:
+    - claim_result is not defined
+    - saas_claim_result is defined
+    - not (saas_claim_result.failed | default(false) | bool)
+  tags:
+    - claim
+    - verify
+
 - name: Resolve SaaS direct claim outcome
   ansible.builtin.set_fact:
     saas_direct_claim_status: >-
       {%- if (saas_claim_result.failed | default(false) | bool) -%}
       failed
+      {%- elif (saas_registration_lookup_failed | default(false) | bool) -%}
+      failed
       {%- elif 'conflict' in claim_error_text_lower -%}
       conflict
       {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
       conflict
+      {%- elif not (saas_registration_found | default(false) | bool) -%}
+      failed
       {%- else -%}
       submitted
       {%- endif -%}
     saas_direct_claim_reason: >-
       {%- if (saas_claim_result.failed | default(false) | bool) -%}
       claim_submission_failed
+      {%- elif (saas_registration_lookup_failed | default(false) | bool) -%}
+      registration_lookup_failed
       {%- elif 'conflict' in claim_error_text_lower -%}
       conflict
       {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
       conflict
+      {%- elif not (saas_registration_found | default(false) | bool) -%}
+      registration_not_found
       {%- else -%}
       claimed_and_configured
       {%- endif -%}
     saas_direct_claim_message: >-
       {%- if (saas_claim_result.failed | default(false) | bool) -%}
       {{ saas_claim_result.msg | default('Claim submission failed') }}
+      {%- elif (saas_registration_lookup_failed | default(false) | bool) -%}
+      SaaS claim submission returned, but post-submit registration verification failed.
       {%- elif 'conflict' in claim_error_text_lower -%}
       Intersight reported a conflict while attempting the claim.
       {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
       Intersight reports the device is already claimed.
+      {%- elif not (saas_registration_found | default(false) | bool) -%}
+      SaaS claim submission returned, but no device registration evidence was found.
       {%- else -%}
       Claim submitted successfully.
       {%- endif -%}
@@ -630,7 +654,7 @@
     direct_claim_include_device_type: true
     direct_claim_device_type: "{{ effective_target_context.device_type | default(effective_target_context.target_category | default('unknown')) }}"
     direct_claim_include_registration_fields: true
-    direct_claim_registration_found: "{{ (claimed_registration_moid | default('') | string | trim | length) > 0 }}"
+    direct_claim_registration_found: "{{ saas_registration_found | default(false) | bool }}"
     direct_claim_registration_moid: "{{ claimed_registration_moid | default('') }}"
   when:
     - claim_result is not defined
