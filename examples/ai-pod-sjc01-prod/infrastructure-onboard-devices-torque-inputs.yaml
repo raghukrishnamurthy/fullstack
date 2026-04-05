@@ -70,6 +70,24 @@ inventory_json: |
           - fi-a
           - fi-b
 
+    assist:
+      - id: assist-01
+        name: assist01
+        endpoint: assist-101.cisco.com
+        credentials:
+          username: admin
+          password: <assist-password>
+
+    storage:
+      - id: pure-01
+        name: pure01
+        platform: pure
+        endpoint: 10.193.42.37
+        credentials:
+          username: pureuser
+          password: <pure-password>
+        assist: assist01
+
 solution_json: |
   solution:
     profile: virtualization_foundation

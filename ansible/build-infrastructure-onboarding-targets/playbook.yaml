@@ -11,6 +11,8 @@
     inventory_defaults: "{{ inventory_data.defaults | default({}) }}"
     inventory_devices: "{{ inventory_data.devices | default([]) }}"
     inventory_domains: "{{ inventory_data.domains | default([]) }}"
+    inventory_assists: "{{ inventory_data.assist | default(inventory_data.assists | default([])) }}"
+    inventory_storage: "{{ inventory_data.storage | default([]) }}"
 
   pre_tasks:
     - name: Validate build-infrastructure-onboarding-targets contract
@@ -21,6 +23,8 @@
           - inventory_data | type_debug == 'dict'
           - inventory_devices | type_debug == 'list'
           - inventory_domains | type_debug == 'list'
+          - inventory_assists | type_debug == 'list'
+          - inventory_storage | type_debug == 'list'
         fail_msg: "build-infrastructure-onboarding-targets requires inventory_yaml with devices and optional domains"
       tags:
         - always
@@ -162,6 +166,74 @@
         - build
         - claim
         - reset
+
+    - name: Build Assist claim targets
+      ansible.builtin.set_fact:
+        claim_targets: "{{ claim_targets + [assist_claim_target] }}"
+      vars:
+        assist_endpoint: "{{ item.endpoint | default('') | string | trim }}"
+        assist_credentials: "{{ item.credentials | default({}) }}"
+        assist_claim_target:
+          target_id: "{{ item.id | default(item.name | default(assist_endpoint)) }}"
+          target_category: assist
+          device_type: assist
+          endpoint: "{{ assist_endpoint }}"
+          canonical_endpoint: "{{ assist_endpoint }}"
+          serial: ""
+          claim_serial_number: ""
+          normalized_claim_key: "{{ item.id | default(item.name | default(assist_endpoint)) }}"
+          claim_submission_required: true
+          management_type: device_connector
+          form_factor: ""
+          endpoint_validate_certs: false
+          claim_username: "{{ assist_credentials.username | default(item.username | default('')) }}"
+          claim_password_ref: "{{ assist_credentials.password_ref | default(item.password_ref | default('')) }}"
+          claim_password: "{{ assist_credentials.password | default(item.password | default('')) }}"
+      loop: "{{ inventory_assists }}"
+      loop_control:
+        label: "{{ item.id | default(item.name | default('assist-target')) }}"
+      when:
+        - item is mapping
+        - assist_endpoint | length > 0
+      tags:
+        - build
+        - claim
+
+    - name: Build storage claim targets
+      ansible.builtin.set_fact:
+        claim_targets: "{{ claim_targets + [storage_claim_target] }}"
+      vars:
+        storage_endpoint: "{{ item.endpoint | default('') | string | trim }}"
+        storage_platform: "{{ item.platform | default('') | string | trim | lower }}"
+        storage_credentials: "{{ item.credentials | default({}) }}"
+        storage_claim_target:
+          target_id: "{{ item.id | default(item.name | default(storage_endpoint)) }}"
+          target_category: storage
+          device_type: storage
+          endpoint: "{{ storage_endpoint }}"
+          canonical_endpoint: "{{ storage_endpoint }}"
+          serial: ""
+          claim_serial_number: ""
+          normalized_claim_key: "{{ item.id | default(item.name | default(storage_endpoint)) }}"
+          claim_submission_required: true
+          management_type: assist_managed
+          form_factor: ""
+          endpoint_validate_certs: false
+          storage_platform: "{{ storage_platform }}"
+          assist_name: "{{ item.assist | default('') | string | trim }}"
+          claim_username: "{{ storage_credentials.username | default(item.username | default('')) }}"
+          claim_password_ref: "{{ storage_credentials.password_ref | default(item.password_ref | default('')) }}"
+          claim_password: "{{ storage_credentials.password | default(item.password | default('')) }}"
+      loop: "{{ inventory_storage }}"
+      loop_control:
+        label: "{{ item.id | default(item.name | default('storage-target')) }}"
+      when:
+        - item is mapping
+        - storage_endpoint | length > 0
+        - storage_platform | length > 0
+      tags:
+        - build
+        - claim
 
     - name: Export onboarding target outputs
       ansible.builtin.set_fact:

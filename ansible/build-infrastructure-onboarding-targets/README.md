@@ -19,6 +19,8 @@ Current target rules:
 
 - `fi_pair` domains become one FI claim target using the first member management IP
 - standalone rack servers with `mgmt_ip` become direct claim targets
+- `inventory.assist` entries become direct Assist claim targets using the provided FQDN endpoint
+- `inventory.storage` entries become storage claim targets using the user-facing `platform` field plus the referenced Assist name
 - standalone rack servers also become reset targets
 - child devices without direct management endpoints are not included
 

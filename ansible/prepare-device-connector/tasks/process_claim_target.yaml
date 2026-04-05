@@ -28,10 +28,25 @@
     - prepare
     - verify
 
+- name: Bypass connector prepare for Assist targets
+  ansible.builtin.set_fact:
+    connector_prepare_execution_result:
+      endpoint: "{{ claim_target_payload.endpoint | default('') }}"
+      device_type: "{{ claim_target_payload.device_type | default(claim_target_payload.target_category | default('unknown')) }}"
+      status: not_applicable
+      reason: assist_claim_uses_backend_specific_flow
+      messages:
+        - "Assist targets skip shared connector preparation and are handled in the claim grain."
+  when: (claim_target_payload.target_category | default('')) == 'assist'
+  tags:
+    - prepare
+    - verify
+
 - name: Run shared connector prepare implementation
   ansible.builtin.include_tasks: "{{ playbook_dir }}/../build-infrastructure-domain-model/tasks/execute_device_connector_prepare.yaml"
   vars:
     validation_mode: "{{ internal_validation_mode }}"
+  when: (claim_target_payload.target_category | default('')) != 'assist'
   tags:
     - prepare
     - verify

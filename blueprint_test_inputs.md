@@ -271,6 +271,22 @@ inventory:
       type: fi_pair
       members:
         - fi-a
+  assist:
+    - id: assist-01
+      name: assist01
+      endpoint: assist-101.cisco.com
+      credentials:
+        username: admin
+        password: <assist-password>
+  storage:
+    - id: pure-01
+      name: pure01
+      platform: pure
+      endpoint: 10.193.42.37
+      credentials:
+        username: pureuser
+        password: <pure-password>
+      assist: assist01
 ```
 
 ### `solution_json`
@@ -301,5 +317,9 @@ solution:
   `prepare-intersight-context` -> `build-infrastructure-onboarding-targets` -> `reset-standalone-rack-password` -> `prepare-claim-target-credentials` -> `prepare-device-connector` -> `claim-devices-to-intersight` -> `validate-infrastructure-onboarding`
 - Onboarding validation is inventory-driven and checks direct targets only:
   FI pairs and standalone racks.
+- `inventory.assist` is for claimable Assist systems.
+- `inventory.storage` is for third-party storage onboarding.
+  Use a user-facing `platform` such as `pure`; the claim grain maps that to the API target type internally.
+  For the currently wired Pure flow, reference the Assist by inventory name via `assist: assist01`.
 - The public blueprint surface now uses JSON-string inputs such as `deployment_json`, `placement_json`, `inventory_json`, and `solution_json`.
 - `execution_intent: validate_only` is the safest first run.

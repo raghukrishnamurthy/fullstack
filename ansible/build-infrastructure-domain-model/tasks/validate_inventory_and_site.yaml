@@ -1,9 +1,9 @@
 ---
-- name: Validate inventory contains devices
+- name: Validate inventory contains supported entities
   ansible.builtin.assert:
     that:
-      - inventory_devices | length > 0
-    fail_msg: "inventory_yaml must contain one or more devices under inventory.devices"
+      - (inventory_devices | length) > 0 or (assists | length) > 0 or (inventory_storage | default([]) | length) > 0
+    fail_msg: "inventory_yaml must contain one or more supported entities under inventory.devices, inventory.assist, or inventory.storage"
   tags:
     - always
     - validate
@@ -90,6 +90,23 @@
     - always
     - validate
     - platform
+
+- name: Validate storage entries when provided
+  ansible.builtin.assert:
+    that:
+      - (item.id | default(item.name | default('')) | string | trim | length) > 0
+      - item.platform is defined
+      - item.platform | string | trim | length > 0
+      - item.endpoint is defined
+      - item.endpoint | string | trim | length > 0
+    fail_msg: "Each storage entry must define id or name, platform, and endpoint"
+  loop: "{{ inventory_storage | default([]) }}"
+  loop_control:
+    label: "{{ item.id | default(item.name | default('unknown-storage')) }}"
+  tags:
+    - always
+    - validate
+    - inventory
 
 - name: Validate site DNS server list when provided
   ansible.builtin.assert:

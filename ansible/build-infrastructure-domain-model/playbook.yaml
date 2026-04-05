@@ -58,8 +58,15 @@
     inventory_defaults: "{{ inventory_data.defaults | default({}) }}"
     inventory_devices: "{{ inventory_data.devices | default([]) }}"
     inventory_domains: "{{ inventory_data.domains | default([]) }}"
+    inventory_assists: "{{ inventory_data.assist | default(inventory_data.assists | default([])) }}"
+    inventory_storage: "{{ inventory_data.storage | default([]) }}"
     normalized_credential_candidates: "{{ credential_candidates_data if (credential_candidates_data is sequence and credential_candidates_data is not string) else [] }}"
-    assists: "{{ platform_data.intersight.assists | default([]) }}"
+    assists: >-
+      {{
+        inventory_assists
+        if (inventory_assists | length) > 0
+        else (platform_data.intersight.assists | default([]))
+      }}
     intersight_query_rules: "{{ default_intersight_query_rules_json | from_json }}"
     raw_intersight_endpoint: "{{ platform_data.intersight.endpoint | default('') | string | trim }}"
     derived_intersight_mode: "{{ 'saas' if ('intersight.com' in raw_intersight_endpoint) else 'pva' }}"
@@ -93,7 +100,7 @@
       }}
     fi_count: "{{ inventory_devices | selectattr('category', 'equalto', 'fabric_interconnect') | list | length }}"
     server_count: "{{ inventory_devices | selectattr('category', 'equalto', 'server') | list | length }}"
-    storage_count: "{{ inventory_devices | selectattr('category', 'equalto', 'storage') | list | length }}"
+    storage_count: "{{ inventory_storage | length }}"
     ethernet_switch_count: "{{ inventory_devices | selectattr('category', 'equalto', 'ethernet_switch') | list | length }}"
     san_switch_count: "{{ inventory_devices | selectattr('category', 'equalto', 'san_switch') | list | length }}"
     gpu_server_count: "{{ inventory_devices | selectattr('category', 'equalto', 'server') | selectattr('attributes.accelerator_profile', 'defined') | selectattr('attributes.accelerator_profile', 'equalto', 'gpu') | list | length }}"
