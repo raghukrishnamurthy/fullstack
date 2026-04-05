@@ -260,13 +260,72 @@
   tags:
     - claim
 
+- name: Verify appliance storage target appears after submission
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ claim_api_key_id }}"
+    api_private_key: "{{ claim_api_private_key }}"
+    api_uri: "{{ claim_api_uri }}"
+    use_proxy: false
+    validate_certs: "{{ claim_validate_certs | default(false) | bool }}"
+    resource_path: /asset/Targets
+    query_params:
+      $filter: "TargetType eq '{{ storage_target_type }}' and Name eq '{{ resolved_endpoint }}'"
+      $top: 1
+    return_list: true
+  register: submitted_storage_target_lookup
+  failed_when: false
+  ignore_errors: true
+  retries: "{{ storage_assist_wait_retries }}"
+  delay: "{{ storage_assist_wait_interval_seconds_normalized }}"
+  until: >-
+    {{
+      (submitted_storage_target_lookup.api_response | default([]) | length) > 0
+    }}
+  when:
+    - claim_result is not defined
+    - appliance_storage_claim_result is defined
+    - not (appliance_storage_claim_result.failed | default(false) | bool)
+    - "'already exists' not in (storage_claim_error_text_lower | default(''))"
+    - "'conflict' not in (storage_claim_error_text_lower | default(''))"
+  tags:
+    - claim
+    - verify
+
+- name: Record missing appliance storage target after submission
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_static_storage_claim_result.yaml"
+  vars:
+    static_storage_execution_mode: appliance_storage_target_claim
+    static_storage_status: failed
+    static_storage_reason: claim_not_visible_after_submission
+    static_storage_message: "Storage target claim submission completed but the target did not appear in the appliance control plane within {{ storage_assist_wait_timeout_seconds_normalized | default(storage_assist_wait_timeout_seconds | int) }} seconds."
+    static_storage_include_executed: true
+    static_storage_executed: true
+  when:
+    - claim_result is not defined
+    - appliance_storage_claim_result is defined
+    - not (appliance_storage_claim_result.failed | default(false) | bool)
+    - "'already exists' not in (storage_claim_error_text_lower | default(''))"
+    - "'conflict' not in (storage_claim_error_text_lower | default(''))"
+    - (submitted_storage_target_lookup.api_response | default([]) | length) == 0
+  tags:
+    - claim
+    - aggregate
+
 - name: Record appliance storage claim result
   ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_storage_claim_result.yaml"
   vars:
     storage_claim_execution_mode: appliance_storage_target_claim
     storage_claim_api_failed: "{{ appliance_storage_claim_result.failed | default(false) | bool }}"
     storage_claim_api_message: "{{ appliance_storage_claim_result.msg | default('Storage target claim submission failed') }}"
-    storage_claim_api_response: "{{ appliance_storage_claim_result.api_response | default({}) }}"
+    storage_claim_api_response: >-
+      {{
+        (submitted_storage_target_lookup.api_response | default([]) | first | default({}))
+        if (
+          (submitted_storage_target_lookup is defined)
+          and ((submitted_storage_target_lookup.api_response | default([]) | length) > 0)
+        )
+        else (appliance_storage_claim_result.api_response | default({}))
+      }}
     storage_claim_conflict_message: "Appliance reported a conflict while attempting the storage claim."
     storage_claim_include_execution_payload: true
     storage_claim_execution_payload:
@@ -285,7 +344,15 @@
         normalized_claim_key: "{{ normalized_claim_key }}"
         target_type: "{{ storage_target_type }}"
         assist_name: "{{ assist_name }}"
-        api_response: "{{ appliance_storage_claim_result.api_response | default({}) }}"
+        api_response: >-
+          {{
+            (submitted_storage_target_lookup.api_response | default([]) | first | default({}))
+            if (
+              (submitted_storage_target_lookup is defined)
+              and ((submitted_storage_target_lookup.api_response | default([]) | length) > 0)
+            )
+            else (appliance_storage_claim_result.api_response | default({}))
+          }}
         changed: "{{ appliance_storage_claim_result.changed | default(false) | bool }}"
   when: claim_result is not defined
   tags:

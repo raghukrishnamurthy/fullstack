@@ -37,6 +37,7 @@ Unified Jarvis grain for claiming prepared targets into either Intersight SaaS o
   - storage only introduces an Assist dependency when a storage target is actually present in `claim_targets_json`
   - appliance storage short-circuits when the storage target already exists, otherwise it waits for the referenced Assist to appear and reach `Connected`
   - appliance Assist wait behavior is controlled by `storage_assist_wait_timeout_seconds` and `storage_assist_wait_interval_seconds`
+  - current appliance defaults are 600 seconds timeout with 30 second polling to better accommodate fresh Assist claim and control-plane convergence
 - appliance direct claims perform a post-submit follow-up enrichment pass so the final aggregate preserves workflow and DeviceClaim evidence
 - emits both:
   - `results_json`
