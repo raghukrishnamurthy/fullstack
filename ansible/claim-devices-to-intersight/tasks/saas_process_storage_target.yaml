@@ -9,14 +9,20 @@
 
 - name: Resolve SaaS storage target type
   ansible.builtin.set_fact:
+    storage_platform: "{{ claim_target_context.storage_platform | default('') | string | trim | lower }}"
+    assist_name: "{{ claim_target_context.assist_name | default('') | string | trim }}"
+  tags:
+    - claim
+    - aggregate
+
+- name: Resolve SaaS storage target type mapping
+  ansible.builtin.set_fact:
     storage_target_type: >-
       {{
         {
           'pure': 'PureStorageFlashArray'
         }.get(storage_platform, '')
       }}
-    storage_platform: "{{ claim_target_context.storage_platform | default('') | string | trim | lower }}"
-    assist_name: "{{ claim_target_context.assist_name | default('') | string | trim }}"
   tags:
     - claim
     - aggregate
