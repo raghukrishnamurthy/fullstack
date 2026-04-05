@@ -1,0 +1,36 @@
+spec_version: 2
+description: Minimal Torque blueprint to confirm where staged files appear inside an Ansible grain sandbox
+inputs:
+  agent:
+    type: agent
+    title: Torque Agent
+    description: Torque agent that runs this workflow.
+  staged_file_name:
+    type: string
+    description: Expected runtime filename for the staged file
+    default: torque-file-test.txt
+grains:
+  test_staged_file:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/test-torque-staged-file/playbook.yaml
+      files:
+        - source: intersight-fullstack-repo
+          path: assets/secrets/torque-file-test.txt
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - staged_file_name: '{{ .inputs.staged_file_name }}'
+      outputs:
+        - staged_file_pwd
+        - staged_file_candidate_path
+        - staged_file_exists
+        - staged_file_content

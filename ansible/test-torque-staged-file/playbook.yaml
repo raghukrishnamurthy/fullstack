@@ -1,0 +1,56 @@
+---
+- name: Test Torque staged file visibility
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    staged_file_name_runtime: "{{ staged_file_name | default('torque-file-test.txt') | string | trim }}"
+    runtime_pwd: "{{ lookup('ansible.builtin.env', 'PWD') | string | trim }}"
+    runtime_candidate_path: >-
+      {{
+        staged_file_name_runtime
+        if (staged_file_name_runtime.startswith('/'))
+        else ((runtime_pwd | string | trim) ~ '/' ~ staged_file_name_runtime)
+      }}
+
+  tasks:
+    - name: Check staged file at runtime candidate path
+      ansible.builtin.stat:
+        path: "{{ runtime_candidate_path }}"
+      register: runtime_staged_file_stat
+      tags:
+        - always
+        - verify
+
+    - name: Read staged file content when present
+      ansible.builtin.set_fact:
+        staged_file_content: "{{ lookup('ansible.builtin.file', runtime_candidate_path) }}"
+      when: runtime_staged_file_stat.stat.exists | default(false)
+      tags:
+        - always
+        - verify
+
+    - name: Build staged file outputs
+      ansible.builtin.set_fact:
+        staged_file_pwd: "{{ runtime_pwd }}"
+        staged_file_candidate_path: "{{ runtime_candidate_path }}"
+        staged_file_exists: "{{ runtime_staged_file_stat.stat.exists | default(false) | ternary('true', 'false') }}"
+        staged_file_content_export: "{{ staged_file_content | default('') }}"
+      tags:
+        - always
+        - outputs
+
+    - name: Export test-torque-staged-file outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          staged_file_pwd: "{{ staged_file_pwd }}"
+          staged_file_candidate_path: "{{ staged_file_candidate_path }}"
+          staged_file_exists: "{{ staged_file_exists }}"
+          staged_file_content: "{{ staged_file_content_export }}"
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
+      tags:
+        - always
+        - outputs
