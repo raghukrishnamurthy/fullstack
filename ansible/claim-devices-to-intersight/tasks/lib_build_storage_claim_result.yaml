@@ -2,7 +2,9 @@
 - name: Resolve normalized storage claim outcome
   ansible.builtin.set_fact:
     storage_claim_status: >-
-      {%- if (storage_claim_api_failed | default(false) | bool) -%}
+      {%- if (storage_claim_status_override | default('') | string | trim | length) > 0 -%}
+      {{ storage_claim_status_override }}
+      {%- elif (storage_claim_api_failed | default(false) | bool) -%}
       failed
       {%- elif 'already exists' in (storage_claim_error_text_lower | default('')) -%}
       already_claimed
@@ -12,7 +14,9 @@
       submitted
       {%- endif -%}
     storage_claim_reason: >-
-      {%- if (storage_claim_api_failed | default(false) | bool) -%}
+      {%- if (storage_claim_reason_override | default('') | string | trim | length) > 0 -%}
+      {{ storage_claim_reason_override }}
+      {%- elif (storage_claim_api_failed | default(false) | bool) -%}
       claim_submission_failed
       {%- elif 'already exists' in (storage_claim_error_text_lower | default('')) -%}
       already_compliant
@@ -22,7 +26,9 @@
       claimed_and_configured
       {%- endif -%}
     storage_claim_message: >-
-      {%- if (storage_claim_api_failed | default(false) | bool) -%}
+      {%- if (storage_claim_message_override | default('') | string | trim | length) > 0 -%}
+      {{ storage_claim_message_override }}
+      {%- elif (storage_claim_api_failed | default(false) | bool) -%}
       {{ storage_claim_failure_message | default(storage_claim_api_message | default('Storage target claim submission failed')) }}
       {%- elif 'already exists' in (storage_claim_error_text_lower | default('')) -%}
       Storage target already exists.

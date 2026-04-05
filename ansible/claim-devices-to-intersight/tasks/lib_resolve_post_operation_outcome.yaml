@@ -1,0 +1,42 @@
+---
+- name: Resolve normalized post-operation outcome
+  ansible.builtin.set_fact:
+    post_operation_status: >-
+      {%- if (post_api_failed | default(false) | bool) -%}
+      failed
+      {%- elif (post_already_claimed | default(false) | bool) -%}
+      already_claimed
+      {%- elif (post_conflict | default(false) | bool) -%}
+      conflict
+      {%- elif (post_evidence_required | default(false) | bool) and not (post_evidence_found | default(false) | bool) -%}
+      failed
+      {%- else -%}
+      {{ post_success_status | default('submitted') }}
+      {%- endif -%}
+    post_operation_reason: >-
+      {%- if (post_api_failed | default(false) | bool) -%}
+      {{ post_failure_reason | default('claim_submission_failed') }}
+      {%- elif (post_already_claimed | default(false) | bool) -%}
+      {{ post_already_claimed_reason | default('already_compliant') }}
+      {%- elif (post_conflict | default(false) | bool) -%}
+      {{ post_conflict_reason | default('conflict') }}
+      {%- elif (post_evidence_required | default(false) | bool) and not (post_evidence_found | default(false) | bool) -%}
+      {{ post_evidence_missing_reason | default('post_operation_evidence_not_found') }}
+      {%- else -%}
+      {{ post_success_reason | default('claimed_and_configured') }}
+      {%- endif -%}
+    post_operation_message: >-
+      {%- if (post_api_failed | default(false) | bool) -%}
+      {{ post_failure_message | default('Operation failed') }}
+      {%- elif (post_already_claimed | default(false) | bool) -%}
+      {{ post_already_claimed_message | default('Target is already claimed.') }}
+      {%- elif (post_conflict | default(false) | bool) -%}
+      {{ post_conflict_message | default('Operation reported a conflict.') }}
+      {%- elif (post_evidence_required | default(false) | bool) and not (post_evidence_found | default(false) | bool) -%}
+      {{ post_evidence_missing_message | default('Operation returned without the required follow-up evidence.') }}
+      {%- else -%}
+      {{ post_success_message | default('Operation submitted successfully.') }}
+      {%- endif -%}
+  tags:
+    - claim
+    - aggregate

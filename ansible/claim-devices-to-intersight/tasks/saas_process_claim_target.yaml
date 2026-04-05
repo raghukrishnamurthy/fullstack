@@ -584,49 +584,35 @@
     - verify
 
 - name: Resolve SaaS direct claim outcome
-  ansible.builtin.set_fact:
-    saas_direct_claim_status: >-
-      {%- if (saas_claim_result.failed | default(false) | bool) -%}
-      failed
-      {%- elif (saas_registration_lookup_failed | default(false) | bool) -%}
-      failed
-      {%- elif 'conflict' in claim_error_text_lower -%}
-      conflict
-      {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
-      conflict
-      {%- elif not (saas_registration_found | default(false) | bool) -%}
-      failed
-      {%- else -%}
-      submitted
-      {%- endif -%}
-    saas_direct_claim_reason: >-
-      {%- if (saas_claim_result.failed | default(false) | bool) -%}
-      claim_submission_failed
-      {%- elif (saas_registration_lookup_failed | default(false) | bool) -%}
-      registration_lookup_failed
-      {%- elif 'conflict' in claim_error_text_lower -%}
-      conflict
-      {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
-      conflict
-      {%- elif not (saas_registration_found | default(false) | bool) -%}
-      registration_not_found
-      {%- else -%}
-      claimed_and_configured
-      {%- endif -%}
-    saas_direct_claim_message: >-
-      {%- if (saas_claim_result.failed | default(false) | bool) -%}
-      {{ saas_claim_result.msg | default('Claim submission failed') }}
-      {%- elif (saas_registration_lookup_failed | default(false) | bool) -%}
-      SaaS claim submission returned, but post-submit registration verification failed.
-      {%- elif 'conflict' in claim_error_text_lower -%}
-      Intersight reported a conflict while attempting the claim.
-      {%- elif 'already' in claim_error_text_lower and 'claim' in claim_error_text_lower -%}
-      Intersight reports the device is already claimed.
-      {%- elif not (saas_registration_found | default(false) | bool) -%}
-      SaaS claim submission returned, but no device registration evidence was found.
-      {%- else -%}
-      Claim submitted successfully.
-      {%- endif -%}
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_post_operation_outcome.yaml"
+  vars:
+    post_api_failed: "{{ (saas_claim_result.failed | default(false) | bool) or (saas_registration_lookup_failed | default(false) | bool) }}"
+    post_failure_reason: >-
+      {{
+        'registration_lookup_failed'
+        if (saas_registration_lookup_failed | default(false) | bool)
+        else 'claim_submission_failed'
+      }}
+    post_failure_message: >-
+      {{
+        'SaaS claim submission returned, but post-submit registration verification failed.'
+        if (saas_registration_lookup_failed | default(false) | bool)
+        else (saas_claim_result.msg | default('Claim submission failed'))
+      }}
+    post_conflict: "{{ 'conflict' in claim_error_text_lower or ('already' in claim_error_text_lower and 'claim' in claim_error_text_lower) }}"
+    post_conflict_message: >-
+      {{
+        'Intersight reports the device is already claimed.'
+        if ('already' in claim_error_text_lower and 'claim' in claim_error_text_lower)
+        else 'Intersight reported a conflict while attempting the claim.'
+      }}
+    post_evidence_required: true
+    post_evidence_found: "{{ saas_registration_found | default(false) | bool }}"
+    post_evidence_missing_reason: registration_not_found
+    post_evidence_missing_message: "SaaS claim submission returned, but no device registration evidence was found."
+    post_success_status: submitted
+    post_success_reason: claimed_and_configured
+    post_success_message: "Claim submitted successfully."
   when:
     - claim_result is not defined
     - not (claim_duplicate_detected | default(false) | bool)
@@ -646,9 +632,9 @@
     direct_claim_management_type: "{{ effective_target_context.management_type | default(claim_target_context.management_type | default('')) }}"
     direct_claim_canonical_endpoint: "{{ resolved_endpoint }}"
     direct_claim_execution_mode: saas_claim
-    direct_claim_status: "{{ saas_direct_claim_status }}"
-    direct_claim_reason: "{{ saas_direct_claim_reason }}"
-    direct_claim_message: "{{ saas_direct_claim_message }}"
+    direct_claim_status: "{{ post_operation_status }}"
+    direct_claim_reason: "{{ post_operation_reason }}"
+    direct_claim_message: "{{ post_operation_message }}"
     direct_claim_include_changed: true
     direct_claim_changed: "{{ saas_claim_result.changed | default(false) | bool }}"
     direct_claim_include_device_type: true

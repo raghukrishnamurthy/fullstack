@@ -262,13 +262,82 @@
   tags:
     - claim
 
+- name: Verify SaaS storage target appears after submission
+  cisco.intersight.intersight_rest_api:
+    api_key_id: "{{ claim_api_key_id }}"
+    api_private_key: "{{ claim_api_private_key }}"
+    api_uri: "{{ claim_api_uri }}"
+    validate_certs: "{{ claim_validate_certs }}"
+    resource_path: /asset/Targets
+    query_params:
+      $filter: "TargetType eq '{{ storage_target_type }}' and Name eq '{{ resolved_endpoint }}'"
+      $top: 1
+    return_list: true
+  register: submitted_storage_target_lookup
+  failed_when: false
+  when:
+    - claim_result is not defined
+    - saas_storage_claim_result is defined
+    - not (saas_storage_claim_result.failed | default(false) | bool)
+    - "'already exists' not in (storage_claim_error_text_lower | default(''))"
+    - "'conflict' not in (storage_claim_error_text_lower | default(''))"
+  tags:
+    - claim
+    - verify
+
+- name: Resolve SaaS storage target evidence state
+  ansible.builtin.set_fact:
+    saas_storage_target_found: "{{ (submitted_storage_target_lookup.api_response | default([]) | length) > 0 }}"
+  when:
+    - claim_result is not defined
+    - saas_storage_claim_result is defined
+    - not (saas_storage_claim_result.failed | default(false) | bool)
+  tags:
+    - claim
+    - verify
+
+- name: Resolve normalized SaaS storage claim outcome
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_post_operation_outcome.yaml"
+  vars:
+    post_api_failed: "{{ saas_storage_claim_result.failed | default(false) | bool }}"
+    post_failure_reason: claim_submission_failed
+    post_failure_message: "{{ saas_storage_claim_result.msg | default('Storage target claim submission failed') }}"
+    post_already_claimed: "{{ 'already exists' in (storage_claim_error_text_lower | default('')) }}"
+    post_already_claimed_message: "Storage target already exists."
+    post_conflict: "{{ 'conflict' in (storage_claim_error_text_lower | default('')) }}"
+    post_conflict_message: "Intersight reported a conflict while attempting the storage claim."
+    post_evidence_required: "{{ not ('already exists' in (storage_claim_error_text_lower | default('')) or 'conflict' in (storage_claim_error_text_lower | default('')) or (saas_storage_claim_result.failed | default(false) | bool)) }}"
+    post_evidence_found: "{{ saas_storage_target_found | default(false) | bool }}"
+    post_evidence_missing_reason: claim_not_visible_after_submission
+    post_evidence_missing_message: "Storage target claim submission completed but the target did not appear in Intersight."
+    post_success_status: submitted
+    post_success_reason: claimed_and_configured
+    post_success_message: "Storage target claim submitted successfully."
+  when: claim_result is not defined
+  tags:
+    - claim
+    - aggregate
+
 - name: Record SaaS storage claim result
   ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_build_storage_claim_result.yaml"
   vars:
     storage_claim_execution_mode: saas_storage_target_claim
+    storage_claim_status_override: "{{ post_operation_status }}"
+    storage_claim_reason_override: "{{ post_operation_reason }}"
+    storage_claim_message_override: "{{ post_operation_message }}"
     storage_claim_api_failed: "{{ saas_storage_claim_result.failed | default(false) | bool }}"
+    storage_claim_failure_message: "{{ saas_storage_claim_result.msg | default('Storage target claim submission failed') }}"
     storage_claim_api_message: "{{ saas_storage_claim_result.msg | default('Storage target claim submission failed') }}"
-    storage_claim_api_response: "{{ saas_storage_claim_result.api_response | default({}) }}"
+    storage_claim_api_response: >-
+      {{
+        (submitted_storage_target_lookup.api_response | default([]) | first | default({}))
+        if (
+          (submitted_storage_target_lookup is defined)
+          and ((submitted_storage_target_lookup.api_response | default([]) | length) > 0)
+        )
+        else (saas_storage_claim_result.api_response | default({}))
+      }}
+    storage_claim_error_text_lower: "{{ storage_claim_error_text_lower | default('') }}"
     storage_claim_conflict_message: "Intersight reported a conflict while attempting the storage claim."
     storage_claim_include_changed: true
     storage_claim_changed: "{{ saas_storage_claim_result.changed | default(false) | bool }}"

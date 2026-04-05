@@ -143,39 +143,24 @@
     - claim
 
 - name: Record appliance claim result
-  ansible.builtin.set_fact:
-    direct_claim_status: >-
-      {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
-      already_claimed
-      {%- elif 'already exists' in pva_claim_error_text_lower -%}
-      already_claimed
-      {%- elif 'conflict' in pva_claim_error_text_lower -%}
-      conflict
-      {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
-      failed
-      {%- else -%}
-      submitted
-      {%- endif -%}
-    direct_claim_reason: >-
-      {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
-      already_compliant
-      {%- elif 'already exists' in pva_claim_error_text_lower -%}
-      already_compliant
-      {%- elif 'conflict' in pva_claim_error_text_lower -%}
-      conflict
-      {%- elif (pva_claim_transport_failed | default(false) | bool) -%}
-      claim_submission_failed
-      {%- else -%}
-      claimed_and_configured
-      {%- endif -%}
-    direct_claim_message: >-
-      {%- if 'already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower -%}
-      Claim target is already claimed and compliant.
-      {%- elif 'already exists' in pva_claim_error_text_lower -%}
-      Claim target is already claimed and compliant.
-      {%- else -%}
-      {{ pva_appliance_claim_result.msg | default('Claim submitted successfully.') }}
-      {%- endif -%}
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/lib_resolve_post_operation_outcome.yaml"
+  vars:
+    post_api_failed: "{{ pva_claim_transport_failed | default(false) | bool }}"
+    post_failure_reason: claim_submission_failed
+    post_failure_message: "{{ pva_appliance_claim_result.msg | default('Claim submission failed') }}"
+    post_already_claimed: >-
+      {{
+        ('already' in pva_claim_error_text_lower and 'claim' in pva_claim_error_text_lower)
+        or ('already exists' in pva_claim_error_text_lower)
+      }}
+    post_already_claimed_reason: already_compliant
+    post_already_claimed_message: "Claim target is already claimed and compliant."
+    post_conflict: "{{ 'conflict' in pva_claim_error_text_lower }}"
+    post_conflict_message: "{{ pva_appliance_claim_result.msg | default('Appliance reported a conflict while attempting the claim.') }}"
+    post_evidence_required: false
+    post_success_status: submitted
+    post_success_reason: claimed_and_configured
+    post_success_message: "{{ pva_appliance_claim_result.msg | default('Claim submitted successfully.') }}"
   no_log: false
   when: claim_result is not defined
   tags:
@@ -192,6 +177,9 @@
     direct_claim_management_type: "{{ claim_target_context.management_type | default('') }}"
     direct_claim_canonical_endpoint: "{{ claim_target_context.canonical_endpoint | default(resolved_endpoint) }}"
     direct_claim_execution_mode: appliance_claim
+    direct_claim_status: "{{ post_operation_status }}"
+    direct_claim_reason: "{{ post_operation_reason }}"
+    direct_claim_message: "{{ post_operation_message }}"
     direct_claim_include_executed: true
     direct_claim_executed: true
     direct_claim_include_execution_payload: true
