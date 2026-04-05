@@ -5,7 +5,7 @@ This directory contains a Torque-ready scaffold derived from the v2 Jarvis IAC a
 The current implementation focus is the first infrastructure onboarding slice:
 
 1. Prepare the shared Intersight context needed for onboarding
-2. Build direct onboarding targets from `inventory_yaml`
+2. Build direct onboarding targets from `inventory_json`
 3. Optionally reset standalone rack passwords before claim
 4. Map credential candidates onto per-target claim inputs
 5. Run device-connector preparation where applicable
@@ -101,7 +101,7 @@ Files:
 - `skills/`
   Repo-local shared Torque/Codex skill guidance for blueprint and Ansible patterns used in this repo
 - `ansible/build-infrastructure-onboarding-targets/`
-  Builds direct onboarding targets from `inventory_yaml` for FI pairs and standalone racks
+  Builds direct onboarding targets from `inventory_json` for FI pairs and standalone racks
 - `ansible/bootstrap_runtime/`
   Optional worker bootstrap playbook that installs shared Python and collection requirements
 - `ansible/reset-standalone-rack-password/`
@@ -177,22 +177,22 @@ Assumptions:
   - `placement_yaml` only for `prepare-intersight-context`
   - `credential_candidates_yaml` only for `prepare-claim-target-credentials`
 - claim grains assume the organization/context is already prepared and consume direct `organization`
-- `site_yaml` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
-- `credential_candidates_yaml` is the current direct-input mechanism for target credential rotation candidates
-- blueprint and direct-Ansible orchestration can accept shared `credential_candidates_yaml`, but standalone claim grains are expected to consume per-target `claim_username` and `claim_password_ref`
+- `site_json` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
+- `credential_candidates_json` is an optional override contract for target credential candidates
+- the public onboarding blueprint now primarily uses direct credential inputs such as `fi_target_password`, `rack_target_password`, and `manufacturing_rack_password`, and only falls back to `credential_candidates_json` when an explicit override is needed
 - rack-server flows can use typed candidates such as:
   `manufacturing` for factory/default login and `target` for the desired post-rotation credential
 - in the main prepare-and-claim flow, standalone rack targets are expected to already use the desired credential
 - manufacturing/default rack credentials now belong in the separate `reset-standalone-rack-password` grain
 - `baseline_input_source` and `baseline_directory` are optional customer-baseline sources for higher orchestration and direct Ansible execution
-- `overrides_yaml` is the deployment-specific delta layer and is optional
+- `overrides_json` is the deployment-specific delta layer and is optional
 - provide only one customer baseline source at a time
 - the scaffold always starts from a built-in baseline selected by `solution.profile`
 - when `baseline_directory` is provided, the scaffold expects `baseline.yaml` in that directory
 - when `baseline_input_source` is provided, the scaffold fetches YAML from the given HTTP(S) URL
 - precedence is:
   built-in baseline -> customer baseline -> overrides
-- `overrides_yaml` is merged recursively onto the effective baseline payload
+- `overrides_json` is merged recursively onto the effective baseline payload
 - the scaffold now uses the effective baseline payload for early onboarding expectation checks
 - `validation_mode: strict` validates the input contract only
 - `validation_mode: live` resolves env-based Intersight credential refs and queries Cisco Intersight for declared serials
@@ -257,7 +257,7 @@ Current checkpoint:
   - `manufacturing_password`
   - `target_username`
   - `target_password`
-- the focused rack reset blueprint builds internal `credential_candidates_yaml` for the reusable reset grain and exports Torque-native outputs directly from that grain
+- the focused rack reset blueprint builds internal credential candidates for the reusable reset grain and exports Torque-native outputs directly from that grain
 - the reusable reset grain now consumes `targets_json` directly
 - `api_uri` is the backend selector for the focused claim blueprint and should be the real API base URI, for example:
   - `https://intersight.com/api/v1`

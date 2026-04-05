@@ -98,16 +98,17 @@ Blueprint file:
 | Form Key | Grain | Automation Variable | Torque Grain Input |
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
-| `deployment_yaml` | shared onboarding phase | `deployment_yaml` | phase inputs |
-| `platform_yaml` | shared onboarding phase | `platform_yaml` | phase inputs |
-| `placement_yaml` | shared onboarding phase | `placement_yaml` | phase inputs |
-| `inventory_yaml` | shared onboarding phase | `inventory_yaml` | phase inputs |
-| `solution_yaml` | shared onboarding phase | `solution_yaml` | phase inputs |
-| `credential_candidates_yaml` | shared onboarding phase | `credential_candidates_yaml` | phase inputs |
-| `site_yaml` | shared onboarding phase | `site_yaml` | phase inputs |
+| `deployment_json` | shared onboarding phase | `deployment_json` | phase inputs |
+| `api_uri` | shared onboarding phase | `api_uri` | phase inputs |
+| `platform_json` | shared onboarding phase | `platform_json` | phase inputs |
+| `placement_json` | shared onboarding phase | `placement_json` | phase inputs |
+| `inventory_json` | shared onboarding phase | `inventory_json` | phase inputs |
+| `solution_json` | shared onboarding phase | `solution_json` | phase inputs |
+| `credential_candidates_json` | shared onboarding phase | `credential_candidates_json` | phase inputs |
+| `site_json` | shared onboarding phase | `site_json` | phase inputs |
 | `baseline_input_source` | shared onboarding phase | `baseline_input_source` | phase inputs |
 | `baseline_directory` | shared onboarding phase | `baseline_directory` | phase inputs |
-| `overrides_yaml` | shared onboarding phase | `overrides_yaml` | phase inputs |
+| `overrides_json` | shared onboarding phase | `overrides_json` | phase inputs |
 | `validation_mode` | shared onboarding phase | `validation_mode` | phase inputs |
 | `execution_intent` | shared onboarding phase | `execution_intent` | phase inputs |
 | `wait_for_completion` | `validate_infrastructure_onboarding` | `wait_for_completion` | `wait_for_completion` |

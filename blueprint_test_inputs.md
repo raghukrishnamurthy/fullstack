@@ -230,9 +230,9 @@ admin
 
 ## Infrastructure Onboard Devices Small Test
 
-Use this for the first real Torque run of the all-YAML onboarding phase blueprint.
+Use this for the first real Torque run of the current onboarding phase blueprint.
 
-### `deployment_yaml`
+### `deployment_json`
 
 ```yaml
 deployment:
@@ -241,19 +241,7 @@ deployment:
   environment: prod
 ```
 
-### `platform_yaml`
-
-```yaml
-platform:
-  intersight:
-    endpoint: https://intersight.com/api/v1
-    validate_certs: false
-    credentials:
-      api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-      api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-```
-
-### `placement_yaml`
+### `placement_json`
 
 ```yaml
 placement:
@@ -262,7 +250,7 @@ placement:
     resource_group: ai-prod
 ```
 
-### `inventory_yaml`
+### `inventory_json`
 
 ```yaml
 inventory:
@@ -285,7 +273,7 @@ inventory:
         - fi-a
 ```
 
-### `solution_yaml`
+### `solution_json`
 
 ```yaml
 solution:
@@ -293,21 +281,19 @@ solution:
   delivery_scope: infrastructure
 ```
 
-### `credential_candidates_yaml`
+### Direct credential inputs
 
-```yaml
-credential_candidates:
-  - credential_role: target
-    target_category: server
-    target_form_factor: rack
-    target_management_type: standalone
-    username: admin
-    password_ref: env://RACK_TARGET_PASSWORD
-  - credential_role: target
-    target_category: fabric_interconnect
-    username: admin
-    password_ref: env://FI_TARGET_PASSWORD
-```
+- `fi_target_username`
+- `fi_target_password`
+- `rack_target_username`
+- `rack_target_password`
+- `manufacturing_rack_username`
+- `manufacturing_rack_password`
+
+### Optional override input
+
+- `credential_candidates_json`
+  Use this only when you intentionally want to override the direct credential mapping.
 
 ### Notes
 
@@ -315,4 +301,5 @@ credential_candidates:
   `prepare-intersight-context` -> `build-infrastructure-onboarding-targets` -> `reset-standalone-rack-password` -> `prepare-claim-target-credentials` -> `prepare-device-connector` -> `claim-devices-to-intersight` -> `validate-infrastructure-onboarding`
 - Onboarding validation is inventory-driven and checks direct targets only:
   FI pairs and standalone racks.
+- The public blueprint surface now uses JSON-string inputs such as `deployment_json`, `placement_json`, `inventory_json`, and `solution_json`.
 - `execution_intent: validate_only` is the safest first run.

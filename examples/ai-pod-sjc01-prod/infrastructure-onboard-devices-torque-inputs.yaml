@@ -12,13 +12,13 @@ intersight_api_private_key: |
   ...
   -----END EC PRIVATE KEY-----
 
-placement_yaml: |
+placement_json: |
   placement:
     intersight:
       organization: ai-prod
       resource_group: ai-prod
 
-inventory_yaml: |
+inventory_json: |
   inventory:
     devices:
       - id: fi-a
@@ -70,7 +70,7 @@ inventory_yaml: |
           - fi-a
           - fi-b
 
-solution_yaml: |
+solution_json: |
   solution:
     profile: virtualization_foundation
     delivery_scope: infrastructure
@@ -88,4 +88,4 @@ validation_mode: live
 execution_intent: apply
 wait_for_completion: "true"
 validation_poll_interval: "30"
-validation_timeout_seconds: "600"
+validation_timeout_seconds: "300"

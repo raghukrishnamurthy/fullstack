@@ -11,7 +11,7 @@ Validation and completion grain for the `infrastructure-onboard-devices` phase.
 ## Required inputs
 
 - either:
-  - `inventory_yaml` plus `platform_yaml`
+  - `inventory_json` plus API/platform context
 - or:
   - `discovery_model_json`
 
@@ -39,3 +39,5 @@ Validation and completion grain for the `infrastructure-onboard-devices` phase.
 - reports `onboarding_submitted` when apply-mode claim actions succeeded but final live completion has not been proven yet
 - reports `completed` only when the expected direct onboarding targets are present and ready in Intersight
 - can poll Intersight for asynchronous onboarding settlement when `wait_for_completion` is enabled
+- polling exits after the first successful completion pass instead of continuing through the remaining loop window
+- `phase_readiness_json.summary.present_direct_target_count` is exported as a numeric total of direct racks plus settled FI pairs
