@@ -245,6 +245,17 @@
     api_body: "{{ appliance_storage_target_request_body }}"
   register: appliance_storage_claim_result
   failed_when: false
+  retries: "{{ storage_assist_wait_retries }}"
+  delay: "{{ storage_assist_wait_interval_seconds_normalized }}"
+  until: >-
+    {{
+      not (
+        (
+          ((appliance_storage_claim_result.msg | default('')) ~ ' ' ~ (appliance_storage_claim_result.api_response | default({}) | to_json))
+          | lower
+        ) is search('aurora_target_assist_not_setup')
+      )
+    }}
   no_log: true
   when: claim_result is not defined
   tags:
@@ -332,12 +343,24 @@
       requested: true
       executed: true
       execution_mode: appliance_storage_target_claim
-      status: "{{ 'failed' if (appliance_storage_claim_result.failed | default(false) | bool) else 'submitted' }}"
+      status: >-
+        {{
+          'failed'
+          if (
+            (appliance_storage_claim_result.failed | default(false) | bool)
+            or ('aurora_target_assist_not_setup' in (storage_claim_error_text_lower | default('')))
+          )
+          else 'submitted'
+        }}
       reason: >-
         {{
-          'claim_submission_failed'
-          if (appliance_storage_claim_result.failed | default(false) | bool)
-          else 'claimed_and_configured'
+          'assist_not_setup'
+          if ('aurora_target_assist_not_setup' in (storage_claim_error_text_lower | default('')))
+          else (
+            'claim_submission_failed'
+            if (appliance_storage_claim_result.failed | default(false) | bool)
+            else 'claimed_and_configured'
+          )
         }}
       payload:
         endpoint: "{{ resolved_endpoint }}"
