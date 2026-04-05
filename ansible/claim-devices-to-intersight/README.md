@@ -39,9 +39,64 @@ Unified Jarvis grain for claiming prepared targets into either Intersight SaaS o
   - appliance Assist wait behavior is controlled by `storage_assist_wait_timeout_seconds` and `storage_assist_wait_interval_seconds`
   - current appliance defaults are 600 seconds timeout with 30 second polling to better accommodate fresh Assist claim and control-plane convergence
 - appliance direct claims perform a post-submit follow-up enrichment pass so the final aggregate preserves workflow and DeviceClaim evidence
+- SaaS direct claims build normalized results through the shared direct-claim result helper without recursive include-var shadowing
 - emits both:
   - `results_json`
   - normalized claim outputs matching the previous normalize grain contract
+
+## Appliance storage behavior
+
+- appliance storage claim first checks `/asset/Targets` and short-circuits when the target already exists
+- when the storage target is absent, the grain waits for the referenced Assist target to appear and reach `Status: Connected`
+- if storage submission returns appliance `messageId: aurora_target_assist_not_setup`, the grain treats that response as retryable for appliance storage only
+- retry behavior for `aurora_target_assist_not_setup` is bounded by the same Assist wait budget
+- after a successful appliance storage submission, the grain verifies that the storage target appears in `/asset/Targets`
+- appliance storage results now preserve:
+  - `target_moid`
+  - `target_status`
+  - `target_workflow_moid`
+- if the storage target never appears after submission, the grain fails clearly instead of reporting a false success
+
+## SaaS direct-claim behavior
+
+- SaaS direct claims resolve the claimed `asset.DeviceRegistration` after submission and include `registration_found` and `registration_moid` in normalized results
+- normalized SaaS direct-claim results use distinct internal fact names before calling the shared direct-claim result builder
+- this avoids recursive templating of `direct_claim_status`, `direct_claim_reason`, and `direct_claim_message`
+
+## Validation summary
+
+- appliance storage claim validation now expects a real appliance-side target object, not just a local submitted result
+- successful appliance storage validation should show:
+  - populated `target_moid`
+  - populated `target_workflow_moid`
+  - `target_status` such as `ClaimInProgress`
+  - aggregate `appliance_result_count: 1` for the storage claim run
+- the latest validated appliance storage run created:
+  - target MOID `69d2c0346f7261301ff9d546`
+  - workflow MOID `69d2c034696f6e301f295c72`
+  - `target_status: ClaimInProgress`
+- the latest validated SaaS direct-claim run completed successfully with:
+  - `successful_claim_result_count: 5`
+  - `blocking_claim_result_count: 0`
+  - all five direct targets producing `registration_found: true`
+- the latest validated onboarding completion run exported:
+  - `phase_ready: "true"`
+  - `phase_status: "completed"`
+  - `missing_device_count: "0"`
+  - `not_ready_device_count: "0"`
+  - `present_direct_target_count: "5"`
+
+## Recommended validation checks
+
+- for appliance storage claims, confirm the normalized result contains `target_moid`, `target_status`, and `target_workflow_moid`
+- for appliance storage claims, confirm the final result reflects a real `/asset/Targets` object rather than an empty `api_response`
+- for SaaS direct claims, confirm each normalized result contains `registration_found: true` and a non-empty `registration_moid`
+- for end-to-end readiness validation, confirm:
+  - `phase_ready` is `true`
+  - `phase_status` is `completed`
+  - `blocking_claim_result_count` is `0`
+  - `missing_device_count` is `0`
+  - `not_ready_device_count` is `0`
 
 ## Internal implementation
 
