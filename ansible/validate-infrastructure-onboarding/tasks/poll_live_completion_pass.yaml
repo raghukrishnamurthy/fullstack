@@ -5,6 +5,7 @@
   when:
     - readiness_attempt_number | int > 1
     - validation_poll_interval_normalized | int > 0
+    - not (completion_polling_done | default(false))
   tags:
     - validate
     - completion
@@ -15,6 +16,7 @@
     polled_placement_validation:
       ready: true
       errors: []
+  when: not (completion_polling_done | default(false))
   changed_when: false
   tags:
     - validate
@@ -37,6 +39,7 @@
   loop_control:
     loop_var: query_batch
     label: "{{ query_batch.category }}{{ ':' ~ query_batch.domain_id if query_batch.domain_id is defined else '' }}"
+  when: not (completion_polling_done | default(false))
   changed_when: false
   no_log: false
   tags:
@@ -50,6 +53,7 @@
     polled_missing_devices: []
     polled_not_ready_devices: []
     polled_fi_pair_validation_errors: []
+  when: not (completion_polling_done | default(false))
   changed_when: false
   tags:
     - validate
@@ -123,6 +127,7 @@
   loop_control:
     loop_var: readiness_query_result
     label: "{{ readiness_query_result.query_batch.category }}"
+  when: not (completion_polling_done | default(false))
   changed_when: false
   tags:
     - validate
@@ -179,7 +184,9 @@
   loop_control:
     loop_var: fi_lookup_result
     label: "{{ fi_lookup_result.query_batch.domain_id | default(fi_lookup_result.query_batch.serial_numbers | join(',')) }}"
-  when: fi_pair_errors_local | length > 0
+  when:
+    - not (completion_polling_done | default(false))
+    - fi_pair_errors_local | length > 0
   changed_when: false
   tags:
     - validate
@@ -205,6 +212,7 @@
         and (polled_fi_pair_validation_errors | length == 0)
         and (polled_placement_validation.ready | default(true) | bool)
       }}
+  when: not (completion_polling_done | default(false))
   changed_when: false
   tags:
     - validate
