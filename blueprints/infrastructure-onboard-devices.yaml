@@ -18,7 +18,6 @@ inputs:
   intersight_api_private_key:
     type: string
     description: Intersight API private key PEM content
-    sensitive: true
   platform_json:
     type: string
     description: Optional JSON platform context override including Intersight endpoint and non-secret settings
@@ -39,7 +38,6 @@ inputs:
   fi_target_password:
     type: string
     description: Password for fabric interconnect onboarding targets
-    sensitive: true
   rack_target_username:
     type: string
     description: Username for standalone rack onboarding targets
@@ -47,7 +45,6 @@ inputs:
   rack_target_password:
     type: string
     description: Password for standalone rack onboarding targets
-    sensitive: true
   manufacturing_rack_username:
     type: string
     description: Username for manufacturing or factory-default standalone rack login
@@ -55,7 +52,6 @@ inputs:
   manufacturing_rack_password:
     type: string
     description: Password for manufacturing or factory-default standalone rack login
-    sensitive: true
   credential_candidates_json:
     type: string
     description: Optional JSON credential-candidate contract override for onboarding-capable targets
