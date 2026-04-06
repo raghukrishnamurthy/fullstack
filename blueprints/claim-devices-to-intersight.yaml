@@ -71,19 +71,11 @@ grains:
               fi
 
               if [ -z "${RESOLVED_SOURCE}" ]; then
-                echo "prepared_encrypted_device_secret_bundle_path="
-                echo "prepared_encrypted_device_secret_bundle_source="
                 exit 0
               fi
 
               mkdir -p "${TMP_ROOT}"
               cp "${RESOLVED_SOURCE}" "${TMP_PATH}"
-
-              echo "prepared_encrypted_device_secret_bundle_path=${TMP_PATH}"
-              echo "prepared_encrypted_device_secret_bundle_source=${RESOLVED_SOURCE}"
-      outputs:
-        - prepared_encrypted_device_secret_bundle_path
-        - prepared_encrypted_device_secret_bundle_source
 
   prepare_device_secret_bundle:
     kind: ansible
@@ -101,7 +93,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - encrypted_device_secret_bundle_path: '{{ .grains.stage_device_secret_bundle.outputs.prepared_encrypted_device_secret_bundle_path }}'
+        - encrypted_device_secret_bundle_path: '/tmp/jarvis-staged-device-secret-bundles/device-secrets.enc'
         - device_secret_bundle_key: '{{ .inputs.device_secret_bundle_key }}'
         - credential_candidates_yaml: |
             {{ .inputs.credential_candidates_yaml }}
