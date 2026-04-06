@@ -8,9 +8,20 @@ inputs:
   deployment_yaml:
     type: string
     description: YAML deployment context for the infrastructure domain
+  api_uri:
+    type: string
+    description: Intersight SaaS or appliance API base URI
+    default: https://intersight.com/api/v1
+  intersight_api_key_id:
+    type: string
+    description: Intersight API key id
+  intersight_api_private_key:
+    type: string
+    description: Intersight API private key PEM content
   platform_yaml:
     type: string
-    description: YAML platform context including Intersight endpoint and credential refs
+    description: Optional legacy platform override; direct Intersight inputs are preferred
+    default: ''
   placement_yaml:
     type: string
     description: YAML placement context for Intersight organization and related settings
@@ -101,6 +112,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -108,7 +122,14 @@ grains:
               ansible_connection: local
       inputs:
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - inventory_yaml: '{{ .inputs.inventory_yaml }}'
         - solution_yaml: '{{ .inputs.solution_yaml }}'
