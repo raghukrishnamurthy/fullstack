@@ -18,6 +18,7 @@ Use this path when you want to understand or safely exercise the current repo wi
 ## Run First
 
 - Start with [blueprints/infrastructure-onboard-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-onboard-devices.yaml) for the active onboarding phase.
+- The current phase blueprints use JSON-string launch context on the public surface, even when downstream grains still consume YAML-shaped internal contracts.
 - Use [examples/ai-pod-sjc01-prod/infrastructure-onboard-devices-torque-inputs.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/examples/ai-pod-sjc01-prod/infrastructure-onboard-devices-torque-inputs.yaml) as the current sample launch input set.
 
 ## Modes
@@ -43,6 +44,8 @@ Use this path when you want to understand or safely exercise the current repo wi
   Live validation plus lightweight assertions.
 - `./scripts/check_docs.sh`
   Verifies the key docs structure and catches stale path references after repo reorganization.
+- `./scripts/check_blueprints.sh`
+  Parses the published blueprints and verifies that referenced repo-local grain and asset paths exist.
 
 ## Secrets
 

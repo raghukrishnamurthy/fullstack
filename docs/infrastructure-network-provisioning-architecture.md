@@ -15,7 +15,9 @@ Phase boundary:
 
 Input model:
 
-This phase is expected to use shared YAML-shaped stack context.
+This phase is expected to use shared YAML-shaped stack context internally.
+
+The current public blueprint surface now prefers JSON-string launch inputs for phase context and normalizes those values into the internal YAML-shaped grain contracts.
 
 Required shared inputs:
 

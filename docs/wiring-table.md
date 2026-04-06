@@ -161,16 +161,16 @@ Blueprint file:
 | Form Key | Grain | Automation Variable | Torque Grain Input |
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
-| `deployment_yaml` | `build_infrastructure_domain_model` | `deployment_yaml` | `deployment_yaml` |
-| `platform_yaml` | `build_infrastructure_domain_model` | `platform_yaml` | `platform_yaml` |
-| `placement_yaml` | `build_infrastructure_domain_model` | `placement_yaml` | `placement_yaml` |
-| `inventory_yaml` | `build_infrastructure_domain_model` | `inventory_yaml` | `inventory_yaml` |
-| `solution_yaml` | `build_infrastructure_domain_model` | `solution_yaml` | `solution_yaml` |
-| `credential_candidates_yaml` | `build_infrastructure_domain_model` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `site_yaml` | `build_infrastructure_domain_model` | `site_yaml` | `site_yaml` |
+| `deployment_json` | `build_infrastructure_domain_model` | `deployment_json` | `deployment_json` |
+| `platform_json` | `build_infrastructure_domain_model` | `platform_json` | `platform_json` |
+| `placement_json` | `build_infrastructure_domain_model` | `placement_json` | `placement_json` |
+| `inventory_json` | `build_infrastructure_domain_model` | `inventory_json` | `inventory_json` |
+| `solution_json` | `build_infrastructure_domain_model` | `solution_json` | `solution_json` |
+| `credential_candidates_json` | `build_infrastructure_domain_model` | `credential_candidates_json` | `credential_candidates_json` |
+| `site_json` | `build_infrastructure_domain_model` | `site_json` | `site_json` |
 | `baseline_input_source` | `build_infrastructure_domain_model` | `baseline_input_source` | `baseline_input_source` |
 | `baseline_directory` | `build_infrastructure_domain_model` | `baseline_directory` | `baseline_directory` |
-| `overrides_yaml` | `build_infrastructure_domain_model` | `overrides_yaml` | `overrides_yaml` |
+| `overrides_json` | `build_infrastructure_domain_model` | `overrides_json` | `overrides_json` |
 | `validation_mode` | `build_infrastructure_domain_model` | `validation_mode` | `validation_mode` |
 | `execution_intent` | `infrastructure_network_provisioning` | `execution_intent` | `execution_intent` |
 

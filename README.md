@@ -201,6 +201,10 @@ Local test path:
 - `./scripts/run_example_live_checked.sh`
   executes the live path and verifies a few expected live-validation output values
   both live scripts fail fast when `INTERSIGHT_API_KEY_ID` or `INTERSIGHT_API_PRIVATE_KEY` are not present
+- `./scripts/check_docs.sh`
+  verifies the key docs structure and catches stale path references
+- `./scripts/check_blueprints.sh`
+  parses the published blueprints and verifies that referenced repo-local grain and asset paths exist
 
 Assumptions:
 
@@ -214,8 +218,8 @@ Assumptions:
   - `credential_candidates_yaml` only for the secret-bundle and credential-resolution grains
 - claim grains assume the organization/context is already prepared and consume direct `organization`
 - `site_json` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
-- `credential_candidates_json` and `credential_candidates_yaml` are optional override contracts for target credential candidates
-- the public claim and onboarding blueprints now prefer encrypted bundle inputs for device-side secrets:
+- `credential_candidates_json` and `credential_candidates_yaml` are optional override contracts for target credential candidates; the public phase blueprints now prefer the JSON-string form
+- the public claim, onboarding, and network-provisioning blueprints now prefer encrypted bundle inputs for device-side secrets:
   - `encrypted_device_secret_bundle_path`
   - `device_secret_bundle_key`
 - the public onboarding blueprint no longer exposes direct FI or rack password inputs; control-plane credentials stay as launch inputs and are mapped to env-backed refs internally during execution
