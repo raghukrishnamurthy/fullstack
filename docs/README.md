@@ -36,3 +36,8 @@ Supplemental repo documentation lives here so the active contracts are easier to
   Canonical example input models, baselines, and catalog reference data.
 - `references/intersightdocs/`
   Vendor/API reference material kept out of the active docs and runtime paths.
+
+## Maintenance
+
+- [Contributing](/Users/rkrishn2/Documents/Jarvis_IAC/CONTRIBUTING.md)
+  Short repo-maintenance guidance for structure, contracts, and generated files.

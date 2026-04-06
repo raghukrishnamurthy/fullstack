@@ -311,7 +311,8 @@ jarvis-poc-unlock-key
 ### Notes
 
 - The onboarding blueprint now uses the explicit phase chain:
-  `prepare-intersight-context` -> `build-infrastructure-onboarding-targets` -> `prepare-device-secret-bundle` -> `reset-standalone-rack-passwords` -> `prepare-claim-target-credentials` -> `prepare-device-connector` -> `split-claim-target-phases` -> `claim-assist-targets-to-intersight` -> `claim-direct-targets-to-intersight` -> `claim-assist-dependent-targets-to-intersight` -> `merge-claim-phase-results` -> `validate-infrastructure-onboarding`
+  `prepare_device_secret_bundle` and the other grain ids below are shown in their blueprint form:
+  `prepare_intersight_context` -> `build_infrastructure_onboarding_targets` -> `prepare_device_secret_bundle` -> `reset_standalone_rack_passwords` -> `prepare_claim_target_credentials` -> `prepare_device_connector` -> `split_claim_target_phases` -> `claim_assist_targets_to_intersight` -> `claim_direct_targets_to_intersight` -> `claim_assist_dependent_targets_to_intersight` -> `merge_claim_phase_results` -> `validate_infrastructure_onboarding`
 - Onboarding validation is inventory-driven and checks direct targets only:
   FI pairs and standalone racks.
 - `inventory.assist` is for claimable Assist systems.

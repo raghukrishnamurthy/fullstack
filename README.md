@@ -37,6 +37,8 @@ Repo map:
   Runtime assets packaged or staged by workflows, including encrypted secret bundles.
 - `skills/`
   Repo-local Codex guidance and curated external-reference pointers.
+- `CONTRIBUTING.md`
+  Small repo-maintenance guide for where docs, prompts, references, examples, and generated files belong.
 
 Design requirement:
 
@@ -86,7 +88,7 @@ Planned stack architecture:
 - [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-resource-provisioning-architecture.md)
   Draft phase boundary for reusable chassis and management-plane resource foundation, kept separate from later solution-specific resource consumption.
 - [blueprints/infrastructure-onboard-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-onboard-devices.yaml)
-  First working phase blueprint for all-YAML device onboarding using an explicit grain chain for context preparation, target building, reset, claim preparation, claim, and validation.
+  First working phase blueprint for device onboarding using JSON-string launch inputs and an explicit grain chain for context preparation, target building, reset, claim preparation, claim, and validation.
 - [blueprints/infrastructure-network-provisioning.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-network-provisioning.yaml)
   First working phase blueprint for shared FI and fabric/network foundation planning, currently implemented as planning and validation only.
 
@@ -110,9 +112,9 @@ Files:
   Focused standalone rack password reset blueprint
   wraps the reusable `reset-standalone-rack-password` grain with direct credential inputs
 - `blueprints/infrastructure-onboard-devices.yaml`
-  First working infrastructure phase blueprint using shared YAML context to prepare context, derive direct targets, claim direct targets, and validate onboarding completion
+  First working infrastructure phase blueprint using JSON-string launch inputs with internal structured context for preparation, direct target claim, and onboarding validation
 - `blueprints/infrastructure-network-provisioning.yaml`
-  First working infrastructure network phase blueprint using shared YAML context and a reusable planning grain for shared FI and fabric/network foundation
+  First working infrastructure network phase blueprint using shared structured phase context and a reusable planning grain for shared FI and fabric/network foundation
 - `docs/README.md`
   Supplemental documentation index for blueprint UX, wiring, examples, architecture, and secret handling
 - `docs/catalog_ui.md`
@@ -265,6 +267,7 @@ Python helpers and custom modules:
 
 Current checkpoint:
 
+- `main` is now clean and includes the docs reorg, prompt consolidation, references layout, and bundle-based onboarding updates.
 - PVA flow is proven live for:
   - one FI pair claim unit derived from a declared `fi_pair` domain
   - standalone rack claim targets
