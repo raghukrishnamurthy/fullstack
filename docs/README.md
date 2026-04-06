@@ -20,6 +20,7 @@ Supplemental repo documentation lives here so the active contracts are easier to
 ## Architecture
 
 - [Infrastructure Onboard Devices](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-onboard-devices-architecture.md)
+- [Infrastructure Scan Mode](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-scan-mode-architecture.md)
 - [Infrastructure Network Provisioning](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-network-provisioning-architecture.md)
 - [Infrastructure Resource Provisioning](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-resource-provisioning-architecture.md)
 - [Infrastructure Stack](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-stack-architecture.md)

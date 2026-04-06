@@ -76,7 +76,6 @@ inventory_json: |
         endpoint: assist-101.cisco.com
         credentials:
           username: admin
-          password: <assist-password>
 
     storage:
       - id: pure-01
@@ -85,8 +84,7 @@ inventory_json: |
         endpoint: 10.193.42.37
         credentials:
           username: pureuser
-          password: <pure-password>
-        assist: assist01
+        assist: assist-01
 
 solution_json: |
   solution:
@@ -95,6 +93,13 @@ solution_json: |
 
 credential_candidates_json: |
   {}
+
+# Note:
+# Keep this empty for the bundle-backed happy path only when the encrypted
+# device secret bundle already carries both:
+# - credential_role: target
+# - credential_role: manufacturing
+# for any standalone rack targets that may require reset before claim.
 
 encrypted_device_secret_bundle_path: assets/secrets/device-secrets.enc
 device_secret_bundle_key: jarvis-poc-unlock-key

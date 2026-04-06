@@ -36,7 +36,11 @@ Credential inputs:
 
 - phase orchestration may still accept shared direct credential inputs for FI and standalone rack targets
 - standalone rack manufacturing/default credentials remain part of the optional rack reset path
-- internal orchestration should translate those direct inputs into the grain contracts already used by the reusable reset and claim grains
+- bundle-backed or override credential contracts should model both
+  `credential_role: target` and `credential_role: manufacturing` when
+  standalone rack reset may be required
+- internal orchestration should translate those inputs into the grain contracts
+  already used by the reusable reset and claim grains
 
 Initial implementation note:
 

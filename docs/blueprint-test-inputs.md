@@ -266,7 +266,6 @@ inventory:
       endpoint: assist-101.cisco.com
       credentials:
         username: admin
-        password: <assist-password>
   storage:
     - id: pure-01
       name: pure01
@@ -274,8 +273,7 @@ inventory:
       endpoint: 10.193.42.37
       credentials:
         username: pureuser
-        password: <pure-password>
-      assist: assist01
+      assist: assist-01
 ```
 
 ### `solution_json`
@@ -308,6 +306,40 @@ jarvis-poc-unlock-key
 {}
 ```
 
+If standalone rack reset may be needed, the effective bundle or override
+contract must carry both `manufacturing` and `target` credentials for rack
+targets, for example:
+
+```yaml
+credential_candidates:
+  - credential_role: manufacturing
+    target_category: server
+    target_form_factor: rack
+    target_management_type: standalone
+    username: admin
+    password_ref: env://RACKSERVER_MANUFACTURING_PASSWORD
+  - credential_role: target
+    target_category: server
+    target_form_factor: rack
+    target_management_type: standalone
+    username: admin
+    password_ref: env://RACKSERVER_DESIRED_PASSWORD
+  - credential_role: target
+    target_category: fabric_interconnect
+    username: admin
+    password_ref: env://FI_TARGET_PASSWORD
+  - credential_role: target
+    target_category: assist
+    target_management_type: device_connector
+    username: admin
+    password_ref: env://ASSIST_PASSWORD
+  - credential_role: target
+    target_category: storage
+    target_management_type: assist_managed
+    username: pureuser
+    password_ref: env://PURE_PASSWORD
+```
+
 ### Notes
 
 - The onboarding blueprint now uses the explicit phase chain:
@@ -318,8 +350,11 @@ jarvis-poc-unlock-key
 - `inventory.assist` is for claimable Assist systems.
 - `inventory.storage` is for third-party storage onboarding.
   Use a user-facing `platform` such as `pure`; the claim grain maps that to the API target type internally.
-  For the currently wired Pure flow, reference the Assist by inventory name via `assist: assist01`.
+  For the currently wired Pure flow, reference the Assist by inventory id via `assist: assist-01`.
   Storage introduces an Assist dependency only when storage targets are present in the run; customers can still onboard direct infrastructure first and add Assist or storage later.
+- If a standalone rack target may still be on manufacturing or factory-default
+  credentials, the effective bundle or override contract must carry both
+  `manufacturing` and `target` credential roles for the rack target path.
 - The public blueprint surface now uses JSON-string inputs such as `deployment_json`, `placement_json`, `inventory_json`, and `solution_json`.
 - `execution_intent: validate_only` is the safest first run.
 - The latest validated live run completed after two polling attempts and returned `next_action: proceed_to_infrastructure_network_provisioning`.
