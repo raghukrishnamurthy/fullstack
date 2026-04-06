@@ -32,6 +32,33 @@
         - precheck
 
   tasks:
+    - name: Build normalized Assist lookup map
+      ansible.builtin.set_fact:
+        inventory_assist_map: >-
+          {{
+            (inventory_assist_map | default({}))
+            | combine(
+                {
+                  (item.id | default('') | string | trim): normalized_assist
+                },
+                recursive=True
+              )
+          }}
+      vars:
+        normalized_assist:
+          id: "{{ item.id | default('') | string | trim }}"
+          name: "{{ item.name | default('') | string | trim }}"
+          endpoint: "{{ item.endpoint | default('') | string | trim }}"
+      loop: "{{ inventory_assists }}"
+      loop_control:
+        label: "{{ item.id | default(item.name | default('assist')) }}"
+      when:
+        - item is mapping
+        - (item.id | default('') | string | trim | length) > 0
+      tags:
+        - build
+        - normalize
+
     - name: Build normalized device lookup map
       ansible.builtin.set_fact:
         inventory_device_map: "{{ (inventory_device_map | default({})) | combine({item.id: normalized_device}) }}"
@@ -206,6 +233,8 @@
         storage_endpoint: "{{ item.endpoint | default('') | string | trim }}"
         storage_platform: "{{ item.platform | default('') | string | trim | lower }}"
         storage_credentials: "{{ item.credentials | default({}) }}"
+        storage_assist_ref: "{{ item.assist | default('') | string | trim }}"
+        resolved_assist: "{{ (inventory_assist_map | default({})).get(storage_assist_ref, {}) }}"
         storage_claim_target:
           target_id: "{{ item.id | default(item.name | default(storage_endpoint)) }}"
           target_category: storage
@@ -220,7 +249,9 @@
           form_factor: ""
           endpoint_validate_certs: false
           storage_platform: "{{ storage_platform }}"
-          assist_name: "{{ item.assist | default('') | string | trim }}"
+          assist_id: "{{ storage_assist_ref }}"
+          assist_name: "{{ resolved_assist.name | default(storage_assist_ref) }}"
+          assist_endpoint: "{{ resolved_assist.endpoint | default('') }}"
           claim_username: "{{ storage_credentials.username | default(item.username | default('')) }}"
           claim_password_ref: "{{ storage_credentials.password_ref | default(item.password_ref | default('')) }}"
           claim_password: "{{ storage_credentials.password | default(item.password | default('')) }}"
