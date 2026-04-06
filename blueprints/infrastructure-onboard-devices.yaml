@@ -558,6 +558,8 @@ outputs:
     value: '{{ .grains.validate_infrastructure_onboarding.outputs.phase_status }}'
   phase_readiness_json:
     value: '{{ .grains.validate_infrastructure_onboarding.outputs.phase_readiness_json }}'
+  phase_summary_json:
+    value: '{{ .grains.validate_infrastructure_onboarding.outputs.phase_readiness_json }}'
   claim_candidate_targets_json:
     value: '{{ .grains.build_infrastructure_onboarding_targets.outputs.claim_targets_json }}'
   onboarding_action_execution_json:

@@ -205,6 +205,8 @@ Local test path:
   verifies the key docs structure and catches stale path references
 - `./scripts/check_blueprints.sh`
   parses the published blueprints and verifies that referenced repo-local grain and asset paths exist
+- `./scripts/check_repo.sh`
+  runs the lightweight docs and blueprint checks together
 
 Assumptions:
 

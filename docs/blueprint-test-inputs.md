@@ -323,3 +323,21 @@ jarvis-poc-unlock-key
 - The public blueprint surface now uses JSON-string inputs such as `deployment_json`, `placement_json`, `inventory_json`, and `solution_json`.
 - `execution_intent: validate_only` is the safest first run.
 - The latest validated live run completed after two polling attempts and returned `next_action: proceed_to_infrastructure_network_provisioning`.
+
+## Infrastructure Network Provisioning Small Test
+
+Use this for the current shared network planning phase with the same normalized phase context style used by onboarding.
+
+### Example input file
+
+- [infrastructure-network-provisioning-torque-inputs.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/examples/ai-pod-sjc01-prod/infrastructure-network-provisioning-torque-inputs.yaml)
+
+### Notes
+
+- The public network phase blueprint now uses the JSON-string launch inputs:
+  `deployment_json`, `placement_json`, `inventory_json`, `solution_json`, `site_json`, `credential_candidates_json`, and `overrides_json`.
+- The current safe first run is:
+  `validation_mode: strict`
+  `execution_intent: validate_only`
+- The phase exports the standard phase outputs:
+  `phase_ready`, `phase_status`, `phase_readiness_json`, and `phase_summary_json`.

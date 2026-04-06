@@ -43,3 +43,5 @@ Supplemental repo documentation lives here so the active contracts are easier to
 
 - [Contributing](/Users/rkrishn2/Documents/Jarvis_IAC/CONTRIBUTING.md)
   Short repo-maintenance guidance for structure, contracts, and generated files.
+- [scripts/check_repo.sh](/Users/rkrishn2/Documents/Jarvis_IAC/scripts/check_repo.sh)
+  One-command lightweight repo validation for docs and blueprint references.

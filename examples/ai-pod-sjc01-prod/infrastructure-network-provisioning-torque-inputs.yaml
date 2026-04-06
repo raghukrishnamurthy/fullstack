@@ -1,0 +1,60 @@
+deployment_json: |
+  deployment:
+    id: ai-pod-sjc01-prod
+    site: sjc01
+    environment: prod
+
+api_uri: https://intersight.com/api/v1
+
+intersight_api_key_id: <your-intersight-api-key-id>
+intersight_api_private_key: |
+  -----BEGIN EC PRIVATE KEY-----
+  ...
+  -----END EC PRIVATE KEY-----
+
+placement_json: |
+  placement:
+    intersight:
+      organization: ai-prod
+      resource_group: ai-prod
+
+inventory_json: |
+  inventory:
+    devices:
+      - id: fi-a
+        category: fabric_interconnect
+        serial: FDO272406DE
+        mgmt_ip: 10.29.135.101
+      - id: fi-b
+        category: fabric_interconnect
+        serial: FDO272406CK
+        mgmt_ip: 10.29.135.102
+    domains:
+      - domain_id: domain-01
+        type: fi_pair
+        members:
+          - fi-a
+          - fi-b
+
+solution_json: |
+  solution:
+    profile: virtualization_foundation
+    delivery_scope: infrastructure
+
+credential_candidates_json: |
+  {}
+
+site_json: |
+  site:
+    code: sjc01
+    timezone: America/Los_Angeles
+
+overrides_json: |
+  {}
+
+encrypted_device_secret_bundle_path: assets/secrets/device-secrets.enc
+device_secret_bundle_key: jarvis-poc-unlock-key
+
+validation_mode: strict
+execution_intent: validate_only
+

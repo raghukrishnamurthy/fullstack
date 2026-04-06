@@ -46,6 +46,8 @@ Use this path when you want to understand or safely exercise the current repo wi
   Verifies the key docs structure and catches stale path references after repo reorganization.
 - `./scripts/check_blueprints.sh`
   Parses the published blueprints and verifies that referenced repo-local grain and asset paths exist.
+- `./scripts/check_repo.sh`
+  Runs the lightweight docs and blueprint checks together.
 
 ## Secrets
 

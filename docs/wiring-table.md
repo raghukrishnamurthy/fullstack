@@ -153,6 +153,7 @@ Blueprint file:
 | `validate_infrastructure_onboarding` | `phase_ready` |
 | `validate_infrastructure_onboarding` | `phase_status` |
 | `validate_infrastructure_onboarding` | `phase_readiness_json` |
+| `validate_infrastructure_onboarding` | `phase_summary_json` |
 
 
 
@@ -190,5 +191,6 @@ Blueprint file:
 | `infrastructure_network_provisioning` | `phase_ready` |
 | `infrastructure_network_provisioning` | `phase_status` |
 | `infrastructure_network_provisioning` | `phase_readiness_json` |
+| `infrastructure_network_provisioning` | `phase_summary_json` |
 | `infrastructure_network_provisioning` | `network_foundation_plan_json` |
 | `infrastructure_network_provisioning` | `network_foundation_summary_json` |

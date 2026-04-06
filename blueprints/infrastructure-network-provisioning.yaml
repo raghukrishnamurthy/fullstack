@@ -193,6 +193,8 @@ outputs:
     value: '{{ .grains.infrastructure_network_provisioning.outputs.phase_status }}'
   phase_readiness_json:
     value: '{{ .grains.infrastructure_network_provisioning.outputs.phase_readiness_json }}'
+  phase_summary_json:
+    value: '{{ .grains.infrastructure_network_provisioning.outputs.network_foundation_summary_json }}'
   network_foundation_plan_json:
     value: '{{ .grains.infrastructure_network_provisioning.outputs.network_foundation_plan_json }}'
   network_foundation_summary_json:
