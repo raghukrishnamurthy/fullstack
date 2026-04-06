@@ -1,0 +1,23 @@
+global_settings:
+  switch_control:
+    ethernet_switching_mode: end-host
+    fc_switching_mode: end-host
+  network_control:
+    udld: alert
+  system_qos:
+    classes:
+      - name: Best Effort
+        weight: 5
+      - name: Platinum
+        admin_state: Enabled
+        weight: 10
+  ntp:
+    enable: true
+    servers:
+      - time.google.com
+      - pool.ntp.org
+  dns:
+    enable_dynamic_dns: false
+    preferred_ipv4_dns_server: 1.1.1.1
+    alternate_ipv4_dns_server: 8.8.8.8
+

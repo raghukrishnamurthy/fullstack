@@ -17,16 +17,16 @@ The model must allow infrastructure to be discovered, validated, claimed, and on
 
 Use the following files as reference examples for customer-provided input structure and example values:
 
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-converged-prod/deployment.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-converged-prod/platform.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-converged-prod/inventory.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-converged-prod/pools.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-converged-prod/solution.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-standalone-prod/deployment.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-standalone-prod/platform.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-standalone-prod/inventory.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/inputs/deployments/sjc01-infra-standalone-prod/solution.yaml`
-- `/Users/rkrishn2/Documents/Jarvis_IAC/model_examples/catalog/solution_intents/catalog-map.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-converged-prod/deployment.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-converged-prod/platform.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-converged-prod/inventory.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-converged-prod/pools.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-converged-prod/solution.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-standalone-prod/deployment.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-standalone-prod/platform.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-standalone-prod/inventory.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/inputs/deployments/sjc01-infra-standalone-prod/solution.yaml`
+- `/Users/rkrishn2/Documents/Jarvis_IAC/references/model_examples/catalog/solution_intents/catalog-map.yaml`
 
 These files are reference examples, not proof that the current schema is final.
 

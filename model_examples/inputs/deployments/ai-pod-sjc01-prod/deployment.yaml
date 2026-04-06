@@ -1,4 +1,0 @@
-deployment:
-  id: ai-pod-sjc01-prod
-  site: sjc01
-  environment: production

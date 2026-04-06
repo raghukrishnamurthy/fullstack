@@ -1,0 +1,11 @@
+checks:
+  - name: inventory_has_serials
+    scope: deployment
+    description: Every device record must contain a serial number.
+  - name: allowed_model_validation
+    scope: solution
+    description: If allowed_models is defined for a server profile policy entry, the discovered model must match.
+  - name: fi_required_for_domain_logic
+    scope: deployment
+    description: FI/domain onboarding logic is only valid when Fabric Interconnect-managed infrastructure is present.
+

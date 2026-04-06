@@ -104,6 +104,8 @@ Files:
   Reusable first-run launch inputs for the active blueprints
 - `prompts/infrastructure-prompt-spec.md`
   Canonical prompt specification for infrastructure input and solution-profile generation
+- `references/`
+  Non-runtime reference material such as model examples and vendor/API reference files
 - `skills/`
   Repo-local shared Torque/Codex skill guidance for blueprint and Ansible patterns used in this repo
 - `ansible/build-infrastructure-onboarding-targets/`

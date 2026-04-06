@@ -1,0 +1,5 @@
+deployment:
+  id: sjc01-infra-standalone-prod
+  site: sjc01
+  pattern: infrastructure_foundation
+  environment: production

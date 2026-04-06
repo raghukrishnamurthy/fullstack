@@ -1,0 +1,11 @@
+platform:
+  intersight:
+    organization: default
+    organization_description: Organisation for VAST
+    create_organization_if_missing: true
+    include_default_organization: true
+    target_platform: Standalone
+
+  credentials:
+    api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+    private_key_path_ref: env://INTERSIGHT_API_PRIVATE_KEY_PATH

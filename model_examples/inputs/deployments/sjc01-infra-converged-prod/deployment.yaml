@@ -1,5 +1,0 @@
-deployment:
-  id: sjc01-infra-converged-prod
-  site: sjc01
-  pattern: infrastructure_foundation
-  environment: production

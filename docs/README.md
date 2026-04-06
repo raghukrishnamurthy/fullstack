@@ -27,3 +27,10 @@ Supplemental repo documentation lives here so the active contracts are easier to
 ## Prompts
 
 - [Infrastructure Prompt Specification](/Users/rkrishn2/Documents/Jarvis_IAC/prompts/infrastructure-prompt-spec.md)
+
+## References
+
+- `references/model_examples/`
+  Canonical example input models, baselines, and catalog reference data.
+- `references/intersightdocs/`
+  Vendor/API reference material kept out of the active docs and runtime paths.
