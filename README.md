@@ -30,7 +30,7 @@ Repo map:
 - `prompts/`
   Canonical prompt specifications used to shape higher-level generation workflows.
 - `references/`
-  Non-runtime source material such as example models, vendor docs, and API snapshots.
+  Non-runtime source material such as example models and lightweight vendor/documentation indexes.
 - `examples/`
   Runnable sample inputs that mirror the current blueprint contracts.
 - `assets/`

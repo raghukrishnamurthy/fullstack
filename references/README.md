@@ -4,8 +4,8 @@ This directory holds non-runtime reference material that helps design, validate,
 
 ## Vendor And Platform References
 
-- [Cisco Intersight OpenAPI Snapshot](/Users/rkrishn2/Documents/Jarvis_IAC/references/intersightdocs/intersight-openapi-v3-1.0.11-20260402085822330.yaml)
-  Current checked-in Intersight API schema snapshot for endpoint and object-model lookup.
+- External vendor and platform references should be linked from lightweight index files rather than checked in as large snapshots by default.
+- Quali/Torque references are linked below from the repo-local skill reference sets.
 
 ## Model And Contract References
 

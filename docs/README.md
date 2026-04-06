@@ -34,8 +34,6 @@ Supplemental repo documentation lives here so the active contracts are easier to
   Starting point for vendor docs, model examples, and external-reference pointers.
 - `references/model_examples/`
   Canonical example input models, baselines, and catalog reference data.
-- `references/intersightdocs/`
-  Vendor/API reference material kept out of the active docs and runtime paths.
 
 ## Maintenance
 
