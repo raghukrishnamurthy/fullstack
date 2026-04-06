@@ -337,7 +337,6 @@
         )
         else (saas_storage_claim_result.api_response | default({}))
       }}
-    storage_claim_error_text_lower: "{{ storage_claim_error_text_lower | default('') }}"
     storage_claim_conflict_message: "Intersight reported a conflict while attempting the storage claim."
     storage_claim_include_changed: true
     storage_claim_changed: "{{ saas_storage_claim_result.changed | default(false) | bool }}"
