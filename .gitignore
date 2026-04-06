@@ -2,5 +2,11 @@ Jarvis_IAC_Implementation/ansible/resolve-deployment-model/torque-outputs.json
 Jarvis_IAC_Implementation/ansible/render-master-plan/torque-outputs.json
 **/torque-outputs.json
 **/__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+*.retry
+*.retry.tmp
 .DS_Store
 *.swp

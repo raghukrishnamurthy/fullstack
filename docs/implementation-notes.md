@@ -1,0 +1,106 @@
+# Implementation Notes
+
+This page holds the longer-lived assumptions and the current validated checkpoint so the root README can stay shorter.
+
+## Assumptions
+
+- Torque launch-form complex inputs are passed as strings.
+- YAML-shaped blueprint inputs should be avoided in Torque-facing contracts; prefer direct inputs or JSON strings and assemble internal YAML only inside the blueprint or automation layer when necessary.
+- The focused claim blueprint now prefers direct user-facing inputs for endpoint, org, and secrets.
+- User-facing input normalization should happen as early as practical in the blueprint or wrapper layer; leaf grains should keep only the validation and derivation they need for correct execution.
+- The blueprint internally builds:
+  - `platform_yaml` for the claim and context grains.
+  - `placement_yaml` only for `prepare-intersight-context`.
+  - `credential_candidates_yaml` only for the secret-bundle and credential-resolution grains.
+- Claim grains assume the organization/context is already prepared and consume direct `organization`.
+- `site_json` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings.
+- `credential_candidates_json` and `credential_candidates_yaml` are optional override contracts for target credential candidates.
+- The public claim and onboarding blueprints now prefer encrypted bundle inputs for device-side secrets:
+  - `encrypted_device_secret_bundle_path`
+  - `device_secret_bundle_key`
+- The public onboarding blueprint no longer exposes direct FI or rack password inputs; control-plane credentials stay as launch inputs and are mapped to env-backed refs internally during execution.
+- The checked-in POC bundle at `assets/secrets/device-secrets.enc` with the current test key `jarvis-poc-unlock-key` is intended only for validated lab flows; real plaintext secrets should not be committed.
+- Per-device credentials remain supported through the credential-candidate and claim-target contracts even though the primary Torque path now stages the encrypted bundle and then resolves `file://__BUNDLE_ROOT__/...` references at runtime.
+- Rack-server flows can use typed candidates such as `manufacturing` for factory/default login and `target` for the desired post-rotation credential.
+- In the main prepare-and-claim flow, standalone rack targets are expected to already use the desired credential.
+- Manufacturing/default rack credentials now belong in the separate `reset-standalone-rack-password` grain.
+- `baseline_input_source` and `baseline_directory` are optional customer-baseline sources for higher orchestration and direct Ansible execution.
+- `overrides_json` is the deployment-specific delta layer and is optional.
+- Provide only one customer baseline source at a time.
+- The scaffold always starts from a built-in baseline selected by `solution.profile`.
+- When `baseline_directory` is provided, the scaffold expects `baseline.yaml` in that directory.
+- When `baseline_input_source` is provided, the scaffold fetches YAML from the given HTTP(S) URL.
+- Precedence is:
+  - built-in baseline -> customer baseline -> overrides
+- `overrides_json` is merged recursively onto the effective baseline payload.
+- The scaffold now uses the effective baseline payload for early onboarding expectation checks.
+- `validation_mode: strict` validates the input contract only.
+- `validation_mode: live` resolves env-based Intersight credential refs and queries Cisco Intersight for declared serials.
+- `execution_intent` defaults to `validate_only`.
+- `execution_intent: apply` now supports real PVA claim submission for:
+  - one Fabric Interconnect pair claim unit per declared `fi_pair` domain
+  - standalone rack servers using target credentials
+- Onboarding validation compares inventory intent with live direct-target objects only:
+  - FI pair intent validates against two FI member objects in `network/Elements`
+  - standalone rack intent validates against `compute/PhysicalSummaries`
+- Blade and other child devices do not gate onboarding completion.
+- Organization and resource-group policy belongs in `prepare-intersight-context`, not in end validation.
+- Future target handling should remain type-aware:
+  - FI and server targets may become claim/onboarding-ready
+  - storage targets may initially support only reachability-style readiness such as TCP or ping validation
+- Discovery outputs now carry target readiness profiles to make that distinction explicit for downstream workflows.
+- Vault or secret-manager integration for target credentials is intentionally deferred until the Torque-side mechanism is agreed.
+- Storage target handling should evolve toward an Assist-mediated flow:
+  - first validate Assist reachability
+  - then run storage claim using Assist as the effective target path
+- Explicit no-op destroy flows are included so focused operational blueprints have a predictable, non-destructive destroy behavior.
+
+## Current Checkpoint
+
+- `main` is clean and includes the docs reorg, prompt consolidation, references layout, and bundle-based onboarding updates.
+- PVA flow is proven live for:
+  - one FI pair claim unit derived from a declared `fi_pair` domain
+  - standalone rack claim targets
+- Storage claim now depends on the referenced Assist only when storage targets are included in the run.
+- Appliance storage short-circuits existing storage targets first, then waits for the referenced Assist to reach `Connected` before submitting new storage claims.
+- Appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass.
+- The focused claim blueprint now uses the active grain-level chain:
+  - `prepare_device_secret_bundle`
+  - `resolve_claim_target_credentials`
+  - `split_claim_target_phases`
+  - `claim_assist_targets_to_intersight`
+  - `claim_direct_targets_to_intersight`
+  - `claim_assist_dependent_targets_to_intersight`
+  - `merge_claim_phase_results`
+- The public focused claim blueprint now exposes:
+  - `agent`
+  - `api_uri`
+  - `intersight_api_key_id`
+  - `intersight_api_private_key`
+  - `organization`
+  - `encrypted_device_secret_bundle_path`
+  - `device_secret_bundle_key`
+  - `credential_candidates_yaml`
+  - `claim_targets_json`
+- The public onboarding blueprint now uses the active phase chain:
+  - `prepare_intersight_context`
+  - `build_infrastructure_onboarding_targets`
+  - `prepare_device_secret_bundle`
+  - `reset_standalone_rack_passwords`
+  - `prepare_claim_target_credentials`
+  - `prepare_device_connector`
+  - `split_claim_target_phases`
+  - `claim_assist_targets_to_intersight`
+  - `claim_direct_targets_to_intersight`
+  - `claim_assist_dependent_targets_to_intersight`
+  - `merge_claim_phase_results`
+  - `validate_infrastructure_onboarding`
+- The latest validated Torque onboarding run completed successfully with:
+  - `phase_ready: true`
+  - `phase_status: completed`
+  - `next_action: proceed_to_infrastructure_network_provisioning`
+  - `successful_claim_result_count: 5`
+  - `blocking_claim_result_count: 0`
+  - `missing_device_count: 0`
+  - `not_ready_device_count: 0`
+  - `attempts_executed: 2`

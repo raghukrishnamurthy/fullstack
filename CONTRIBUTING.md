@@ -21,3 +21,4 @@ Generated and local-only files:
 - Do not commit generated runtime outputs such as `torque-outputs.json` unless they are intentionally versioned fixtures.
 - Keep vendor snapshots and large reference artifacts under `references/`.
 - Avoid mixing in-progress local example edits with structural repo cleanup unless they are part of the same change.
+- Run `./scripts/check_docs.sh` after moving or renaming top-level documentation paths.

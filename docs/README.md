@@ -4,6 +4,8 @@ Supplemental repo documentation lives here so the active contracts are easier to
 
 ## Active Guides
 
+- [Getting Started](/Users/rkrishn2/Documents/Jarvis_IAC/docs/getting-started.md)
+  Short path for first read, first run, and safe validation modes.
 - [Catalog UI Definition](/Users/rkrishn2/Documents/Jarvis_IAC/docs/catalog_ui.md)
   Stable launch-form keys and end-user workflow notes for Torque offerings.
 - [Wiring Table](/Users/rkrishn2/Documents/Jarvis_IAC/docs/wiring-table.md)
@@ -12,6 +14,8 @@ Supplemental repo documentation lives here so the active contracts are easier to
   Reusable first-run launch examples for claim, reset, and onboarding flows.
 - [Inputs Model](/Users/rkrishn2/Documents/Jarvis_IAC/docs/Inputs_Model.md)
   Customer-facing and automation-facing input contract guidance.
+- [Implementation Notes](/Users/rkrishn2/Documents/Jarvis_IAC/docs/implementation-notes.md)
+  Current checkpoint and longer-lived repo assumptions.
 
 ## Architecture
 

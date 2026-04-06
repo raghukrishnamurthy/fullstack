@@ -40,6 +40,13 @@ Repo map:
 - `CONTRIBUTING.md`
   Small repo-maintenance guide for where docs, prompts, references, examples, and generated files belong.
 
+Start here:
+
+- [docs/getting-started.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/getting-started.md)
+  First read, first run, and safe validation path.
+- [docs/implementation-notes.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/implementation-notes.md)
+  Current checkpoint and longer repo assumptions.
+
 Design requirement:
 
 - reusable grains must remain narrow and standalone
@@ -265,69 +272,6 @@ Python helpers and custom modules:
 - [/Users/rkrishn2/Documents/Jarvis_IAC/ansible/reset-standalone-rack-password/tools/run_cisco_standalone_rack_reset_password.py](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/reset-standalone-rack-password/tools/run_cisco_standalone_rack_reset_password.py)
   Repo-local helper for manufacturing-to-desired IMC rack password rotation used by the separate reset grain.
 
-Current checkpoint:
+Checkpoint and longer assumptions now live in:
 
-- `main` is now clean and includes the docs reorg, prompt consolidation, references layout, and bundle-based onboarding updates.
-- PVA flow is proven live for:
-  - one FI pair claim unit derived from a declared `fi_pair` domain
-  - standalone rack claim targets
-- storage claim now depends on the referenced Assist only when storage targets are included in the run
-- appliance storage short-circuits existing storage targets first, then waits for the referenced Assist to reach `Connected` before submitting new storage claims
-- appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
-- the focused claim blueprint now uses the active grain-level chain:
-  - `prepare_device_secret_bundle`
-  - `resolve_claim_target_credentials`
-  - `split_claim_target_phases`
-  - `claim_assist_targets_to_intersight`
-  - `claim_direct_targets_to_intersight`
-  - `claim_assist_dependent_targets_to_intersight`
-  - `merge_claim_phase_results`
-- the public focused claim blueprint now exposes:
-  - `agent`
-  - `api_uri`
-  - `intersight_api_key_id`
-  - `intersight_api_private_key`
-  - `organization`
-  - `encrypted_device_secret_bundle_path`
-  - `device_secret_bundle_key`
-  - `credential_candidates_yaml`
-  - `claim_targets_json`
-- the focused claim blueprint no longer exposes `deployment_yaml`; it uses a fixed internal deployment label for traceability
-- the focused rack reset blueprint now exposes:
-  - `targets_json`
-  - `manufacturing_username`
-  - `manufacturing_password`
-  - `target_username`
-  - `target_password`
-- the focused rack reset blueprint builds internal credential candidates for the reusable reset grain and exports Torque-native outputs directly from that grain
-- the reusable reset grain now consumes `targets_json` directly
-- `api_uri` is the backend selector for the focused claim blueprint and should be the real API base URI, for example:
-  - `https://intersight.com/api/v1`
-  - `https://ucs-hci-appliance-2.cisco.com/api/v1`
-- the focused claim blueprint treats `organization` as an existing-org precondition and passes it directly to the unified claim grain
-- claim grains intentionally assume org/resource-group prerequisites are already satisfied
-- the unified claim grain also assumes other endpoint prerequisites are already satisfied, such as device connector preparation and any required reset-to-known-state work
-- appliance claim API calls now default to `use_proxy: false`; proxy use should only be enabled when that path is explicitly wired into the contract
-- rack password reset is split into its own grain and is no longer part of the main prepare-and-claim playbook
-- the public onboarding blueprint now uses the active phase chain:
-  - `prepare_intersight_context`
-  - `build_infrastructure_onboarding_targets`
-  - `prepare_device_secret_bundle`
-  - `reset_standalone_rack_passwords`
-  - `prepare_claim_target_credentials`
-  - `prepare_device_connector`
-  - `split_claim_target_phases`
-  - `claim_assist_targets_to_intersight`
-  - `claim_direct_targets_to_intersight`
-  - `claim_assist_dependent_targets_to_intersight`
-  - `merge_claim_phase_results`
-  - `validate_infrastructure_onboarding`
-- the latest validated Torque onboarding run completed successfully with:
-  - `phase_ready: true`
-  - `phase_status: completed`
-  - `next_action: proceed_to_infrastructure_network_provisioning`
-  - `successful_claim_result_count: 5`
-  - `blocking_claim_result_count: 0`
-  - `missing_device_count: 0`
-  - `not_ready_device_count: 0`
-  - `attempts_executed: 2`
+- [docs/implementation-notes.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/implementation-notes.md)
