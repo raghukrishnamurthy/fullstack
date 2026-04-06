@@ -23,7 +23,7 @@ Blueprint file:
 | `ansible/build-infrastructure-onboarding-targets/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 | `ansible/prepare-device-connector/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Connector preparation step in the shared onboarding flow |
 | `ansible/prepare-device-connector/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
-| `ansible/bootstrap_runtime/playbook.yaml` | `intersight-fullstack-repo` | Utility grain | Optional worker bootstrap |
+| `ansible/bootstrap-runtime/playbook.yaml` | `intersight-fullstack-repo` | Utility grain | Optional worker bootstrap |
 | `blueprints/infrastructure-onboard-devices.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working onboarding phase with JSON-string launch inputs |
 | `blueprints/infrastructure-network-provisioning.yaml` | `intersight-fullstack-repo` | Phase blueprint | First working network phase with structured phase context |
 | `ansible/infrastructure-network-provisioning/playbook.yaml` | `intersight-fullstack-repo` | Grain source | Shared FI and fabric/network foundation planning |

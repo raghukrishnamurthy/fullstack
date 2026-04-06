@@ -6,13 +6,13 @@ Supplemental repo documentation lives here so the active contracts are easier to
 
 - [Getting Started](/Users/rkrishn2/Documents/Jarvis_IAC/docs/getting-started.md)
   Short path for first read, first run, and safe validation modes.
-- [Catalog UI Definition](/Users/rkrishn2/Documents/Jarvis_IAC/docs/catalog_ui.md)
+- [Catalog UI Definition](/Users/rkrishn2/Documents/Jarvis_IAC/docs/catalog-ui.md)
   Stable launch-form keys and end-user workflow notes for Torque offerings.
 - [Wiring Table](/Users/rkrishn2/Documents/Jarvis_IAC/docs/wiring-table.md)
   Launch inputs, grain-to-grain wiring, and exported outputs for the active blueprints.
-- [Blueprint Test Inputs](/Users/rkrishn2/Documents/Jarvis_IAC/docs/blueprint_test_inputs.md)
+- [Blueprint Test Inputs](/Users/rkrishn2/Documents/Jarvis_IAC/docs/blueprint-test-inputs.md)
   Reusable first-run launch examples for claim, reset, and onboarding flows.
-- [Inputs Model](/Users/rkrishn2/Documents/Jarvis_IAC/docs/Inputs_Model.md)
+- [Inputs Model](/Users/rkrishn2/Documents/Jarvis_IAC/docs/inputs-model.md)
   Customer-facing and automation-facing input contract guidance.
 - [Implementation Notes](/Users/rkrishn2/Documents/Jarvis_IAC/docs/implementation-notes.md)
   Current checkpoint and longer-lived repo assumptions.
@@ -36,7 +36,7 @@ Supplemental repo documentation lives here so the active contracts are easier to
 
 - [References Index](/Users/rkrishn2/Documents/Jarvis_IAC/references/README.md)
   Starting point for vendor docs, model examples, and external-reference pointers.
-- `references/model_examples/`
+- `references/model-examples/`
   Canonical example input models, baselines, and catalog reference data.
 
 ## Maintenance

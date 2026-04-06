@@ -124,11 +124,11 @@ Files:
   First working infrastructure network phase blueprint using shared structured phase context and a reusable planning grain for shared FI and fabric/network foundation
 - `docs/README.md`
   Supplemental documentation index for blueprint UX, wiring, examples, architecture, and secret handling
-- `docs/catalog_ui.md`
+- `docs/catalog-ui.md`
   End-user workflow and stable form keys
 - `docs/wiring-table.md`
   Form key to grain input mapping
-- `docs/blueprint_test_inputs.md`
+- `docs/blueprint-test-inputs.md`
   Reusable first-run launch inputs for the active blueprints
 - `prompts/infrastructure-prompt-spec.md`
   Canonical prompt specification for infrastructure input and solution-profile generation
@@ -138,7 +138,7 @@ Files:
   Repo-local shared Torque/Codex skill guidance for blueprint and Ansible patterns used in this repo
 - `ansible/build-infrastructure-onboarding-targets/`
   Builds direct onboarding targets from `inventory_json` for FI pairs and standalone racks
-- `ansible/bootstrap_runtime/`
+- `ansible/bootstrap-runtime/`
   Optional worker bootstrap playbook that installs shared Python and collection requirements
 - `ansible/reset-standalone-rack-password/`
   Separate grain for IMC rack manufacturing-to-desired password reset before prepare-and-claim
@@ -187,7 +187,7 @@ Published automation sources:
 | `ansible/build-infrastructure-onboarding-targets/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
 | `ansible/prepare-device-connector/playbook.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit connector preparation step |
 | `ansible/prepare-device-connector/teardown.yaml` | `intersight-fullstack-repo` | Reusable grain | Explicit no-op destroy |
-| `ansible/bootstrap_runtime/playbook.yaml` | `intersight-fullstack-repo` | Utility grain | Optional worker bootstrap |
+| `ansible/bootstrap-runtime/playbook.yaml` | `intersight-fullstack-repo` | Utility grain | Optional worker bootstrap |
 
 Local test path:
 
@@ -258,7 +258,7 @@ Runtime dependencies:
 
 - shared Python requirements live in [requirements.txt](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/requirements.txt)
 - this includes `cryptography==44.0.3`, which is the pinned runtime dependency used by the repo's Intersight-backed workflows
-- [playbook.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/bootstrap_runtime/playbook.yaml)
+- [playbook.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/ansible/bootstrap-runtime/playbook.yaml)
   can be used to prepare a worker with:
   - shared Python dependencies
   - the repo's Intersight automation collections

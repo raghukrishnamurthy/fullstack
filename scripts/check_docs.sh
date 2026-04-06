@@ -10,9 +10,9 @@ required_paths=(
   "docs/README.md"
   "docs/getting-started.md"
   "docs/implementation-notes.md"
-  "docs/catalog_ui.md"
+  "docs/catalog-ui.md"
   "docs/wiring-table.md"
-  "docs/blueprint_test_inputs.md"
+  "docs/blueprint-test-inputs.md"
   "prompts/infrastructure-prompt-spec.md"
   "references/README.md"
 )

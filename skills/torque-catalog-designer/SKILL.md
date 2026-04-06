@@ -42,11 +42,11 @@ Focus on:
 ## Repo Patterns
 - Public blueprint:
   - `blueprints/claim-devices-to-intersight.yaml`
-  - `blueprints/reset-standalone-rack-password.yaml`
+  - `blueprints/cisco-standalone-rack-reset-password.yaml`
 - Wiring map:
   - `docs/wiring-table.md`
 - Example launch inputs:
-  - `docs/blueprint_test_inputs.md`
+  - `docs/blueprint-test-inputs.md`
 
 ## When To Use
 - designing or cleaning up blueprint inputs

@@ -9,7 +9,7 @@ This directory holds non-runtime reference material that helps design, validate,
 
 ## Model And Contract References
 
-- `model_examples/`
+- `model-examples/`
   Canonical example deployment inputs, baselines, and catalog-oriented reference data used by prompts and design docs.
 
 ## External Documentation Pointers

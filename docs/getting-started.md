@@ -8,11 +8,11 @@ Use this path when you want to understand or safely exercise the current repo wi
    Repo entry point, structure, and current scope.
 2. [docs/README.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/README.md)
    Index for implementation guides and reference material.
-3. [docs/catalog_ui.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/catalog_ui.md)
+3. [docs/catalog-ui.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/catalog-ui.md)
    Current user-facing launch contract.
 4. [docs/wiring-table.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/wiring-table.md)
    Grain wiring and output flow.
-5. [docs/blueprint_test_inputs.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/blueprint_test_inputs.md)
+5. [docs/blueprint-test-inputs.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/blueprint-test-inputs.md)
    Reusable first-run inputs.
 
 ## Run First
