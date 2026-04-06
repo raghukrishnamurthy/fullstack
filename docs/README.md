@@ -30,6 +30,8 @@ Supplemental repo documentation lives here so the active contracts are easier to
 
 ## References
 
+- [References Index](/Users/rkrishn2/Documents/Jarvis_IAC/references/README.md)
+  Starting point for vendor docs, model examples, and external-reference pointers.
 - `references/model_examples/`
   Canonical example input models, baselines, and catalog reference data.
 - `references/intersightdocs/`

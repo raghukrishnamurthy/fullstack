@@ -19,6 +19,25 @@ Current offering shape:
 - automation shape: multi-grain Ansible blueprint
 - reference conventions: aligned to the repo's documented grain, blueprint, and orchestration standards
 
+Repo map:
+
+- `blueprints/`
+  User-facing Torque blueprints and phase entry points.
+- `ansible/`
+  Reusable grains, helper playbooks, and supporting automation logic.
+- `docs/`
+  Active implementation guides, wiring notes, test inputs, and architecture docs.
+- `prompts/`
+  Canonical prompt specifications used to shape higher-level generation workflows.
+- `references/`
+  Non-runtime source material such as example models, vendor docs, and API snapshots.
+- `examples/`
+  Runnable sample inputs that mirror the current blueprint contracts.
+- `assets/`
+  Runtime assets packaged or staged by workflows, including encrypted secret bundles.
+- `skills/`
+  Repo-local Codex guidance and curated external-reference pointers.
+
 Design requirement:
 
 - reusable grains must remain narrow and standalone
