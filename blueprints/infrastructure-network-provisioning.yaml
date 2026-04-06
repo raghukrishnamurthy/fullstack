@@ -24,6 +24,14 @@ inputs:
     type: string
     description: Optional YAML credential-candidate contract used by the integrated model grain
     default: ''
+  encrypted_device_secret_bundle_path:
+    type: string
+    description: Optional encrypted device secret bundle path; defaults to the repo-staged bundle when present
+    default: ''
+  device_secret_bundle_key:
+    type: string
+    description: Optional unwrap key used to decrypt encrypted_device_secret_bundle_path at runtime
+    default: ''
   site_yaml:
     type: string
     description: Optional YAML site context for shared operational defaults
@@ -49,8 +57,43 @@ inputs:
     description: Execution intent for the network phase
     default: validate_only
 grains:
+  prepare_device_secret_bundle:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/prepare-device-secret-bundle/playbook.yaml
+      files:
+        - source: intersight-fullstack-repo
+          path: assets/secrets/device-secrets.enc
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - encrypted_device_secret_bundle_path: '{{ .inputs.encrypted_device_secret_bundle_path }}'
+        - device_secret_bundle_key: '{{ .inputs.device_secret_bundle_key }}'
+        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
+      outputs:
+        - resolved_credential_candidates_yaml
+        - resolved_device_secret_bundle_root
+    on-destroy:
+      - source:
+          store: intersight-fullstack-repo
+          path: ansible/prepare-device-secret-bundle/playbook.yaml
+        inventory-file:
+          localhost:
+            hosts:
+              localhost:
+                ansible_connection: local
+
   build_infrastructure_domain_model:
     kind: ansible
+    depends-on: prepare_device_secret_bundle
     spec:
       source:
         store: intersight-fullstack-repo
@@ -69,7 +112,7 @@ grains:
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - inventory_yaml: '{{ .inputs.inventory_yaml }}'
         - solution_yaml: '{{ .inputs.solution_yaml }}'
-        - credential_candidates_yaml: '{{ .inputs.credential_candidates_yaml }}'
+        - credential_candidates_yaml: '{{ .grains.prepare_device_secret_bundle.outputs.resolved_credential_candidates_yaml }}'
         - site_yaml: '{{ .inputs.site_yaml }}'
         - baseline_input_source: '{{ .inputs.baseline_input_source }}'
         - baseline_directory: '{{ .inputs.baseline_directory }}'
