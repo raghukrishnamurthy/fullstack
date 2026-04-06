@@ -36,54 +36,15 @@ inputs:
     description: JSON array of Intersight claim targets to process
     default: '[]'
 grains:
-  stage_device_secret_bundle:
-    kind: shell
-    spec:
-      files:
-        - source: intersight-fullstack-repo
-          path: assets/secrets/device-secrets.enc
-      agent:
-        name: '{{ .inputs.agent }}'
-      activities:
-        deploy:
-          commands:
-            - |
-              set -eu
-
-              BUNDLE_INPUT='{{ .inputs.encrypted_device_secret_bundle_path }}'
-              BUNDLE_BASENAME="$(basename "${BUNDLE_INPUT:-device-secrets.enc}")"
-              WORK_BASENAME_PATH="./${BUNDLE_BASENAME}"
-              WORK_INPUT_PATH="./${BUNDLE_INPUT}"
-              TMP_ROOT="/tmp/jarvis-staged-device-secret-bundles"
-              TMP_PATH="${TMP_ROOT}/${BUNDLE_BASENAME}"
-              RESOLVED_SOURCE=""
-
-              if [ -z "${BUNDLE_INPUT}" ]; then
-                if [ -f "./device-secrets.enc" ]; then
-                  RESOLVED_SOURCE="./device-secrets.enc"
-                fi
-              elif [ -f "${BUNDLE_INPUT}" ]; then
-                RESOLVED_SOURCE="${BUNDLE_INPUT}"
-              elif [ -f "${WORK_INPUT_PATH}" ]; then
-                RESOLVED_SOURCE="${WORK_INPUT_PATH}"
-              elif [ -f "${WORK_BASENAME_PATH}" ]; then
-                RESOLVED_SOURCE="${WORK_BASENAME_PATH}"
-              fi
-
-              if [ -z "${RESOLVED_SOURCE}" ]; then
-                exit 0
-              fi
-
-              mkdir -p "${TMP_ROOT}"
-              cp "${RESOLVED_SOURCE}" "${TMP_PATH}"
-
   prepare_device_secret_bundle:
     kind: ansible
-    depends-on: stage_device_secret_bundle
     spec:
       source:
         store: intersight-fullstack-repo
         path: ansible/prepare-device-secret-bundle/playbook.yaml
+      files:
+        - source: intersight-fullstack-repo
+          path: assets/secrets/device-secrets.enc
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
@@ -93,7 +54,7 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - encrypted_device_secret_bundle_path: '/tmp/jarvis-staged-device-secret-bundles/device-secrets.enc'
+        - encrypted_device_secret_bundle_path: '{{ .inputs.encrypted_device_secret_bundle_path }}'
         - device_secret_bundle_key: '{{ .inputs.device_secret_bundle_key }}'
         - credential_candidates_yaml: |
             {{ .inputs.credential_candidates_yaml }}
