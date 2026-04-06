@@ -93,17 +93,14 @@ solution_json: |
     profile: virtualization_foundation
     delivery_scope: infrastructure
 
-fi_target_username: admin
-fi_target_password: <fi-target-password>
+credential_candidates_json: |
+  {}
 
-rack_target_username: admin
-rack_target_password: <rack-target-password>
-
-manufacturing_rack_username: admin
-manufacturing_rack_password: <manufacturing-rack-password-if-needed>
+encrypted_device_secret_bundle_path: assets/secrets/device-secrets.enc
+device_secret_bundle_key: jarvis-poc-unlock-key
 
 validation_mode: live
 execution_intent: apply
 wait_for_completion: "true"
 validation_poll_interval: "30"
-validation_timeout_seconds: "300"
+validation_timeout_seconds: "600"

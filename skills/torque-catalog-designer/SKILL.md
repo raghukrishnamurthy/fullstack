@@ -44,9 +44,9 @@ Focus on:
   - `blueprints/claim-devices-to-intersight.yaml`
   - `blueprints/reset-standalone-rack-password.yaml`
 - Wiring map:
-  - `wiring-table.md`
+  - `docs/wiring-table.md`
 - Example launch inputs:
-  - `blueprint_test_inputs.md`
+  - `docs/blueprint_test_inputs.md`
 
 ## When To Use
 - designing or cleaning up blueprint inputs

@@ -58,13 +58,13 @@ Implementation scope note:
 
 Planned stack architecture:
 
-- [infrastructure-stack-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-stack-architecture.md)
+- [infrastructure-stack-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-stack-architecture.md)
   Draft architecture for the higher-level `deploy-infrastructure-stack` blueprint and its phase boundaries.
-- [infrastructure-onboard-devices-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-onboard-devices-architecture.md)
+- [infrastructure-onboard-devices-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-onboard-devices-architecture.md)
   Draft phase boundary for the first infrastructure onboarding phase, including discovery, optional rack reset, claim, and validation.
-- [infrastructure-network-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-network-provisioning-architecture.md)
+- [infrastructure-network-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-network-provisioning-architecture.md)
   Draft phase boundary for shared FI and fabric/network foundation, kept separate from later solution-specific logical network provisioning.
-- [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-resource-provisioning-architecture.md)
+- [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-resource-provisioning-architecture.md)
   Draft phase boundary for reusable chassis and management-plane resource foundation, kept separate from later solution-specific resource consumption.
 - [blueprints/infrastructure-onboard-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-onboard-devices.yaml)
   First working phase blueprint for all-YAML device onboarding using an explicit grain chain for context preparation, target building, reset, claim preparation, claim, and validation.
@@ -94,10 +94,16 @@ Files:
   First working infrastructure phase blueprint using shared YAML context to prepare context, derive direct targets, claim direct targets, and validate onboarding completion
 - `blueprints/infrastructure-network-provisioning.yaml`
   First working infrastructure network phase blueprint using shared YAML context and a reusable planning grain for shared FI and fabric/network foundation
-- `catalog_ui.md`
+- `docs/README.md`
+  Supplemental documentation index for blueprint UX, wiring, examples, architecture, and secret handling
+- `docs/catalog_ui.md`
   End-user workflow and stable form keys
-- `wiring-table.md`
+- `docs/wiring-table.md`
   Form key to grain input mapping
+- `docs/blueprint_test_inputs.md`
+  Reusable first-run launch inputs for the active blueprints
+- `prompts/infrastructure-prompt-spec.md`
+  Canonical prompt specification for infrastructure input and solution-profile generation
 - `skills/`
   Repo-local shared Torque/Codex skill guidance for blueprint and Ansible patterns used in this repo
 - `ansible/build-infrastructure-onboarding-targets/`
@@ -175,13 +181,16 @@ Assumptions:
 - the blueprint internally builds:
   - `platform_yaml` for the claim and context grains
   - `placement_yaml` only for `prepare-intersight-context`
-  - `credential_candidates_yaml` only for `prepare-claim-target-credentials`
+  - `credential_candidates_yaml` only for the secret-bundle and credential-resolution grains
 - claim grains assume the organization/context is already prepared and consume direct `organization`
 - `site_json` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings
-- `credential_candidates_json` is an optional override contract for target credential candidates
-- the public onboarding blueprint now primarily uses direct credential inputs such as `fi_target_password`, `rack_target_password`, and `manufacturing_rack_password`, and only falls back to `credential_candidates_json` when an explicit override is needed
-- today those password values are still provided through blueprint inputs and mapped into env-backed refs during execution; this is intentional for the current implementation and will be revisited later when we harden the secret-management story
-- current examples and test runs often assume one shared FI password and one shared rack password for convenience; per-device credentials should also be considered supported by the underlying credential-candidate and claim-target contracts, even though that path is not the primary test shape today
+- `credential_candidates_json` and `credential_candidates_yaml` are optional override contracts for target credential candidates
+- the public claim and onboarding blueprints now prefer encrypted bundle inputs for device-side secrets:
+  - `encrypted_device_secret_bundle_path`
+  - `device_secret_bundle_key`
+- the public onboarding blueprint no longer exposes direct FI or rack password inputs; control-plane credentials stay as launch inputs and are mapped to env-backed refs internally during execution
+- the checked-in POC bundle at `assets/secrets/device-secrets.enc` with the current test key `jarvis-poc-unlock-key` is intended only for validated lab flows; real plaintext secrets should not be committed
+- per-device credentials remain supported through the credential-candidate and claim-target contracts even though the primary Torque path now stages the encrypted bundle and then resolves `file://__BUNDLE_ROOT__/...` references at runtime
 - rack-server flows can use typed candidates such as:
   `manufacturing` for factory/default login and `target` for the desired post-rotation credential
 - in the main prepare-and-claim flow, standalone rack targets are expected to already use the desired credential
@@ -241,18 +250,23 @@ Current checkpoint:
 - storage claim now depends on the referenced Assist only when storage targets are included in the run
 - appliance storage short-circuits existing storage targets first, then waits for the referenced Assist to reach `Connected` before submitting new storage claims
 - appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass
-- the focused claim blueprint now uses the simplified grain-level chain:
-  - `prepare-claim-target-credentials`
-  - `claim-devices-to-intersight`
+- the focused claim blueprint now uses the active grain-level chain:
+  - `prepare_device_secret_bundle`
+  - `resolve_claim_target_credentials`
+  - `split_claim_target_phases`
+  - `claim_assist_targets_to_intersight`
+  - `claim_direct_targets_to_intersight`
+  - `claim_assist_dependent_targets_to_intersight`
+  - `merge_claim_phase_results`
 - the public focused claim blueprint now exposes:
+  - `agent`
   - `api_uri`
   - `intersight_api_key_id`
   - `intersight_api_private_key`
   - `organization`
-  - `fi_target_username`
-  - `fi_target_password`
-  - `rack_target_username`
-  - `rack_target_password`
+  - `encrypted_device_secret_bundle_path`
+  - `device_secret_bundle_key`
+  - `credential_candidates_yaml`
   - `claim_targets_json`
 - the focused claim blueprint no longer exposes `deployment_yaml`; it uses a fixed internal deployment label for traceability
 - the focused rack reset blueprint now exposes:
@@ -271,3 +285,25 @@ Current checkpoint:
 - the unified claim grain also assumes other endpoint prerequisites are already satisfied, such as device connector preparation and any required reset-to-known-state work
 - appliance claim API calls now default to `use_proxy: false`; proxy use should only be enabled when that path is explicitly wired into the contract
 - rack password reset is split into its own grain and is no longer part of the main prepare-and-claim playbook
+- the public onboarding blueprint now uses the active phase chain:
+  - `prepare_intersight_context`
+  - `build_infrastructure_onboarding_targets`
+  - `prepare_device_secret_bundle`
+  - `reset_standalone_rack_passwords`
+  - `prepare_claim_target_credentials`
+  - `prepare_device_connector`
+  - `split_claim_target_phases`
+  - `claim_assist_targets_to_intersight`
+  - `claim_direct_targets_to_intersight`
+  - `claim_assist_dependent_targets_to_intersight`
+  - `merge_claim_phase_results`
+  - `validate_infrastructure_onboarding`
+- the latest validated Torque onboarding run completed successfully with:
+  - `phase_ready: true`
+  - `phase_status: completed`
+  - `next_action: proceed_to_infrastructure_network_provisioning`
+  - `successful_claim_result_count: 5`
+  - `blocking_claim_result_count: 0`
+  - `missing_device_count: 0`
+  - `not_ready_device_count: 0`
+  - `attempts_executed: 2`

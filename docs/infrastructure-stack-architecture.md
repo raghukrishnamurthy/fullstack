@@ -57,20 +57,20 @@ Input model notes:
 Planned infrastructure phases:
 
 1. `infrastructure-onboard-devices`
-   - see [infrastructure-onboard-devices-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-onboard-devices-architecture.md) for the current phase boundary draft
+   - see [infrastructure-onboard-devices-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-onboard-devices-architecture.md) for the current phase boundary draft
    - discover candidate devices
    - run standalone rack password reset when needed
    - claim devices into Intersight
    - validate that devices are manageable and ready for later infrastructure phases
 
 2. `infrastructure-network-provisioning`
-   - see [infrastructure-network-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-network-provisioning-architecture.md) for the current phase boundary draft
+   - see [infrastructure-network-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-network-provisioning-architecture.md) for the current phase boundary draft
    - establish shared FI and fabric/network foundation for the infrastructure-domain
    - drive discovery that depends on FI-managed infrastructure when applicable
    - validate that network-side infrastructure is ready for broader resource provisioning
 
 3. `infrastructure-resource-provisioning`
-   - see [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/infrastructure-resource-provisioning-architecture.md) for the current phase boundary draft
+   - see [infrastructure-resource-provisioning-architecture.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/infrastructure-resource-provisioning-architecture.md) for the current phase boundary draft
    - provision shared resource-layer infrastructure for the infrastructure-domain
    - include chassis-oriented provisioning and shared management-plane resource setup
    - include only solution-agnostic server-side settings such as common DNS, NTP, and shared management defaults

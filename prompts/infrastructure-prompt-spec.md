@@ -1,8 +1,8 @@
-# Cisco Infrastructure Input and Solution Profile Prompt Specification
+# Cisco Infrastructure Prompt Specification
 
 ## Purpose
 
-Define a deterministic, reusable prompt specification for generating structured Infrastructure-as-Code outputs for Cisco-based infrastructure deployments.
+Define the canonical deterministic prompt specification for generating structured Infrastructure-as-Code outputs for Cisco-based infrastructure deployments.
 
 This specification separates:
 

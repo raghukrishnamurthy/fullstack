@@ -39,28 +39,22 @@ https://intersight.com/api/v1
 ai-prod
 ```
 
-### `fi_target_username`
+### `encrypted_device_secret_bundle_path`
 
 ```text
-admin
+assets/secrets/device-secrets.enc
 ```
 
-### `fi_target_password`
+### `device_secret_bundle_key`
 
 ```text
-<fi-target-password>
+jarvis-poc-unlock-key
 ```
 
-### `rack_target_username`
+### `credential_candidates_yaml`
 
-```text
-admin
-```
-
-### `rack_target_password`
-
-```text
-<rack-target-password>
+```yaml
+{}
 ```
 
 ### `claim_targets_json`
@@ -121,28 +115,22 @@ https://ucs-hci-appliance-2.cisco.com
 ai-prod
 ```
 
-### `fi_target_username`
+### `encrypted_device_secret_bundle_path`
 
 ```text
-admin
+assets/secrets/device-secrets.enc
 ```
 
-### `fi_target_password`
+### `device_secret_bundle_key`
 
 ```text
-<fi-target-password>
+jarvis-poc-unlock-key
 ```
 
-### `rack_target_username`
+### `credential_candidates_yaml`
 
-```text
-admin
-```
-
-### `rack_target_password`
-
-```text
-<rack-target-password>
+```yaml
+{}
 ```
 
 ### `claim_targets_json`
@@ -177,7 +165,8 @@ admin
 - For blueprint claim testing, the key launch input is `claim_targets_json`.
 - The active backend branch is selected internally from `api_uri`.
 - The grain-level claim blueprint does not expose `deployment_yaml`; it uses a fixed internal deployment label for traceability.
-- The blueprint now accepts direct secret inputs and internally uses an env bridge plus internal YAML refs for the reusable grains.
+- The blueprint now stages an encrypted device secret bundle and internally resolves `file://__BUNDLE_ROOT__/...` references before the reusable grains run.
+- Control-plane Intersight credentials remain direct launch inputs and are bridged to env refs internally.
 - `validate_certs` is intentionally fixed to `false` inside the blueprint during current development and is not exposed in the launch form.
 - The focused claim blueprint now treats `organization` as an existing-org precondition and passes it directly to `claim_devices_to_intersight`.
 
@@ -297,24 +286,32 @@ solution:
   delivery_scope: infrastructure
 ```
 
-### Direct credential inputs
+### `encrypted_device_secret_bundle_path`
 
-- `fi_target_username`
-- `fi_target_password`
-- `rack_target_username`
-- `rack_target_password`
-- `manufacturing_rack_username`
-- `manufacturing_rack_password`
+```text
+assets/secrets/device-secrets.enc
+```
+
+### `device_secret_bundle_key`
+
+```text
+jarvis-poc-unlock-key
+```
 
 ### Optional override input
 
 - `credential_candidates_json`
-  Use this only when you intentionally want to override the direct credential mapping.
+  Use this only when you intentionally want to override the bundle-provided candidate mapping.
+  For the current happy path:
+
+```json
+{}
+```
 
 ### Notes
 
 - The onboarding blueprint now uses the explicit phase chain:
-  `prepare-intersight-context` -> `build-infrastructure-onboarding-targets` -> `reset-standalone-rack-password` -> `prepare-claim-target-credentials` -> `prepare-device-connector` -> `claim-devices-to-intersight` -> `validate-infrastructure-onboarding`
+  `prepare-intersight-context` -> `build-infrastructure-onboarding-targets` -> `prepare-device-secret-bundle` -> `reset-standalone-rack-passwords` -> `prepare-claim-target-credentials` -> `prepare-device-connector` -> `split-claim-target-phases` -> `claim-assist-targets-to-intersight` -> `claim-direct-targets-to-intersight` -> `claim-assist-dependent-targets-to-intersight` -> `merge-claim-phase-results` -> `validate-infrastructure-onboarding`
 - Onboarding validation is inventory-driven and checks direct targets only:
   FI pairs and standalone racks.
 - `inventory.assist` is for claimable Assist systems.
@@ -324,3 +321,4 @@ solution:
   Storage introduces an Assist dependency only when storage targets are present in the run; customers can still onboard direct infrastructure first and add Assist or storage later.
 - The public blueprint surface now uses JSON-string inputs such as `deployment_json`, `placement_json`, `inventory_json`, and `solution_json`.
 - `execution_intent: validate_only` is the safest first run.
+- The latest validated live run completed after two polling attempts and returned `next_action: proceed_to_infrastructure_network_provisioning`.

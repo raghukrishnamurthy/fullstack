@@ -37,41 +37,42 @@ Blueprint file:
 | Form Key | Grain | Automation Variable | Torque Grain Input |
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
-| `api_uri` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
-| `intersight_api_key_id` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
-| `intersight_api_private_key` | `claim_devices_to_intersight` | `platform_yaml` | `platform_yaml` |
-| `organization` | `claim_devices_to_intersight` | `organization` | `organization` |
-| `claim_targets_json` | `prepare_claim_target_credentials` | `claim_targets_json` | `claim_targets_json` |
-| `fi_target_username` | `prepare_claim_target_credentials` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `fi_target_password` | `prepare_claim_target_credentials` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `rack_target_username` | `prepare_claim_target_credentials` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `rack_target_password` | `prepare_claim_target_credentials` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `api_uri` | shared claim phase | `api_uri` | phase inputs |
+| `intersight_api_key_id` | shared claim phase | `intersight_api_key_id` | phase inputs |
+| `intersight_api_private_key` | shared claim phase | `intersight_api_private_key` | phase inputs |
+| `organization` | shared claim phase | `organization` | phase inputs |
+| `encrypted_device_secret_bundle_path` | `prepare_device_secret_bundle` | `encrypted_device_secret_bundle_path` | `encrypted_device_secret_bundle_path` |
+| `device_secret_bundle_key` | `prepare_device_secret_bundle` | `device_secret_bundle_key` | `device_secret_bundle_key` |
+| `credential_candidates_yaml` | `prepare_device_secret_bundle` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `claim_targets_json` | `resolve_claim_target_credentials` | `claim_targets_json` | `claim_targets_json` |
 
 ## Grain-to-Grain Wiring
 
 | Upstream Output | Downstream Grain | Torque Grain Input |
 | --- | --- | --- |
-| `resolved_claim_targets_json` | `claim_devices_to_intersight` | `claim_targets_json` |
+| `resolved_credential_candidates_yaml` | `resolve_claim_target_credentials` | `credential_candidates_yaml` |
+| `resolved_claim_targets_json` | `split_claim_target_phases` | `claim_targets_json` |
+| `assist_claim_targets_json` | `claim_assist_targets_to_intersight` | `claim_targets_json` |
+| `direct_claim_targets_json` | `claim_direct_targets_to_intersight` | `claim_targets_json` |
+| `assist_dependent_claim_targets_json` | `claim_assist_dependent_targets_to_intersight` | `claim_targets_json` |
 
 ## Exported Outputs
 
 | Grain | Output |
 | --- | --- |
-| `prepare_claim_target_credentials` | `resolved_claim_targets_json` |
-| `claim_devices_to_intersight` | `batch_status` |
-| `claim_devices_to_intersight` | `successful_targets` |
-| `claim_devices_to_intersight` | `failed_targets` |
-| `claim_devices_to_intersight` | `conflict_targets` |
-| `claim_devices_to_intersight` | `skipped_targets` |
-| `claim_devices_to_intersight` | `changed_targets` |
-| `claim_devices_to_intersight` | `results_json` |
-| `claim_devices_to_intersight` | `normalized_claim_results_json` |
-| `claim_devices_to_intersight` | `normalized_claim_batch_status` |
-| `claim_devices_to_intersight` | `normalized_claim_successful_count` |
-| `claim_devices_to_intersight` | `normalized_claim_failed_count` |
-| `claim_devices_to_intersight` | `normalized_claim_conflict_count` |
-| `claim_devices_to_intersight` | `normalized_claim_skipped_count` |
-| `claim_devices_to_intersight` | `normalized_claim_changed_count` |
+| `prepare_device_secret_bundle` | `resolved_credential_candidates_yaml` |
+| `resolve_claim_target_credentials` | `resolved_claim_targets_json` |
+| `split_claim_target_phases` | `assist_claim_targets_json` |
+| `split_claim_target_phases` | `direct_claim_targets_json` |
+| `split_claim_target_phases` | `assist_dependent_claim_targets_json` |
+| `merge_claim_phase_results` | `results_json` |
+| `merge_claim_phase_results` | `normalized_claim_results_json` |
+| `merge_claim_phase_results` | `normalized_claim_batch_status` |
+| `merge_claim_phase_results` | `normalized_claim_successful_count` |
+| `merge_claim_phase_results` | `normalized_claim_failed_count` |
+| `merge_claim_phase_results` | `normalized_claim_conflict_count` |
+| `merge_claim_phase_results` | `normalized_claim_skipped_count` |
+| `merge_claim_phase_results` | `normalized_claim_changed_count` |
 
 ## Reset Blueprint Launch Inputs
 
@@ -105,6 +106,8 @@ Blueprint file:
 | `inventory_json` | shared onboarding phase | `inventory_json` | phase inputs |
 | `solution_json` | shared onboarding phase | `solution_json` | phase inputs |
 | `credential_candidates_json` | shared onboarding phase | `credential_candidates_json` | phase inputs |
+| `encrypted_device_secret_bundle_path` | `prepare_device_secret_bundle` | `encrypted_device_secret_bundle_path` | `encrypted_device_secret_bundle_path` |
+| `device_secret_bundle_key` | `prepare_device_secret_bundle` | `device_secret_bundle_key` | `device_secret_bundle_key` |
 | `site_json` | shared onboarding phase | `site_json` | phase inputs |
 | `baseline_input_source` | shared onboarding phase | `baseline_input_source` | phase inputs |
 | `baseline_directory` | shared onboarding phase | `baseline_directory` | phase inputs |
@@ -120,10 +123,16 @@ Blueprint file:
 | Upstream Output | Downstream Grain | Torque Grain Input |
 | --- | --- | --- |
 | `reset_targets_json` | `reset_standalone_rack_passwords` | `targets_json` |
+| `resolved_credential_candidates_yaml` | `reset_standalone_rack_passwords` | `credential_candidates_yaml` |
 | `claim_targets_json` | `prepare_claim_target_credentials` | `claim_targets_json` |
+| `resolved_credential_candidates_yaml` | `prepare_claim_target_credentials` | `credential_candidates_yaml` |
 | `resolved_claim_targets_json` | `prepare_device_connector` | `claim_targets_json` |
-| `prepared_claim_targets_json` | `claim_devices_to_intersight` | `claim_targets_json` |
-| `org_name` | `claim_devices_to_intersight` | `organization` |
+| `prepared_claim_targets_json` | `split_claim_target_phases` | `claim_targets_json` |
+| `assist_claim_targets_json` | `claim_assist_targets_to_intersight` | `claim_targets_json` |
+| `direct_claim_targets_json` | `claim_direct_targets_to_intersight` | `claim_targets_json` |
+| `assist_dependent_claim_targets_json` | `claim_assist_dependent_targets_to_intersight` | `claim_targets_json` |
+| `org_name` | `claim_direct_targets_to_intersight` | `organization` |
+| `org_name` | `claim_assist_dependent_targets_to_intersight` | `organization` |
 | `results_json` | `validate_infrastructure_onboarding` | `claim_execution_results_json` |
 
 ## Infrastructure Onboard Devices Exported Outputs
@@ -133,10 +142,14 @@ Blueprint file:
 | `build_infrastructure_onboarding_targets` | `claim_targets_json` |
 | `build_infrastructure_onboarding_targets` | `reset_targets_json` |
 | `prepare_intersight_context` | `org_name` |
+| `prepare_device_secret_bundle` | `resolved_credential_candidates_yaml` |
 | `prepare_claim_target_credentials` | `resolved_claim_targets_json` |
 | `prepare_device_connector` | `prepared_claim_targets_json` |
-| `claim_devices_to_intersight` | `results_json` |
-| `claim_devices_to_intersight` | `normalized_claim_results_json` |
+| `split_claim_target_phases` | `assist_claim_targets_json` |
+| `split_claim_target_phases` | `direct_claim_targets_json` |
+| `split_claim_target_phases` | `assist_dependent_claim_targets_json` |
+| `merge_claim_phase_results` | `results_json` |
+| `merge_claim_phase_results` | `normalized_claim_results_json` |
 | `validate_infrastructure_onboarding` | `phase_ready` |
 | `validate_infrastructure_onboarding` | `phase_status` |
 | `validate_infrastructure_onboarding` | `phase_readiness_json` |
