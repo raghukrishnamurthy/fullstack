@@ -201,6 +201,10 @@ Local test path:
 - `./scripts/run_example_live_checked.sh`
   executes the live path and verifies a few expected live-validation output values
   both live scripts fail fast when `INTERSIGHT_API_KEY_ID` or `INTERSIGHT_API_PRIVATE_KEY` are not present
+- `./scripts/run_example_network_strict.sh`
+  executes the current network phase in strict planning mode using the AI Pod example inputs
+- `./scripts/run_example_network_strict_checked.sh`
+  executes the network strict path and verifies the standardized phase summary and plan outputs
 - `./scripts/check_docs.sh`
   verifies the key docs structure and catches stale path references
 - `./scripts/check_blueprints.sh`

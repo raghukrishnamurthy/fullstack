@@ -42,6 +42,10 @@ Use this path when you want to understand or safely exercise the current repo wi
   Live validation run.
 - `./scripts/run_example_live_checked.sh`
   Live validation plus lightweight assertions.
+- `./scripts/run_example_network_strict.sh`
+  Strict planning run for the shared network phase.
+- `./scripts/run_example_network_strict_checked.sh`
+  Strict network run plus lightweight assertions for the phase summary and plan.
 - `./scripts/check_docs.sh`
   Verifies the key docs structure and catches stale path references after repo reorganization.
 - `./scripts/check_blueprints.sh`
