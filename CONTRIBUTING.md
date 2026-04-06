@@ -19,6 +19,9 @@ Naming conventions:
 - Use `snake_case` for blueprint input keys, exported output keys, structured payload fields, and grain identifiers shown inside YAML or JSON contracts.
 - When one concept appears in both a file path and a data contract, keep the path `kebab-case` and the contract key `snake_case`.
 
+- When a blueprint grain wraps one ansible grain directory, use the `snake_case` form of that directory name as the blueprint grain id.
+- Only use role-specific aliases when the same underlying grain is instantiated multiple times in one blueprint.
+
 - Prefer JSON-string blueprint inputs for Torque-facing nested payloads.
 - Keep YAML-shaped contracts internal to automation layers unless a file-based input is clearly better.
 - Use the repo root `README.md` as the entry point, and link out to `docs/README.md`, `prompts/`, and `references/` from there.

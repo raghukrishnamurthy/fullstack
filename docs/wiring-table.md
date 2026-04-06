@@ -44,13 +44,13 @@ Blueprint file:
 | `encrypted_device_secret_bundle_path` | `prepare_device_secret_bundle` | `encrypted_device_secret_bundle_path` | `encrypted_device_secret_bundle_path` |
 | `device_secret_bundle_key` | `prepare_device_secret_bundle` | `device_secret_bundle_key` | `device_secret_bundle_key` |
 | `credential_candidates_yaml` | `prepare_device_secret_bundle` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `claim_targets_json` | `resolve_claim_target_credentials` | `claim_targets_json` | `claim_targets_json` |
+| `claim_targets_json` | `prepare_claim_target_credentials` | `claim_targets_json` | `claim_targets_json` |
 
 ## Grain-to-Grain Wiring
 
 | Upstream Output | Downstream Grain | Torque Grain Input |
 | --- | --- | --- |
-| `resolved_credential_candidates_yaml` | `resolve_claim_target_credentials` | `credential_candidates_yaml` |
+| `resolved_credential_candidates_yaml` | `prepare_claim_target_credentials` | `credential_candidates_yaml` |
 | `resolved_claim_targets_json` | `split_claim_target_phases` | `claim_targets_json` |
 | `assist_claim_targets_json` | `claim_assist_targets_to_intersight` | `claim_targets_json` |
 | `direct_claim_targets_json` | `claim_direct_targets_to_intersight` | `claim_targets_json` |
@@ -61,7 +61,7 @@ Blueprint file:
 | Grain | Output |
 | --- | --- |
 | `prepare_device_secret_bundle` | `resolved_credential_candidates_yaml` |
-| `resolve_claim_target_credentials` | `resolved_claim_targets_json` |
+| `prepare_claim_target_credentials` | `resolved_claim_targets_json` |
 | `split_claim_target_phases` | `assist_claim_targets_json` |
 | `split_claim_target_phases` | `direct_claim_targets_json` |
 | `split_claim_target_phases` | `assist_dependent_claim_targets_json` |
@@ -79,19 +79,19 @@ Blueprint file:
 | Form Key | Grain | Automation Variable | Torque Grain Input |
 | --- | --- | --- | --- |
 | `agent` | blueprint runtime | `agent` | `agent` |
-| `targets_json` | `reset_standalone_rack_passwords` | `targets_json` | `targets_json` |
-| `manufacturing_username` | `reset_standalone_rack_passwords` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `manufacturing_password` | `reset_standalone_rack_passwords` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `target_username` | `reset_standalone_rack_passwords` | `credential_candidates_yaml` | `credential_candidates_yaml` |
-| `target_password` | `reset_standalone_rack_passwords` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `targets_json` | `reset_standalone_rack_password` | `targets_json` | `targets_json` |
+| `manufacturing_username` | `reset_standalone_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `manufacturing_password` | `reset_standalone_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `target_username` | `reset_standalone_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
+| `target_password` | `reset_standalone_rack_password` | `credential_candidates_yaml` | `credential_candidates_yaml` |
 
 ## Reset Blueprint Exported Outputs
 
 | Grain | Output |
 | --- | --- |
-| `reset_standalone_rack_passwords` | `rack_password_reset_results_json` |
-| `reset_standalone_rack_passwords` | `password_reset_ready_targets_json` |
-| `reset_standalone_rack_passwords` | `password_reset_pending_targets_json` |
+| `reset_standalone_rack_password` | `rack_password_reset_results_json` |
+| `reset_standalone_rack_password` | `password_reset_ready_targets_json` |
+| `reset_standalone_rack_password` | `password_reset_pending_targets_json` |
 
 
 ## Infrastructure Onboard Devices Launch Inputs
@@ -122,8 +122,8 @@ Blueprint file:
 
 | Upstream Output | Downstream Grain | Torque Grain Input |
 | --- | --- | --- |
-| `reset_targets_json` | `reset_standalone_rack_passwords` | `targets_json` |
-| `resolved_credential_candidates_yaml` | `reset_standalone_rack_passwords` | `credential_candidates_yaml` |
+| `reset_targets_json` | `reset_standalone_rack_password` | `targets_json` |
+| `resolved_credential_candidates_yaml` | `reset_standalone_rack_password` | `credential_candidates_yaml` |
 | `claim_targets_json` | `prepare_claim_target_credentials` | `claim_targets_json` |
 | `resolved_credential_candidates_yaml` | `prepare_claim_target_credentials` | `credential_candidates_yaml` |
 | `resolved_claim_targets_json` | `prepare_device_connector` | `claim_targets_json` |

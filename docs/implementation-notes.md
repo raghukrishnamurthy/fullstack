@@ -66,7 +66,7 @@ This page holds the longer-lived assumptions and the current validated checkpoin
 - Appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass.
 - The focused claim blueprint now uses the active grain-level chain:
   - `prepare_device_secret_bundle`
-  - `resolve_claim_target_credentials`
+  - `prepare_claim_target_credentials`
   - `split_claim_target_phases`
   - `claim_assist_targets_to_intersight`
   - `claim_direct_targets_to_intersight`
@@ -86,7 +86,7 @@ This page holds the longer-lived assumptions and the current validated checkpoin
   - `prepare_intersight_context`
   - `build_infrastructure_onboarding_targets`
   - `prepare_device_secret_bundle`
-  - `reset_standalone_rack_passwords`
+  - `reset_standalone_rack_password`
   - `prepare_claim_target_credentials`
   - `prepare_device_connector`
   - `split_claim_target_phases`

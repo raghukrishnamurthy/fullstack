@@ -191,7 +191,7 @@ grains:
               localhost:
                 ansible_connection: local
 
-  reset_standalone_rack_passwords:
+  reset_standalone_rack_password:
     kind: ansible
     depends-on: prepare_device_secret_bundle
     spec:
@@ -229,7 +229,7 @@ grains:
 
   prepare_claim_target_credentials:
     kind: ansible
-    depends-on: reset_standalone_rack_passwords
+    depends-on: reset_standalone_rack_password
     spec:
       source:
         store: intersight-fullstack-repo
