@@ -1,0 +1,36 @@
+spec_version: 2
+description: Nested blueprint experiment producer backed by a shell grain
+inputs:
+  agent:
+    type: agent
+    title: Torque Agent
+    description: Torque agent that runs this workflow.
+  name_prefix:
+    type: string
+    description: Prefix used to build sample managed object names
+
+grains:
+  produce_shell_payload:
+    kind: shell
+    spec:
+      agent:
+        name: '{{ .inputs.agent }}'
+      outputs:
+        - phase_a_status
+        - phase_a_payload_json
+        - phase_a_summary_json
+      activities:
+        deploy:
+          commands:
+            - |
+              printf '%s\n' 'phase_a_status=ready' >> "$TORQUE_OUTPUT"
+              printf '%s\n' 'phase_a_payload_json={"name_prefix":"{{ .inputs.name_prefix }}","producer":"shell","sample_profile":"{{ .inputs.name_prefix }}-Shell-Profile"}' >> "$TORQUE_OUTPUT"
+              printf '%s\n' 'phase_a_summary_json={"phase":"phase_a_producer_shell","status":"ready","payload":{"name_prefix":"{{ .inputs.name_prefix }}","producer":"shell","sample_profile":"{{ .inputs.name_prefix }}-Shell-Profile"}}' >> "$TORQUE_OUTPUT"
+
+outputs:
+  phase_a_status:
+    value: '{{ .grains.produce_shell_payload.outputs.phase_a_status }}'
+  phase_a_payload_json:
+    value: '{{ .grains.produce_shell_payload.outputs.phase_a_payload_json }}'
+  phase_a_summary_json:
+    value: '{{ .grains.produce_shell_payload.outputs.phase_a_summary_json }}'

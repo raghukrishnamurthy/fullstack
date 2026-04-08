@@ -68,6 +68,12 @@ Use [experiment-blueprint-chain-parent-producer-only.yaml](/Users/rkrishn2/Docum
 
 This variant removes the consumer child blueprint and exports only the nested producer outputs.
 
+## Shell Diagnostic
+
+Use [experiment-blueprint-chain-parent-producer-only-shell.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/experiment-blueprint-chain-parent-producer-only-shell.yaml) to test the same nested blueprint output materialization path with a `shell`-backed child blueprint instead of an Ansible-backed child blueprint.
+
+If the shell-backed nested child materializes correctly while the Ansible-backed nested child does not, the problem is very likely specific to nested blueprint outputs sourced from Ansible grains.
+
 ## Real-Phase Follow-On
 
 If this experiment works cleanly in Torque, the next chaining experiment should

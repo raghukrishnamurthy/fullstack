@@ -1,0 +1,33 @@
+spec_version: 2
+description: Parent blueprint that tests nested shell producer blueprint output materialization only
+inputs:
+  agent:
+    type: agent
+    title: Torque Agent
+    description: Torque agent that runs this workflow.
+  name_prefix:
+    type: string
+    description: Prefix used to build sample managed object names
+
+grains:
+  phase_a:
+    kind: blueprint
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: blueprints/experiment-blueprint-chain-producer-shell.yaml
+      inputs:
+        - agent: '{{ .inputs.agent }}'
+        - name_prefix: '{{ .inputs.name_prefix }}'
+      outputs:
+        - phase_a_status
+        - phase_a_payload_json
+        - phase_a_summary_json
+
+outputs:
+  phase_a_status:
+    value: '{{ .grains.phase_a.outputs.phase_a_status }}'
+  phase_a_payload_json:
+    value: '{{ .grains.phase_a.outputs.phase_a_payload_json }}'
+  phase_a_summary_json:
+    value: '{{ .grains.phase_a.outputs.phase_a_summary_json }}'
