@@ -1,114 +1,233 @@
 # Infrastructure Resource Provisioning Architecture
 
-Purpose:
+## Purpose
 
-- Define the infrastructure phase that provisions shared resource-layer infrastructure for an `infrastructure-domain`
-- Establish reusable chassis-oriented and shared management-plane resource configuration after onboarding and shared network foundation are ready
-- Keep solution-specific subset consumption and later logical server usage out of this phase
+Define the first architecture shape for
+`infrastructure-resource-provisioning`.
 
-Phase boundary:
+This phase starts after:
 
-- this phase provisions shared resource-layer infrastructure for the infrastructure-domain
-- it includes chassis-oriented provisioning and shared management-plane resource setup
-- it may include shared server-side management defaults such as DNS, NTP, syslog, SNMP, IMC access, or other solution-agnostic settings
-- it should not own solution-specific server consumption, role assignment, or policies that depend on which subset of resources a later solution uses
+1. onboarding
+2. `infrastructure-network-provisioning`
+3. `infrastructure domain validator`
 
-Input model:
+Its purpose is to provision shared infrastructure resources that are consumed
+later by solution-specific workflows.
 
-This phase is expected to use shared YAML-shaped stack context.
+## Why This Phase Exists
 
-Required shared inputs:
+Shared FI/domain foundation is not enough for resource consumption.
+
+Before solution layers begin server-side work, the infrastructure side still
+needs a place to manage:
+
+- chassis profile resources
+- later CIMC or server-adjacent resources
+- later shared logical network plumbing such as VLANs and VSANs
+
+This keeps solution phases from mutating shared domain resources directly.
+
+## Core Rules
+
+- onboarding inventory remains the expected model
+- Intersight is the live source of truth
+- this phase provisions shared consumable infrastructure resources
+- solution phases should prefer consuming these resources instead of creating
+  shared domain resources themselves
+- complex blueprint inputs should remain JSON-first
+- implementation should stay Torque-ready, but local Ansible validation is the
+  first execution target
+
+## Initial Stage Breakdown
+
+### Stage 1: Chassis Profiles
+
+First implementation slice:
+
+- create shared chassis Power and Thermal policies
+- create or reconcile one shared chassis profile template from the selected variant
+- derive one chassis profile per discovered chassis from that template
+- deploy only the derived profiles that actually show pending-change semantics
+
+Current v1 policy set:
+
+- `chassis_power_policy`
+- `chassis_thermal_policy`
+
+Current v1 model:
+
+- one shared Power policy per selected variant
+- one shared Thermal policy per selected variant
+- one shared chassis profile template definition per selected variant
+- derive and assign per-chassis profiles from that template for all discovered chassis by default
+- no per-chassis overrides in v1
+
+### Stage 2: CIMC / Server-Side Resources
+
+Later work:
+
+- server-adjacent policies that are more naturally associated with server
+  profiles or direct endpoint behavior
+- blade/CIMC-specific policy handling
+
+This stage is intentionally deferred.
+
+### Stage 3: Shared Logical Network Resources
+
+Later work:
+
+- VLANs
+- VSANs
+- related domain-level logical network plumbing and shared policies
+
+This stage is intentionally kept outside solution-owned mutation so that
+parallel solutions do not contend on repeated domain-profile changes.
+
+## Inputs
+
+Expected outer inputs should remain consistent with earlier phases:
 
 - `deployment_yaml`
 - `platform_yaml`
 - `placement_yaml`
 - `inventory_yaml`
-
-Common optional inputs:
-
 - `site_yaml`
 - `solution_yaml`
-- `baseline_input_source`
-- `baseline_directory`
-- `overrides_yaml`
-- `validation_mode`
-- `execution_intent`
 
-Configuration model:
+Later, this phase may also need additional JSON-first selectors such as:
 
-- this phase should consume the effective infrastructure model already assembled from baselines, inventory-context-derived facts, model defaults, and default policies
-- the effective model should distinguish between:
-  - shared resource foundation expectations that belong here
-  - later solution-specific resource mapping or policies that should remain in solution provisioning phases
+- `chassis_profile_variant`
+- `resource_profile_selections_json`
 
-Planned internal behavior:
+## Source Of Truth Model
 
-1. re-read current resource-layer state from Intersight
-   - discover relevant chassis, blades, standalone servers, management-plane resource objects, and shared policy state
-   - confirm whether the infrastructure-domain already has the expected reusable resource foundation
+- onboarding inventory identifies expected infrastructure scope
+- live Intersight discovery identifies actual chassis and other resource
+  targets
+- policy realization should be based on the discovered live target set
+- if inventory expects chassis but live chassis endpoints are empty, the phase
+  should report a readiness gap instead of creating placeholder targets
 
-2. compose or resolve shared resource foundation configuration
-   - chassis-oriented provisioning
-   - shared management-plane resource setup
-   - shared server-side defaults that are solution-agnostic
-   - other reusable infrastructure-domain resource expectations derived from the effective infrastructure model
+This phase should not depend on previous phase outputs for correctness.
+Previous outputs may be useful as hints, but not as required truth.
 
-3. apply changes only when required
-   - remain idempotent
-   - avoid assigning or consuming resources in ways that are specific to a later solution deployment
+## Catalog Shape
 
-4. validate resulting resource-layer readiness
-   - confirm reusable resource objects are present and stable
-   - confirm shared management-plane defaults are in the expected state
-   - confirm the infrastructure-domain is ready for later solution-side resource consumption
+Current chassis-resource catalog layers are:
 
-5. build phase validation summary
-   - summarize whether reusable resource-layer infrastructure is ready for later solution provisioning
+- `catalog/chassis_profile_profiles/<profile>.yaml`
+- `catalog/chassis_profile_policies/<profile>/<policy>.yaml`
+- `catalog/chassis_profile_policies/supported.yaml`
 
-What belongs here:
+The current shared bundle model is:
 
-- chassis-oriented provisioning for the reusable infrastructure-domain
-- shared management-plane resource configuration
-- shared server-side defaults such as common DNS, NTP, syslog, SNMP, IMC access, and similar solution-agnostic settings
-- concrete reusable chassis-profile and management-policy realization that later solution phases can depend on
-- reusable resource-layer validation that later solution phases can depend on
+- `default`
+- `recommended`
 
-What does not belong here:
+where each bundle includes:
 
-- selecting which subset of resources a particular solution will consume
-- solution-specific IPMI or user policies tied to a chosen subset
-- solution-specific operating-system, application, or logical workload preparation
-- any resource assignment whose meaning depends on one later solution deployment rather than the reusable infrastructure-domain
+- `chassis_power_policy`
+- `chassis_thermal_policy`
 
-Phase output model:
+## Template And Async Model
 
-Primary phase result:
+Current v1 chassis realization uses the profile-template pattern:
 
-- `phase_readiness`
+- shared Power and Thermal policies are attached to one shared
+  `chassis.ProfileTemplate`
+- one derived `chassis.Profile` is maintained per discovered chassis
+- assignment remains target-specific on the derived profile
+- deploy is driven by derived profile state, not by unconditional replay
 
-Supporting outputs may include:
+Internal convergence for chassis profiles uses profile-state signals:
 
-- resource foundation validation summary
-- shared chassis and server resource summary
-- management-plane default summary
-- troubleshooting detail for reusable resource realization
+- `ConfigContext.ConfigState`
+- `ConfigContext.InconsistencyReason`
 
-Readiness meaning:
+Current deploy-needed states are treated as:
 
-This phase should be considered ready when:
+- `Pending-changes`
+- `Assigned`
+- `Inconsistent`
+- `Out-of-sync`
 
-- shared resource-layer objects required by the infrastructure-domain are present or reconciled
-- reusable chassis and server-side management defaults are realized in the expected form
-- the resulting infrastructure-domain is validated as ready for downstream solution-side resource consumption
+`Associated` is treated as the clean success state.
 
-Behavior expectations:
+Workflow information is supplemental only. It may be captured when present,
+but profile object state remains the primary internal validator contract.
 
-- idempotent execution is required
-- the phase may complete quickly when the expected resource foundation is already present
-- the phase should re-read current Intersight state before and after changes
-- later solution phases should consume this reusable resource foundation rather than redefining it
+## Current Recommended Defaults
 
-Relationship to later phases:
+### Chassis Power Policy
 
-- later solution phases consume subsets of the reusable resource foundation established here
-- `solution-network-provisioning` and later `solution-compute-provisioning` should treat this phase as the point where shared infrastructure resources are ready to be mapped to a specific solution
+Current default baseline:
+
+- `power_redundancy: Grid`
+- `power_save_mode: Enabled`
+- `dynamic_power_rebalancing: Enabled`
+- `extended_power_capacity: Enabled`
+- `power_allocation: 0`
+
+Current recommended-for-testing baseline:
+
+- `power_redundancy: N+1`
+- `power_save_mode: Enabled`
+- `dynamic_power_rebalancing: Enabled`
+- `extended_power_capacity: Enabled`
+- `power_allocation: 0`
+
+### Chassis Thermal Policy
+
+Current default and recommended baseline:
+
+- `fan_control_mode: Balanced`
+
+## Ownership Boundaries
+
+`infrastructure-network-provisioning` owns:
+
+- FI/domain network foundation
+- switch/domain profile realization
+- FI-side shared network/domain policies
+
+`infrastructure domain validator` owns:
+
+- readiness validation of discovered infrastructure before this phase begins
+
+`infrastructure-resource-provisioning` owns:
+
+- shared consumable chassis resources first
+- later server-adjacent and shared logical network resources
+
+solution phases should own:
+
+- server-side attachment and consumption
+- not repeated creation of shared domain-wide resources
+
+## Future Expansion Candidates
+
+Chassis-profile later candidates:
+
+- `chassis_imc_access_policy`
+- `chassis_snmp_policy`
+
+Server-side later candidates should be inventoried separately from chassis
+profile policy work.
+
+## Implementation Guardrails
+
+- avoid recursive self-reference in Ansible facts
+- build current-pass facts first, then final summary objects
+- keep discovery and realization separated
+- prefer shared template and shared policy reuse over per-chassis object sprawl in v1
+- add per-chassis overrides only when a real requirement appears
+
+## Initial Success Criteria
+
+- selected chassis profile variant resolves cleanly from catalog
+- shared chassis Power and Thermal policies are realized correctly
+- the shared chassis profile template is realized correctly
+- all discovered chassis in scope receive the intended derived profile/policies
+- reruns are no-op when derived profiles are already clean
+- template or policy changes only deploy derived profiles that need reconciliation
+- outputs are suitable for later server-side resource work
