@@ -60,6 +60,14 @@ later full-stack blueprint orchestration:
 - keeping child blueprints independently runnable
 - using JSON-string contracts across blueprint boundaries
 
+## Producer-Only Diagnostic
+
+Use [experiment-blueprint-chain-parent-producer-only.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/experiment-blueprint-chain-parent-producer-only.yaml) when you want to isolate one question:
+
+- does Torque materialize nested child blueprint outputs at the parent output surface at all?
+
+This variant removes the consumer child blueprint and exports only the nested producer outputs.
+
 ## Real-Phase Follow-On
 
 If this experiment works cleanly in Torque, the next chaining experiment should
