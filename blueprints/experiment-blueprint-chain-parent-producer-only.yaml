@@ -16,7 +16,7 @@ inputs:
     description: Prefix used to build sample managed object names
 
 grains:
-  phase_a:
+  bp_phase_a:
     kind: blueprint
     spec:
       source:
@@ -34,8 +34,8 @@ grains:
 
 outputs:
   phase_a_status:
-    value: '{{ .grains.phase_a.outputs.phase_a_status }}'
+    value: '{{ .grains.bp_phase_a.outputs.phase_a_status }}'
   phase_a_payload_json:
-    value: '{{ .grains.phase_a.outputs.phase_a_payload_json }}'
+    value: '{{ .grains.bp_phase_a.outputs.phase_a_payload_json }}'
   phase_a_summary_json:
-    value: '{{ .grains.phase_a.outputs.phase_a_summary_json }}'
+    value: '{{ .grains.bp_phase_a.outputs.phase_a_summary_json }}'

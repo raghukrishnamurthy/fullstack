@@ -16,7 +16,7 @@ inputs:
     description: Prefix used to build sample managed object names
 
 grains:
-  phase_a:
+  bp_phase_a:
     kind: blueprint
     spec:
       source:
@@ -34,15 +34,15 @@ grains:
 
   phase_b:
     kind: blueprint
-    depends-on: phase_a
+    depends-on: bp_phase_a
     spec:
       source:
         store: intersight-fullstack-repo
         path: blueprints/experiment-blueprint-chain-consumer.yaml
       inputs:
         - agent: '{{ .inputs.agent }}'
-        - phase_a_payload_json: '{{ .grains.phase_a.outputs.phase_a_payload_json }}'
-        - phase_a_summary_json: '{{ .grains.phase_a.outputs.phase_a_summary_json }}'
+        - phase_a_payload_json: '{{ .grains.bp_phase_a.outputs.phase_a_payload_json }}'
+        - phase_a_summary_json: '{{ .grains.bp_phase_a.outputs.phase_a_summary_json }}'
       outputs:
         - phase_b_status
         - phase_b_payload_json
@@ -50,9 +50,9 @@ grains:
 
 outputs:
   phase_a_status:
-    value: '{{ .grains.phase_a.outputs.phase_a_status }}'
+    value: '{{ .grains.bp_phase_a.outputs.phase_a_status }}'
   phase_a_payload_json:
-    value: '{{ .grains.phase_a.outputs.phase_a_payload_json }}'
+    value: '{{ .grains.bp_phase_a.outputs.phase_a_payload_json }}'
   phase_b_status:
     value: '{{ .grains.phase_b.outputs.phase_b_status }}'
   phase_b_payload_json:
