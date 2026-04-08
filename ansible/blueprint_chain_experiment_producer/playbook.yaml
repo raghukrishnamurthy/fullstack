@@ -35,9 +35,9 @@
             sample_profile: "{{ name_prefix }}-Sample-Profile"
 
     - name: Export producer outputs to Torque
-      ansible.builtin.set_stats:
-        data:
-          phase_a_status: ready
+      torque.collections.export_torque_outputs:
+        outputs:
+          phase_a_status: "ready"
           phase_a_payload_json: "{{ producer_payload | to_json }}"
           phase_a_summary_json: >-
             {{
@@ -47,3 +47,6 @@
                 'payload': producer_payload
               } | to_json
             }}
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true

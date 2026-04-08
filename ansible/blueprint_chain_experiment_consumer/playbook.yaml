@@ -29,9 +29,9 @@
           source_phase_status: "{{ phase_a_summary.status | default('unknown') }}"
 
     - name: Export consumer outputs to Torque
-      ansible.builtin.set_stats:
-        data:
-          phase_b_status: ready
+      torque.collections.export_torque_outputs:
+        outputs:
+          phase_b_status: "ready"
           phase_b_payload_json: "{{ consumer_payload | to_json }}"
           phase_b_summary_json: >-
             {{
@@ -41,3 +41,6 @@
                 'payload': consumer_payload
               } | to_json
             }}
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: true
