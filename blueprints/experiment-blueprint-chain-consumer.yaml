@@ -1,0 +1,44 @@
+spec_version: 2
+description: Nested blueprint experiment consumer
+inputs:
+  agent:
+    type: agent
+    title: Torque Agent
+    description: Torque agent that runs this workflow.
+  phase_a_payload_json:
+    type: string
+    description: Producer blueprint payload JSON string
+  phase_a_summary_json:
+    type: string
+    description: Producer blueprint summary JSON string
+
+grains:
+  consume_chain_payload:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/blueprint_chain_experiment_consumer/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - phase_a_payload_json: '{{ .inputs.phase_a_payload_json }}'
+        - phase_a_summary_json: '{{ .inputs.phase_a_summary_json }}'
+      outputs:
+        - phase_b_status
+        - phase_b_payload_json
+        - phase_b_summary_json
+
+outputs:
+  phase_b_status:
+    value: '{{ .grains.consume_chain_payload.outputs.phase_b_status }}'
+  phase_b_payload_json:
+    value: '{{ .grains.consume_chain_payload.outputs.phase_b_payload_json }}'
+  phase_b_summary_json:
+    value: '{{ .grains.consume_chain_payload.outputs.phase_b_summary_json }}'

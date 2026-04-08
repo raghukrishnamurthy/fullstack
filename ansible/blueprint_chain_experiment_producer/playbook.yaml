@@ -1,0 +1,49 @@
+---
+- name: Produce simple nested-blueprint handoff data
+  hosts: localhost
+  gather_facts: false
+  vars:
+    deployment_data: "{{ deployment_json | default('{}') | from_json }}"
+    platform_data: "{{ platform_json | default('{}') | from_json }}"
+  tasks:
+    - name: Validate producer inputs
+      ansible.builtin.assert:
+        that:
+          - deployment_data.deployment is defined
+          - platform_data.platform is defined
+          - name_prefix | default('') | length > 0
+        fail_msg: >
+          blueprint_chain_experiment_producer requires JSON-string deployment_json,
+          JSON-string platform_json, and name_prefix.
+
+    - name: Build producer payload
+      ansible.builtin.set_fact:
+        producer_payload:
+          deployment_id: "{{ deployment_data.deployment.id | default('unknown') }}"
+          provider_family: >-
+            {{
+              platform_data.platform.provider_family
+              | default(
+                  'intersight'
+                  if (platform_data.platform.intersight is defined)
+                  else 'unknown'
+                )
+            }}
+          name_prefix: "{{ name_prefix }}"
+          managed_object_names:
+            sample_policy: "{{ name_prefix }}-Sample-Policy"
+            sample_profile: "{{ name_prefix }}-Sample-Profile"
+
+    - name: Export producer outputs to Torque
+      ansible.builtin.set_stats:
+        data:
+          phase_a_status: ready
+          phase_a_payload_json: "{{ producer_payload | to_json }}"
+          phase_a_summary_json: >-
+            {{
+              {
+                'phase': 'phase_a_producer',
+                'status': 'ready',
+                'payload': producer_payload
+              } | to_json
+            }}

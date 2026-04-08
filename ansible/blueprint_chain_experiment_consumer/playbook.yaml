@@ -1,0 +1,43 @@
+---
+- name: Consume nested-blueprint handoff data
+  hosts: localhost
+  gather_facts: false
+  vars:
+    phase_a_payload: "{{ phase_a_payload_json | default('{}') | from_json }}"
+    phase_a_summary: "{{ phase_a_summary_json | default('{}') | from_json }}"
+  tasks:
+    - name: Validate consumer inputs
+      ansible.builtin.assert:
+        that:
+          - phase_a_payload.deployment_id is defined
+          - phase_a_payload.provider_family is defined
+          - phase_a_payload.name_prefix is defined
+          - phase_a_summary.phase | default('') == 'phase_a_producer'
+        fail_msg: >
+          blueprint_chain_experiment_consumer requires producer JSON outputs from the
+          nested producer blueprint.
+
+    - name: Build consumer payload
+      ansible.builtin.set_fact:
+        consumer_payload:
+          deployment_id: "{{ phase_a_payload.deployment_id }}"
+          provider_family: "{{ phase_a_payload.provider_family }}"
+          name_prefix: "{{ phase_a_payload.name_prefix }}"
+          derived_object_names:
+            chained_profile: "{{ phase_a_payload.name_prefix }}-Chained-Profile"
+            chained_summary: "{{ phase_a_payload.name_prefix }}-Summary"
+          source_phase_status: "{{ phase_a_summary.status | default('unknown') }}"
+
+    - name: Export consumer outputs to Torque
+      ansible.builtin.set_stats:
+        data:
+          phase_b_status: ready
+          phase_b_payload_json: "{{ consumer_payload | to_json }}"
+          phase_b_summary_json: >-
+            {{
+              {
+                'phase': 'phase_b_consumer',
+                'status': 'ready',
+                'payload': consumer_payload
+              } | to_json
+            }}
