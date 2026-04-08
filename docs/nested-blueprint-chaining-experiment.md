@@ -1,90 +1,51 @@
 # Nested Blueprint Chaining Experiment
 
-This experiment exists to answer one focused Torque question:
+## Goal
 
-- can one blueprint be used as a grain inside another blueprint, with stable
-  input and output handoff?
+Validate whether Torque can chain outputs across nested blueprints cleanly, especially when the nested child blueprint is backed by different grain types.
 
-It is intentionally small so that we learn the nesting syntax and handoff
-behavior before chaining the real infrastructure phase blueprints.
+## Experiments
 
-## Contract Choice
+### 1. Ansible-backed child blueprint
 
-This experiment is intentionally JSON-string-first.
+Files:
+- `blueprints/experiment-blueprint-chain-producer.yaml`
+- `blueprints/experiment-blueprint-chain-consumer.yaml`
+- `blueprints/experiment-blueprint-chain-parent.yaml`
+- `blueprints/experiment-blueprint-chain-parent-producer-only.yaml`
 
-That means:
+Purpose:
+- prove child blueprint execution
+- test whether nested child blueprint outputs are materialized before being passed to another nested child or surfaced on the parent blueprint
 
-- parent blueprint inputs use JSON-formatted strings
-- child blueprint outputs use JSON-formatted strings
-- nested blueprint handoff is tested using string-safe JSON payloads
+Observed result:
+- child blueprint executes
+- parent references use the documented syntax
+- nested child blueprint output values appear to surface as unresolved literals rather than resolved values
 
-This matches the Torque-facing contract style we care about most.
+### 2. Shell-backed child blueprint
 
-## Experiment Blueprints
+Files:
+- `blueprints/experiment-blueprint-chain-producer-shell.yaml`
+- `blueprints/experiment-blueprint-chain-parent-producer-only-shell.yaml`
 
-- [experiment-blueprint-chain-producer.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/experiment-blueprint-chain-producer.yaml)
-- [experiment-blueprint-chain-consumer.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/experiment-blueprint-chain-consumer.yaml)
-- [experiment-blueprint-chain-parent.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/experiment-blueprint-chain-parent.yaml)
+Purpose:
+- compare nested output behavior for a non-Ansible child blueprint
 
-## Experiment Flow
+Observed result:
+- shell grain ran, but the current output-export mechanism used in the experiment was not valid in Torque runtime
+- this path is not yet a conclusive comparison
 
-1. `experiment-blueprint-chain-producer`
-   - accepts `deployment_json`, `platform_json`, and `name_prefix`
-   - produces:
-     - `phase_a_status`
-     - `phase_a_payload_json`
-     - `phase_a_summary_json`
+### 3. Terraform-backed child blueprint
 
-2. `experiment-blueprint-chain-consumer`
-   - accepts producer outputs
-   - validates the JSON payload contract
-   - produces:
-     - `phase_b_status`
-     - `phase_b_payload_json`
-     - `phase_b_summary_json`
+Files:
+- `assets/terraform/blueprint-chain-producer-tf/main.tf`
+- `blueprints/experiment-blueprint-chain-producer-terraform.yaml`
+- `blueprints/experiment-blueprint-chain-parent-producer-only-terraform.yaml`
 
-3. `experiment-blueprint-chain-parent`
-   - uses both child blueprints as `kind: blueprint` grains
-   - passes outputs from the first nested blueprint to the second
-   - exports the chained outputs at the parent level
+Purpose:
+- compare nested output materialization using the same pattern found in working sample repositories, where nested child blueprint outputs come from terraform grains
 
-## Why This Shape
-
-This test is small, but it exercises the exact patterns we care about for
-later full-stack blueprint orchestration:
-
-- nested blueprint grain syntax
-- passing blueprint inputs into child blueprints
-- exporting child blueprint outputs back to the parent
-- handing one child blueprint output into another child blueprint input
-- keeping child blueprints independently runnable
-- using JSON-string contracts across blueprint boundaries
-
-## Producer-Only Diagnostic
-
-Use [experiment-blueprint-chain-parent-producer-only.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/experiment-blueprint-chain-parent-producer-only.yaml) when you want to isolate one question:
-
-- does Torque materialize nested child blueprint outputs at the parent output surface at all?
-
-This variant removes the consumer child blueprint and exports only the nested producer outputs.
-
-## Shell Diagnostic
-
-Use [experiment-blueprint-chain-parent-producer-only-shell.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/experiment-blueprint-chain-parent-producer-only-shell.yaml) to test the same nested blueprint output materialization path with a `shell`-backed child blueprint instead of an Ansible-backed child blueprint.
-
-If the shell-backed nested child materializes correctly while the Ansible-backed nested child does not, the problem is very likely specific to nested blueprint outputs sourced from Ansible grains.
-
-## Real-Phase Follow-On
-
-If this experiment works cleanly in Torque, the next chaining experiment should
-use the real phase blueprints:
-
-- [infrastructure-network-provisioning-v1.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-network-provisioning-v1.yaml)
-- [infrastructure-domain-post-validation-v1.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-domain-post-validation-v1.yaml)
-- [infrastructure-resource-provisioning-v1.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-resource-provisioning-v1.yaml)
-
-## Reference
-
-Torque official doc used for the blueprint-grain syntax:
-
-- [The Blueprint Grain | Torque](https://docs.qtorque.io/blueprint-designer-guide/blueprints/blueprint-grain)
+Expected result:
+- if parent outputs resolve correctly here, the nested blueprint limitation is likely specific to ansible-backed child blueprint outputs
+- if parent outputs still surface unresolved literals, the limitation is broader than ansible

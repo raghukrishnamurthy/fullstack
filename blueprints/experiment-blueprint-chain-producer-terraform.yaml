@@ -1,0 +1,35 @@
+spec_version: 2
+
+description: Minimal terraform-backed child blueprint for nested output testing.
+
+inputs:
+  name_prefix:
+    type: string
+    default: vf1
+
+  Agent:
+    type: agent
+
+grains:
+  produce_chain_payload_tf:
+    kind: terraform
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: assets/terraform/blueprint-chain-producer-tf
+      agent:
+        name: '{{ .inputs.Agent }}'
+      inputs:
+        - name_prefix: '{{ .inputs.name_prefix }}'
+      outputs:
+        - phase_a_status
+        - phase_a_payload_json
+        - phase_a_summary_json
+
+outputs:
+  phase_a_status:
+    value: '{{ .grains.produce_chain_payload_tf.outputs.phase_a_status }}'
+  phase_a_payload_json:
+    value: '{{ .grains.produce_chain_payload_tf.outputs.phase_a_payload_json }}'
+  phase_a_summary_json:
+    value: '{{ .grains.produce_chain_payload_tf.outputs.phase_a_summary_json }}'
