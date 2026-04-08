@@ -1,0 +1,468 @@
+---
+- name: Realize infrastructure network policies
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    infrastructure_network_model: >-
+      {{
+        (
+          infrastructure_network_effective_model_json
+          if (infrastructure_network_effective_model_json | default('') | string | trim | length) > 0
+          else infrastructure_network_model_json
+        ) | from_json
+      }}
+    infrastructure_network_live_state: "{{ infrastructure_network_live_state_json | from_json }}"
+    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    site_root: "{{ (site_yaml | default('') | trim | length > 0) | ternary(site_yaml | from_yaml, {}) }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    site_data: "{{ site_root.site | default(site_root) }}"
+    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    api_uri_normalized: >-
+      {{
+        raw_api_uri
+        if (raw_api_uri | regex_search('/api/v1/?$'))
+        else (raw_api_uri | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
+    api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') | string }}"
+    api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
+    resolved_api_key_id: >-
+      {{
+        api_key_id_direct
+        if (api_key_id_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+          if (api_key_id_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    resolved_api_private_key: >-
+      {{
+        api_private_key_direct
+        if (api_private_key_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+          if (api_private_key_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
+    validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false') | string | lower)
+        in ['true', '1', 'yes']
+      }}
+    api_info: &api_info
+      api_private_key: "{{ resolved_api_private_key }}"
+      api_key_id: "{{ resolved_api_key_id }}"
+      api_uri: "{{ api_uri_normalized }}"
+      validate_certs: "{{ validate_certs }}"
+
+  tasks:
+    - name: Validate policy realization inputs
+      ansible.builtin.assert:
+        that:
+          - infrastructure_network_model.domains | length == 1
+          - organization_name | length > 0
+          - resolved_api_key_id | length > 0
+          - resolved_api_private_key | length > 0
+        fail_msg: "realize_infrastructure_network_policies currently requires one FI-pair domain plus valid Intersight context"
+
+    - name: Set local policy realization facts
+      ansible.builtin.set_fact:
+        target_domain: "{{ infrastructure_network_model.domains[0] }}"
+        port_policy_name: "{{ infrastructure_network_model.deployment.name_prefix }}-Port-Policy"
+        switch_control_policy_name: "{{ infrastructure_network_model.deployment.name_prefix }}-Switch-Control"
+        system_qos_policy_name: "{{ infrastructure_network_model.deployment.name_prefix }}-System-QoS"
+        ntp_policy_name: "{{ infrastructure_network_model.deployment.name_prefix }}-NTP"
+        network_connectivity_policy_name: "{{ infrastructure_network_model.deployment.name_prefix }}-Network-Connectivity"
+
+    - name: Derive live FI models from discovery state
+      ansible.builtin.set_fact:
+        live_domain_models: "{{ infrastructure_network_live_state.discovered_fis | default([]) | map(attribute='live_model') | reject('equalto', '') | unique | list }}"
+
+    - name: Validate discovered FI model state for policy realization
+      ansible.builtin.assert:
+        that:
+          - live_domain_models | length == 1
+        fail_msg: >-
+          Policy realization requires exactly one live FI model for the target
+          domain. Discovered models: {{ live_domain_models | default([]) }}
+
+    - name: Load live FI model defaults for policy realization
+      ansible.builtin.include_vars:
+        file: >-
+          {{
+            playbook_dir
+            ~ '/../../defaults/fi_models/'
+            ~ (live_domain_models[0] | lower | regex_replace('[^a-z0-9]+', '_'))
+            ~ '.yaml'
+          }}
+        name: live_fi_model_defaults
+
+    - name: Build effective target domain from live FI model
+      ansible.builtin.set_fact:
+        effective_target_domain: >-
+          {{
+            target_domain
+            | combine(
+                {
+                  'fi_model': live_domain_models[0],
+                  'recommended_port_mapping': {
+                    'transport_mode': (
+                      'ethernet_fc'
+                      if target_domain.port_mapping_profile_id == 'ethernet_fc'
+                      else 'ethernet'
+                    ),
+                    'recommended_server_ports': live_fi_model_defaults.port_ranges.recommended_server_ports | default([]),
+                    'recommended_uplink_ports': live_fi_model_defaults.port_ranges.recommended_uplink_ports | default([]),
+                    'default_uplink_port_channel_members': live_fi_model_defaults.recommended_layout_defaults.default_uplink_port_channel_members | default([])
+                  }
+                },
+                recursive=True
+              )
+          }}
+
+    - name: Resolve effective site global settings for policy overrides
+      ansible.builtin.set_fact:
+        effective_site_global_settings: >-
+          {{
+            infrastructure_network_model.site.global_settings
+            | default(target_domain.site_global_settings | default(site_data.global_settings | default({})))
+          }}
+
+    - name: Apply site global settings to environment-sensitive policies
+      ansible.builtin.set_fact:
+        effective_target_domain: >-
+          {{
+            effective_target_domain
+            | combine(
+                {
+                  'policy_values': {
+                    'ntp_policy': {
+                      'settings': {
+                        'servers': (
+                          effective_site_global_settings.ntp.servers
+                          if (
+                            effective_site_global_settings.ntp is defined
+                            and effective_site_global_settings.ntp.servers is defined
+                            and (effective_site_global_settings.ntp.servers | length > 0)
+                          )
+                          else effective_target_domain.policy_values.ntp_policy.settings.servers
+                        )
+                      }
+                    },
+                    'network_connectivity_policy': {
+                      'settings': {
+                        'preferred_ipv4_dns_server': (
+                          effective_site_global_settings.dns.servers[0]
+                          if (
+                            effective_site_global_settings.dns is defined
+                            and effective_site_global_settings.dns.servers is defined
+                            and (effective_site_global_settings.dns.servers | length > 0)
+                          )
+                          else effective_target_domain.policy_values.network_connectivity_policy.settings.preferred_ipv4_dns_server
+                        ),
+                        'alternate_ipv4_dns_server': (
+                          (
+                            effective_site_global_settings.dns.servers[1]
+                            if (effective_site_global_settings.dns.servers | length) > 1
+                            else effective_site_global_settings.dns.servers[0]
+                          )
+                          if (
+                            effective_site_global_settings.dns is defined
+                            and effective_site_global_settings.dns.servers is defined
+                            and (effective_site_global_settings.dns.servers | length > 0)
+                          )
+                          else effective_target_domain.policy_values.network_connectivity_policy.settings.alternate_ipv4_dns_server
+                        )
+                      }
+                    }
+                  }
+                },
+                recursive=True
+              )
+          }}
+
+    - name: Validate selected FI model is supported by current port-policy module path
+      ansible.builtin.assert:
+        that:
+          - effective_target_domain.fi_model in ['UCS-FI-6454', 'UCS-FI-6536', 'UCS-FI-6664']
+        fail_msg: >-
+          Current v1 policy realization path does not yet support
+          {{ effective_target_domain.fi_model }} through the collection port-policy module.
+          Add a supported module path or REST realization before enabling this model.
+
+    - name: Build module server ports from recommended mapping
+      ansible.builtin.set_fact:
+        module_server_ports: "{{ (module_server_ports | default([])) + expanded_ports }}"
+      vars:
+        expanded_ports: >-
+          {%- set out = [] -%}
+          {%- for port_range in effective_target_domain.recommended_port_mapping.recommended_server_ports | default([]) -%}
+          {%- for port_id in range((port_range.start | int), (port_range.end | int) + 1) -%}
+          {%- set _ = out.append({'port_id': (port_id | string), 'fec': 'Auto'}) -%}
+          {%- endfor -%}
+          {%- endfor -%}
+          {{ out }}
+
+    - name: Build module Ethernet uplink port channels from recommended mapping
+      ansible.builtin.set_fact:
+        module_ethernet_uplink_port_channels:
+          - pc_id: "{{ target_domain.uplink_port_channel_id | int }}"
+            admin_speed: "{{ effective_target_domain.policy_values.port_policy.port_defaults.admin_speed | default('Auto') }}"
+            fec: "{{ effective_target_domain.policy_values.port_policy.port_defaults.fec | default('Auto') }}"
+            ports: >-
+              {%- set out = [] -%}
+              {%- for member in effective_target_domain.recommended_port_mapping.default_uplink_port_channel_members | default([]) -%}
+              {%- set parts = member.split('/') -%}
+              {%- set _ = out.append({'port_id': (parts[-1] | string)}) -%}
+              {%- endfor -%}
+              {{ out }}
+
+    - name: Create switch control policy in Intersight
+      cisco.intersight.intersight_switch_control_policy:
+        <<: *api_info
+        organization: "{{ organization_name }}"
+        name: "{{ switch_control_policy_name }}"
+        description: "Switch control policy for {{ infrastructure_network_model.deployment.name_prefix }}"
+        ethernet_switching_mode: "{{ effective_target_domain.policy_values.switch_control_policy.settings.ethernet_switching_mode }}"
+        fc_switching_mode: "{{ effective_target_domain.policy_values.switch_control_policy.settings.fc_switching_mode }}"
+        mac_aging_option: "{{ effective_target_domain.policy_values.switch_control_policy.settings.mac_aging_option }}"
+        vlan_port_optimization_enabled: "{{ effective_target_domain.policy_values.switch_control_policy.settings.vlan_port_optimization_enabled }}"
+        reserved_vlan_start_id: "{{ effective_target_domain.policy_values.switch_control_policy.settings.reserved_vlan_start_id }}"
+        message_interval: "{{ effective_target_domain.policy_values.switch_control_policy.settings.message_interval }}"
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+      register: switch_control_policy_result
+      retries: 3
+      delay: 5
+      until: switch_control_policy_result is succeeded
+
+    - name: Create system QoS policy in Intersight
+      cisco.intersight.intersight_system_qos_policy:
+        <<: *api_info
+        organization: "{{ organization_name }}"
+        name: "{{ system_qos_policy_name }}"
+        description: "System QoS policy for {{ infrastructure_network_model.deployment.name_prefix }}"
+        classes: "{{ effective_target_domain.policy_values.system_qos_policy.settings.classes }}"
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+      register: system_qos_policy_result
+      retries: 3
+      delay: 5
+      until: system_qos_policy_result is succeeded
+
+    - name: Create NTP policy in Intersight
+      cisco.intersight.intersight_ntp_policy:
+        <<: *api_info
+        organization: "{{ organization_name }}"
+        name: "{{ ntp_policy_name }}"
+        description: "NTP policy for {{ infrastructure_network_model.deployment.name_prefix }}"
+        enable: "{{ effective_target_domain.policy_values.ntp_policy.settings.enabled }}"
+        ntp_servers: "{{ effective_target_domain.policy_values.ntp_policy.settings.servers }}"
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+      register: ntp_policy_result
+      retries: 3
+      delay: 5
+      until: ntp_policy_result is succeeded
+
+    - name: Create network connectivity policy in Intersight
+      cisco.intersight.intersight_network_connectivity_policy:
+        <<: *api_info
+        organization: "{{ organization_name }}"
+        name: "{{ network_connectivity_policy_name }}"
+        description: "Network connectivity policy for {{ infrastructure_network_model.deployment.name_prefix }}"
+        enable_dynamic_dns: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_dynamic_dns }}"
+        enable_ipv4_dns_from_dhcp: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv4_dns_from_dhcp }}"
+        preferred_ipv4_dns_server: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.preferred_ipv4_dns_server }}"
+        alternate_ipv4_dns_server: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.alternate_ipv4_dns_server }}"
+        enable_ipv6: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6 }}"
+        enable_ipv6_dns_from_dhcp: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6_dns_from_dhcp }}"
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+      register: network_connectivity_policy_result
+      retries: 3
+      delay: 5
+      until: network_connectivity_policy_result is succeeded
+
+    - name: Create port policy in Intersight
+      cisco.intersight.intersight_port_policy:
+        <<: *api_info
+        organization: "{{ organization_name }}"
+        name: "{{ port_policy_name }}"
+        description: "Port policy for {{ infrastructure_network_model.deployment.name_prefix }} infrastructure-network-provisioning"
+        device_model: "{{ effective_target_domain.fi_model }}"
+        fc_port_mode: >-
+          {{
+            {
+              'port_id_start': (effective_target_domain.fi_model == 'UCS-FI-6664') | ternary(25, 1),
+              'port_id_end': (
+                effective_target_domain.fi_model == 'UCS-FI-6664'
+                | ternary(
+                    effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int,
+                    effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int
+                  )
+              )
+            }
+            if effective_target_domain.port_mapping_profile_id == 'ethernet_fc'
+            else omit
+          }}
+        ethernet_uplink_port_channels: "{{ module_ethernet_uplink_port_channels }}"
+        server_ports: "{{ module_server_ports }}"
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+      register: port_policy_result
+      retries: 3
+      delay: 5
+      until: port_policy_result is succeeded
+
+    - name: Look up realized policy objects by name
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: "{{ item.resource_path }}"
+        query_params:
+          $filter: "Name eq '{{ item.name }}'"
+      loop:
+        - key: port_policy
+          name: "{{ port_policy_name }}"
+          resource_path: /fabric/PortPolicies
+        - key: switch_control_policy
+          name: "{{ switch_control_policy_name }}"
+          resource_path: /fabric/SwitchControlPolicies
+        - key: system_qos_policy
+          name: "{{ system_qos_policy_name }}"
+          resource_path: /fabric/SystemQosPolicies
+        - key: ntp_policy
+          name: "{{ ntp_policy_name }}"
+          resource_path: /ntp/Policies
+        - key: network_connectivity_policy
+          name: "{{ network_connectivity_policy_name }}"
+          resource_path: /networkconfig/Policies
+      loop_control:
+        label: "{{ item.key }}"
+      register: realized_policy_lookup_results
+
+    - name: Validate realized policy lookups returned Moids
+      ansible.builtin.assert:
+        that:
+          - item.api_response.Moid is defined
+          - item.api_response.Moid | length > 0
+        fail_msg: "Could not resolve realized policy {{ item.item.key }} named {{ item.item.name }}"
+      loop: "{{ realized_policy_lookup_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Build realized policy state
+      ansible.builtin.set_fact:
+        realized_policy_state:
+          policy_ids:
+            - port_policy
+            - switch_control_policy
+            - system_qos_policy
+            - ntp_policy
+            - network_connectivity_policy
+          domains:
+            - "{{ effective_target_domain }}"
+          execution_intent: "{{ execution_intent | default('validate_only') }}"
+          realization_mode: intersight_collection_modules
+          policies:
+            port_policy:
+              name: "{{ port_policy_name }}"
+              moid: >-
+                {{
+                  realized_policy_lookup_results.results
+                  | selectattr('item.key', 'equalto', 'port_policy')
+                  | map(attribute='api_response')
+                  | map(attribute='Moid')
+                  | list
+                  | first
+                }}
+            switch_control_policy:
+              name: "{{ switch_control_policy_name }}"
+              moid: >-
+                {{
+                  realized_policy_lookup_results.results
+                  | selectattr('item.key', 'equalto', 'switch_control_policy')
+                  | map(attribute='api_response')
+                  | map(attribute='Moid')
+                  | list
+                  | first
+                }}
+            system_qos_policy:
+              name: "{{ system_qos_policy_name }}"
+              moid: >-
+                {{
+                  realized_policy_lookup_results.results
+                  | selectattr('item.key', 'equalto', 'system_qos_policy')
+                  | map(attribute='api_response')
+                  | map(attribute='Moid')
+                  | list
+                  | first
+                }}
+            ntp_policy:
+              name: "{{ ntp_policy_name }}"
+              moid: >-
+                {{
+                  realized_policy_lookup_results.results
+                  | selectattr('item.key', 'equalto', 'ntp_policy')
+                  | map(attribute='api_response')
+                  | map(attribute='Moid')
+                  | list
+                  | first
+                }}
+            network_connectivity_policy:
+              name: "{{ network_connectivity_policy_name }}"
+              moid: >-
+                {{
+                  realized_policy_lookup_results.results
+                  | selectattr('item.key', 'equalto', 'network_connectivity_policy')
+                  | map(attribute='api_response')
+                  | map(attribute='Moid')
+                  | list
+                  | first
+                }}
+        policy_realization_summary:
+          policy_count: 5
+          domain_count: "{{ infrastructure_network_model.domains | length }}"
+          realization_mode: intersight_collection_modules
+          fi_model: "{{ effective_target_domain.fi_model }}"
+          policy_profile_id: "{{ effective_target_domain.policy_profile_id }}"
+          port_mapping_profile_id: "{{ effective_target_domain.port_mapping_profile_id }}"
+
+  post_tasks:
+    - name: Write local policy realization outputs when requested
+      ansible.builtin.copy:
+        dest: "{{ local_output_dir }}/{{ item.name }}"
+        content: "{{ item.content }}"
+        mode: "0600"
+      loop:
+        - name: realized_policy_state.json
+          content: "{{ realized_policy_state | to_json }}"
+        - name: realized-policy-vars.yaml
+          content: |-
+            realized_policy_state_json: |
+              {{ realized_policy_state | to_json }}
+        - name: policy_realization_summary.json
+          content: "{{ policy_realization_summary | to_json }}"
+        - name: policy_realization_summary-vars.yaml
+          content: |-
+            policy_realization_summary_json: |
+              {{ policy_realization_summary | to_json }}
+      loop_control:
+        label: "{{ item.name }}"
+      when:
+        - local_output_dir is defined
+        - local_output_dir | string | trim | length > 0
+
+    - name: Export policy realization outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          realized_policy_state_json: "{{ realized_policy_state | to_json }}"
+          policy_realization_summary_json: "{{ policy_realization_summary | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

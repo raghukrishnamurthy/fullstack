@@ -1,0 +1,4 @@
+policy_id: chassis_thermal_policy
+profile_id: default
+settings:
+  fan_control_mode: Balanced

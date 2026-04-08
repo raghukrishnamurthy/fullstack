@@ -1,0 +1,545 @@
+---
+- name: Realize and deploy infrastructure domain profiles
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    infrastructure_network_model: >-
+      {{
+        (
+          infrastructure_network_effective_model_json
+          if (infrastructure_network_effective_model_json | default('') | string | trim | length) > 0
+          else infrastructure_network_model_json
+        ) | from_json
+      }}
+    infrastructure_network_live_state: "{{ infrastructure_network_live_state_json | from_json }}"
+    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    api_uri_normalized: >-
+      {{
+        raw_api_uri
+        if (raw_api_uri | regex_search('/api/v1/?$'))
+        else (raw_api_uri | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
+    api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') | string }}"
+    api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
+    resolved_api_key_id: >-
+      {{
+        api_key_id_direct
+        if (api_key_id_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+          if (api_key_id_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    resolved_api_private_key: >-
+      {{
+        api_private_key_direct
+        if (api_private_key_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+          if (api_private_key_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
+    validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false') | string | lower)
+        in ['true', '1', 'yes']
+      }}
+    api_info: &api_info
+      api_private_key: "{{ resolved_api_private_key }}"
+      api_key_id: "{{ resolved_api_key_id }}"
+      api_uri: "{{ api_uri_normalized }}"
+      validate_certs: "{{ validate_certs }}"
+
+  tasks:
+    - name: Validate domain profile realization inputs
+      ansible.builtin.assert:
+        that:
+          - infrastructure_network_model.deployment.name_prefix | default('') | length > 0
+          - infrastructure_network_model.domains | length == 1
+          - organization_name | length > 0
+          - resolved_api_key_id | length > 0
+          - resolved_api_private_key | length > 0
+          - (infrastructure_network_live_state.discovered_fis | default([])) | length >= 2
+        fail_msg: "realize_and_deploy_infrastructure_domain_profiles currently requires one FI-pair domain plus valid Intersight context"
+
+    - name: Set local domain profile facts
+      ansible.builtin.set_fact:
+        target_domain: "{{ infrastructure_network_model.domains[0] }}"
+        domain_profile_name: "{{ infrastructure_network_model.deployment.name_prefix }}-Domain-Profile"
+        switch_profile_a_name: "{{ infrastructure_network_model.deployment.name_prefix }}-A"
+        switch_profile_b_name: "{{ infrastructure_network_model.deployment.name_prefix }}-B"
+
+    - name: Look up organization in Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /organization/Organizations
+        query_params:
+          $filter: "Name eq '{{ organization_name }}'"
+      register: organization_lookup_result
+
+    - name: Validate organization lookup returned a Moid
+      ansible.builtin.assert:
+        that:
+          - organization_lookup_result.api_response.Moid is defined
+          - organization_lookup_result.api_response.Moid | length > 0
+        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
+
+    - name: Look up named policy objects by name
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: "{{ item.resource_path }}"
+        query_params:
+          $filter: "Name eq '{{ item.name }}'"
+      loop:
+        - key: port_policy
+          name: "{{ target_domain.managed_object_names.port_policy }}"
+          resource_path: /fabric/PortPolicies
+        - key: switch_control_policy
+          name: "{{ target_domain.managed_object_names.switch_control_policy }}"
+          resource_path: /fabric/SwitchControlPolicies
+        - key: system_qos_policy
+          name: "{{ target_domain.managed_object_names.system_qos_policy }}"
+          resource_path: /fabric/SystemQosPolicies
+        - key: ntp_policy
+          name: "{{ target_domain.managed_object_names.ntp_policy }}"
+          resource_path: /ntp/Policies
+        - key: network_connectivity_policy
+          name: "{{ target_domain.managed_object_names.network_connectivity_policy }}"
+          resource_path: /networkconfig/Policies
+      loop_control:
+        label: "{{ item.key }}"
+      register: named_policy_lookup_results
+
+    - name: Validate named policies exist before domain profile realization
+      ansible.builtin.assert:
+        that:
+          - item.api_response.Moid is defined
+          - item.api_response.Moid | length > 0
+        fail_msg: "Required policy {{ item.item.key }} named {{ item.item.name }} was not found in Intersight"
+      loop: "{{ named_policy_lookup_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Capture resource Moids for domain-profile creation
+      ansible.builtin.set_fact:
+        organization_moid: "{{ organization_lookup_result.api_response.Moid }}"
+        port_policy_moid: >-
+          {{
+            (named_policy_lookup_results.results
+             | selectattr('item.key', 'equalto', 'port_policy')
+             | map(attribute='api_response')
+             | map(attribute='Moid')
+             | list
+             | first)
+          }}
+        switch_control_policy_moid: >-
+          {{
+            (named_policy_lookup_results.results
+             | selectattr('item.key', 'equalto', 'switch_control_policy')
+             | map(attribute='api_response')
+             | map(attribute='Moid')
+             | list
+             | first)
+          }}
+        system_qos_policy_moid: >-
+          {{
+            (named_policy_lookup_results.results
+             | selectattr('item.key', 'equalto', 'system_qos_policy')
+             | map(attribute='api_response')
+             | map(attribute='Moid')
+             | list
+             | first)
+          }}
+        ntp_policy_moid: >-
+          {{
+            (named_policy_lookup_results.results
+             | selectattr('item.key', 'equalto', 'ntp_policy')
+             | map(attribute='api_response')
+             | map(attribute='Moid')
+             | list
+             | first)
+          }}
+        network_connectivity_policy_moid: >-
+          {{
+            (named_policy_lookup_results.results
+             | selectattr('item.key', 'equalto', 'network_connectivity_policy')
+             | map(attribute='api_response')
+             | map(attribute='Moid')
+             | list
+             | first)
+          }}
+
+    - name: Create switch cluster profile in Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchClusterProfiles
+        query_params:
+          $filter: "Name eq '{{ domain_profile_name }}'"
+        api_body:
+          Name: "{{ domain_profile_name }}"
+          ObjectType: fabric.SwitchClusterProfile
+          ClassId: fabric.SwitchClusterProfile
+          Organization:
+            ObjectType: organization.Organization
+            ClassId: mo.MoRef
+            Moid: "{{ organization_moid }}"
+      register: switch_cluster_profile_result
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+      retries: 3
+      delay: 5
+      until: switch_cluster_profile_result is succeeded
+
+    - name: Capture switch cluster profile Moid
+      ansible.builtin.set_fact:
+        switch_cluster_profile_moid: >-
+          {{
+            switch_cluster_profile_result.api_response.Moid
+            if (switch_cluster_profile_result is defined and switch_cluster_profile_result.api_response is defined)
+            else infrastructure_network_live_state.existing_objects.switch_cluster_profile.moid | default('')
+          }}
+
+    - name: Create switch profiles in Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchProfiles
+        query_params:
+          $filter: "Name eq '{{ item.switch_profile_name }}'"
+        api_body:
+          Name: "{{ item.switch_profile_name }}"
+          ObjectType: fabric.SwitchProfile
+          ClassId: fabric.SwitchProfile
+          SwitchId: "{{ item.switch_id }}"
+          SwitchClusterProfile:
+            ObjectType: fabric.SwitchClusterProfile
+            ClassId: mo.MoRef
+            Moid: "{{ switch_cluster_profile_moid }}"
+      loop:
+        - switch_id: A
+          switch_profile_name: "{{ switch_profile_a_name }}"
+        - switch_id: B
+          switch_profile_name: "{{ switch_profile_b_name }}"
+      loop_control:
+        label: "{{ item.switch_profile_name }}"
+      register: switch_profile_results
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+      retries: 3
+      delay: 5
+      until: switch_profile_results is succeeded
+
+    - name: Build desired switch profile policy attachments
+      ansible.builtin.set_fact:
+        desired_switch_policy_attachments:
+          - ObjectType: fabric.PortPolicy
+            ClassId: mo.MoRef
+            Moid: "{{ port_policy_moid }}"
+          - ObjectType: fabric.SwitchControlPolicy
+            ClassId: mo.MoRef
+            Moid: "{{ switch_control_policy_moid }}"
+          - ObjectType: fabric.SystemQosPolicy
+            ClassId: mo.MoRef
+            Moid: "{{ system_qos_policy_moid }}"
+          - ObjectType: ntp.Policy
+            ClassId: mo.MoRef
+            Moid: "{{ ntp_policy_moid }}"
+          - ObjectType: networkconfig.Policy
+            ClassId: mo.MoRef
+            Moid: "{{ network_connectivity_policy_moid }}"
+
+    - name: Build desired switch assignments
+      ansible.builtin.set_fact:
+        desired_switch_assignments:
+          - switch_profile_name: "{{ switch_profile_a_name }}"
+            switch_profile_moid: >-
+              {{
+                (
+                  switch_profile_results.results
+                  | default([])
+                  | selectattr('item.switch_id', 'equalto', 'A')
+                  | map(attribute='api_response')
+                  | map(attribute='Moid')
+                  | list
+                  | first
+                ) | default(infrastructure_network_live_state.existing_objects.switch_profile_a.moid | default(''))
+              }}
+            switch_id: A
+            assigned_switch_moid: "{{ infrastructure_network_live_state.discovered_fis[0].live_moid }}"
+            assigned_switch_name: "{{ infrastructure_network_live_state.discovered_fis[0].live_name }}"
+          - switch_profile_name: "{{ switch_profile_b_name }}"
+            switch_profile_moid: >-
+              {{
+                (
+                  switch_profile_results.results
+                  | default([])
+                  | selectattr('item.switch_id', 'equalto', 'B')
+                  | map(attribute='api_response')
+                  | map(attribute='Moid')
+                  | list
+                  | first
+                ) | default(infrastructure_network_live_state.existing_objects.switch_profile_b.moid | default(''))
+              }}
+            switch_id: B
+            assigned_switch_moid: "{{ infrastructure_network_live_state.discovered_fis[1].live_moid }}"
+            assigned_switch_name: "{{ infrastructure_network_live_state.discovered_fis[1].live_name }}"
+
+    - name: Look up current switch profiles after create or reuse
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchProfiles
+        query_params:
+          $filter: "Name eq '{{ item.switch_profile_name }}'"
+      loop: "{{ desired_switch_assignments }}"
+      loop_control:
+        label: "{{ item.switch_profile_name }}"
+      register: current_switch_profile_results
+
+    - name: Build missing policy attachments per switch profile
+      ansible.builtin.set_fact:
+        switch_policy_bucket_updates: "{{ (switch_policy_bucket_updates | default([])) + [bucket_update] }}"
+      vars:
+        existing_attachment_moids: "{{ item.api_response.PolicyBucket | default([]) | map(attribute='Moid') | list }}"
+        missing_attachments: "{{ desired_switch_policy_attachments | rejectattr('Moid', 'in', existing_attachment_moids) | list }}"
+        bucket_update:
+          switch_profile_name: "{{ item.api_response.Name }}"
+          switch_profile_moid: "{{ item.api_response.Moid }}"
+          missing_attachments: "{{ missing_attachments }}"
+      loop: "{{ current_switch_profile_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.api_response.Name | default('unknown-switch-profile') }}"
+
+    - name: Attach missing policies to switch profiles
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: "/fabric/SwitchProfiles/{{ item.switch_profile_moid }}/PolicyBucket"
+        update_method: post
+        list_body: "{{ item.missing_attachments }}"
+      loop: "{{ switch_policy_bucket_updates | default([]) }}"
+      loop_control:
+        label: "{{ item.switch_profile_name }}"
+      when:
+        - (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+        - item.missing_attachments | length > 0
+      register: policy_bucket_attach_results
+      retries: 3
+      delay: 5
+      until: policy_bucket_attach_results is succeeded
+
+    - name: Assign switch profiles to discovered fabric interconnects
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchProfiles
+        query_params:
+          $filter: "Name eq '{{ item.switch_profile_name }}'"
+        api_body:
+          Name: "{{ item.switch_profile_name }}"
+          ObjectType: fabric.SwitchProfile
+          ClassId: fabric.SwitchProfile
+          SwitchId: "{{ item.switch_id }}"
+          AssignedSwitch:
+            ObjectType: network.Element
+            ClassId: mo.MoRef
+            Moid: "{{ item.assigned_switch_moid }}"
+      loop: "{{ desired_switch_assignments }}"
+      loop_control:
+        label: "{{ item.switch_profile_name }} -> {{ item.assigned_switch_name }}"
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+      register: switch_assignment_results
+      retries: 3
+      delay: 5
+      until: switch_assignment_results is succeeded
+
+    - name: Trigger switch profile deployment when needed
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchProfiles
+        query_params:
+          $filter: "Name eq '{{ item.switch_profile_name }}'"
+        api_body:
+          Name: "{{ item.switch_profile_name }}"
+          ObjectType: fabric.SwitchProfile
+          ClassId: fabric.SwitchProfile
+          SwitchId: "{{ item.switch_id }}"
+          AssignedSwitch:
+            ObjectType: network.Element
+            ClassId: mo.MoRef
+            Moid: "{{ item.assigned_switch_moid }}"
+          Action: Deploy
+      loop: "{{ desired_switch_assignments }}"
+      loop_control:
+        label: "{{ item.switch_profile_name }}"
+      when:
+        - (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+        - >
+          (
+            current_switch_profile_results.results
+            | selectattr('item.switch_profile_name', 'equalto', item.switch_profile_name)
+            | map(attribute='api_response')
+            | map(attribute='ConfigContext')
+            | map(attribute='ConfigState')
+            | list
+            | first
+            | default('Not-assigned')
+          ) not in ['Validating', 'Configuring', 'Associated']
+      register: switch_deploy_results
+      retries: 3
+      delay: 5
+      until: switch_deploy_results is succeeded
+
+    - name: Wait for switch profiles to reach a terminal deployment state
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchProfiles
+        query_params:
+          $filter: "Name eq '{{ item.switch_profile_name }}'"
+      loop: "{{ desired_switch_assignments }}"
+      loop_control:
+        label: "{{ item.switch_profile_name }}"
+      register: final_switch_profile_status_results
+      until: >-
+        final_switch_profile_status_results.api_response.ConfigContext.ConfigState
+        in ['Associated', 'Failed', 'Inconsistent']
+      retries: "{{ switch_profile_wait_retries | default(20) }}"
+      delay: "{{ switch_profile_wait_delay | default(15) }}"
+      when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+
+    - name: Build domain profile state
+      ansible.builtin.set_fact:
+        domain_profile_state:
+          domain_profile_name: "{{ domain_profile_name }}"
+          domain_profile_moid: "{{ switch_cluster_profile_moid }}"
+          switch_profile_a_name: "{{ switch_profile_a_name }}"
+          switch_profile_b_name: "{{ switch_profile_b_name }}"
+          switch_profiles: "{{ desired_switch_assignments }}"
+          realization_mode: intersight_rest_api
+        policy_attachment_state:
+          attachment_mode: intersight_policy_bucket
+          attached_policy_ids:
+            - port_policy
+            - switch_control_policy
+            - system_qos_policy
+            - ntp_policy
+            - network_connectivity_policy
+          attachment_updates: "{{ switch_policy_bucket_updates | default([]) }}"
+        deploy_state:
+          deploy_needed: >-
+            {{
+              (
+                current_switch_profile_results.results
+                | default([])
+                | map(attribute='api_response')
+                | map(attribute='ConfigContext')
+                | map(attribute='ConfigState')
+                | select('equalto', 'Pending-changes')
+                | list
+                | length
+              ) > 0
+            }}
+          execution_intent: "{{ execution_intent | default('validate_only') }}"
+          deploy_mode: intersight_switch_profile_action
+          final_state: >-
+            {{
+              (
+                final_switch_profile_status_results.results
+                | default([])
+                | map(attribute='api_response')
+                | map(attribute='ConfigContext')
+                | map(attribute='ConfigState')
+                | list
+              )
+              if (
+                final_switch_profile_status_results is defined
+                and final_switch_profile_status_results.results is defined
+              )
+              else []
+            }}
+        deploy_summary:
+          deploy_mode: intersight_switch_profile_action
+          deploy_needed: >-
+            {{
+              (
+                current_switch_profile_results.results
+                | default([])
+                | map(attribute='api_response')
+                | map(attribute='ConfigContext')
+                | map(attribute='ConfigState')
+                | select('equalto', 'Pending-changes')
+                | list
+                | length
+              ) > 0
+            }}
+          final_state: >-
+            {{
+              (
+                final_switch_profile_status_results.results
+                | default([])
+                | map(attribute='api_response')
+                | map(attribute='ConfigContext')
+                | map(attribute='ConfigState')
+                | list
+              )
+              if (
+                final_switch_profile_status_results is defined
+                and final_switch_profile_status_results.results is defined
+              )
+              else ['not_applied']
+            }}
+
+  post_tasks:
+    - name: Write local domain realization outputs when requested
+      ansible.builtin.copy:
+        dest: "{{ local_output_dir }}/{{ item.name }}"
+        content: "{{ item.content }}"
+        mode: "0600"
+      loop:
+        - name: domain_profile_state.json
+          content: "{{ domain_profile_state | to_json }}"
+        - name: domain_profile_state-vars.yaml
+          content: |-
+            domain_profile_state_json: |
+              {{ domain_profile_state | to_json }}
+        - name: policy_attachment_state.json
+          content: "{{ policy_attachment_state | to_json }}"
+        - name: policy_attachment_state-vars.yaml
+          content: |-
+            policy_attachment_state_json: |
+              {{ policy_attachment_state | to_json }}
+        - name: deploy_state.json
+          content: "{{ deploy_state | to_json }}"
+        - name: deploy_state-vars.yaml
+          content: |-
+            deploy_state_json: |
+              {{ deploy_state | to_json }}
+        - name: deploy_summary.json
+          content: "{{ deploy_summary | to_json }}"
+        - name: deploy_summary-vars.yaml
+          content: |-
+            deploy_summary_json: |
+              {{ deploy_summary | to_json }}
+      loop_control:
+        label: "{{ item.name }}"
+      when:
+        - local_output_dir is defined
+        - local_output_dir | string | trim | length > 0
+
+    - name: Export domain profile realization outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          domain_profile_state_json: "{{ domain_profile_state | to_json }}"
+          policy_attachment_state_json: "{{ policy_attachment_state | to_json }}"
+          deploy_state_json: "{{ deploy_state | to_json }}"
+          deploy_summary_json: "{{ deploy_summary | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

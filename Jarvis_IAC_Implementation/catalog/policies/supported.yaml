@@ -1,0 +1,42 @@
+supported_policies:
+  - id: port_policy
+    resource_type: fabric.PortPolicy
+    required: true
+    notes:
+      - Owns physical FI port-role realization.
+
+  - id: switch_control_policy
+    resource_type: fabric.SwitchControlPolicy
+    required: true
+
+  - id: system_qos_policy
+    resource_type: fabric.SystemQosPolicy
+    required: true
+
+  - id: ntp_policy
+    resource_type: ntp.Policy
+    required: true
+
+  - id: network_connectivity_policy
+    resource_type: networkconfig.Policy
+    required: true
+    notes:
+      - Represents the FI-side DNS policy in the current implementation.
+
+  - id: ldap_policy
+    resource_type: iam.LdapPolicy
+    required: false
+    notes:
+      - Candidate for later shared-fabric expansion.
+
+  - id: certificate_policy
+    resource_type: certificate.Policy
+    required: false
+    notes:
+      - Candidate for later shared-fabric expansion.
+
+  - id: snmp_policy
+    resource_type: snmp.Policy
+    required: false
+    notes:
+      - Candidate for later shared-fabric expansion.

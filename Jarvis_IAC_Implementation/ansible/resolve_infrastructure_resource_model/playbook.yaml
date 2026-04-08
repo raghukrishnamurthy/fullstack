@@ -1,0 +1,190 @@
+---
+- name: Resolve infrastructure resource provisioning model
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    deployment_root: "{{ (deployment_yaml | default('') | trim | length > 0) | ternary(deployment_yaml | from_yaml, {}) }}"
+    inventory_root: "{{ (inventory_yaml | default('') | trim | length > 0) | ternary(inventory_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    site_root: "{{ (site_yaml | default('') | trim | length > 0) | ternary(site_yaml | from_yaml, {}) }}"
+    selection_root: "{{ (resource_profile_selections_json | default('{\"domains\":{}}') | trim | length > 0) | ternary(resource_profile_selections_json | from_json, {'domains': {}}) }}"
+    deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
+    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    site_data: "{{ site_root.site | default(site_root) }}"
+    supported_chassis_policy_ids:
+      - chassis_power_policy
+      - chassis_thermal_policy
+    inventory_domain_summaries: "{{ inventory_data.domains | default([]) }}"
+    expected_chassis_count: >-
+      {{
+        inventory_domain_summaries
+        | map(attribute='summary')
+        | select('defined')
+        | map(attribute='chassis_count')
+        | select('defined')
+        | map('int')
+        | sum
+      }}
+    expected_blade_count: >-
+      {{
+        inventory_domain_summaries
+        | map(attribute='summary')
+        | select('defined')
+        | map(attribute='blade_count')
+        | select('defined')
+        | map('int')
+        | sum
+      }}
+
+  tasks:
+    - name: Validate v1 resource resolver input contract
+      ansible.builtin.assert:
+        that:
+          - name_prefix | default('') | string | trim | length > 0
+          - chassis_profile | default('') in ['default', 'recommended']
+        fail_msg: "name_prefix and chassis_profile are required and must use v1 supported values"
+
+    - name: Check required chassis profile bundle exists
+      ansible.builtin.stat:
+        path: >-
+          {{
+            playbook_dir
+            ~ '/../../catalog/chassis_profile_profiles/'
+            ~ chassis_profile
+            ~ '.yaml'
+          }}
+      register: chassis_profile_bundle_stat
+
+    - name: Validate selected chassis profile bundle exists
+      ansible.builtin.assert:
+        that:
+          - chassis_profile_bundle_stat.stat.exists
+        fail_msg: "Selected chassis profile bundle {{ chassis_profile }} does not exist"
+
+    - name: Load selected chassis profile bundle
+      ansible.builtin.include_vars:
+        file: >-
+          {{
+            playbook_dir
+            ~ '/../../catalog/chassis_profile_profiles/'
+            ~ chassis_profile
+            ~ '.yaml'
+          }}
+        name: selected_chassis_profile_bundle
+
+    - name: Build requested chassis policy catalog load pairs
+      ansible.builtin.set_fact:
+        requested_chassis_policy_pairs: "{{ (requested_chassis_policy_pairs | default([])) + [{'profile_id': chassis_profile, 'policy_id': item}] }}"
+      loop: "{{ supported_chassis_policy_ids }}"
+      loop_control:
+        label: "{{ chassis_profile ~ '/' ~ item }}"
+
+    - name: Check required chassis policy files exist
+      ansible.builtin.stat:
+        path: >-
+          {{
+            playbook_dir
+            ~ '/../../catalog/chassis_profile_policies/'
+            ~ item.profile_id
+            ~ '/'
+            ~ (item.policy_id | regex_replace('^chassis_', ''))
+            ~ '.yaml'
+          }}
+      loop: "{{ requested_chassis_policy_pairs | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_id ~ '/' ~ item.policy_id }}"
+      register: chassis_policy_stat_results
+
+    - name: Validate required chassis policy files exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+        fail_msg: >-
+          Selected chassis profile {{ item.item.profile_id }} is missing required
+          policy file for {{ item.item.policy_id }}
+      loop: "{{ chassis_policy_stat_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.profile_id ~ '/' ~ item.item.policy_id }}"
+
+    - name: Load selected chassis policy files
+      ansible.builtin.include_vars:
+        file: >-
+          {{
+            playbook_dir
+            ~ '/../../catalog/chassis_profile_policies/'
+            ~ item.profile_id
+            ~ '/'
+            ~ (item.policy_id | regex_replace('^chassis_', ''))
+            ~ '.yaml'
+          }}
+        name: loaded_chassis_policy_file
+      loop: "{{ requested_chassis_policy_pairs | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_id ~ '/' ~ item.policy_id }}"
+      register: chassis_policy_catalog_results
+
+    - name: Build chassis policy catalog lookup
+      ansible.builtin.set_fact:
+        chassis_policy_catalog: >-
+          {{
+            chassis_policy_catalog | default({})
+            | combine({item.item.policy_id: item.ansible_facts.loaded_chassis_policy_file})
+          }}
+      loop: "{{ chassis_policy_catalog_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.policy_id }}"
+
+    - name: Build resolved infrastructure resource model
+      ansible.builtin.set_fact:
+        infrastructure_resource_model:
+          provider:
+            family: intersight_imm_resource
+          deployment:
+            id: "{{ deployment_data.id | default(name_prefix) }}"
+            name_prefix: "{{ name_prefix }}"
+          placement:
+            organization: "{{ placement_data.intersight.organization | default('') }}"
+          site:
+            id: "{{ site_data.id | default('') }}"
+            global_settings: "{{ site_data.global_settings | default({}) }}"
+          inventory_expectations:
+            expected_chassis_count: "{{ expected_chassis_count }}"
+            expected_blade_count: "{{ expected_blade_count }}"
+          resource_bundles:
+            chassis_profile:
+              profile_id: "{{ selected_chassis_profile_bundle.profile_id }}"
+              description: "{{ selected_chassis_profile_bundle.description | default('') }}"
+              included_policies: "{{ selected_chassis_profile_bundle.included_policies | default([]) }}"
+              attachment: "{{ selected_chassis_profile_bundle.attachment | default({}) }}"
+              naming: "{{ selected_chassis_profile_bundle.naming | default({}) }}"
+              managed_object_names:
+                chassis_power_policy: "{{ name_prefix }}-Chassis-Power"
+                chassis_thermal_policy: "{{ name_prefix }}-Chassis-Thermal"
+                chassis_profile_template: "{{ name_prefix }}-Chassis-Template"
+                chassis_profile_prefix: "{{ name_prefix }}-Chassis"
+              policy_values: "{{ chassis_policy_catalog }}"
+          selectors:
+            resource_profile_selections: "{{ selection_root }}"
+
+    - name: Build infrastructure resource summary
+      ansible.builtin.set_fact:
+        infrastructure_resource_summary:
+          provider_family: "{{ infrastructure_resource_model.provider.family }}"
+          chassis_profile_id: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.profile_id }}"
+          included_policy_ids: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.included_policies }}"
+          inventory_expectations: "{{ infrastructure_resource_model.inventory_expectations }}"
+
+  post_tasks:
+    - name: Export resource resolver outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          infrastructure_resource_model_json: "{{ infrastructure_resource_model | to_json }}"
+          infrastructure_resource_summary_json: "{{ infrastructure_resource_summary | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

@@ -1,0 +1,7 @@
+policy_id: ntp_policy
+profile_id: recommended
+settings:
+  enabled: true
+  servers:
+    - time.google.com
+    - pool.ntp.org

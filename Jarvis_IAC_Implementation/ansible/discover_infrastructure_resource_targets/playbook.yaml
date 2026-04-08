@@ -1,0 +1,233 @@
+---
+- name: Discover infrastructure resource targets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    infrastructure_resource_model: "{{ infrastructure_resource_model_json | from_json }}"
+    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    api_uri_normalized: >-
+      {{
+        raw_api_uri
+        if (raw_api_uri | regex_search('/api/v1/?$'))
+        else (raw_api_uri | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
+    api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') | string }}"
+    api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
+    resolved_api_key_id: >-
+      {{
+        api_key_id_direct
+        if (api_key_id_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+          if (api_key_id_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    resolved_api_private_key: >-
+      {{
+        api_private_key_direct
+        if (api_private_key_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+          if (api_private_key_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
+    validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false') | string | lower)
+        in ['true', '1', 'yes']
+      }}
+    api_info: &api_info
+      api_private_key: "{{ resolved_api_private_key }}"
+      api_key_id: "{{ resolved_api_key_id }}"
+      api_uri: "{{ api_uri_normalized }}"
+      validate_certs: "{{ validate_certs }}"
+
+  tasks:
+    - name: Validate resolver output input
+      ansible.builtin.assert:
+        that:
+          - infrastructure_resource_model.provider.family | default('') == 'intersight_imm_resource'
+        fail_msg: "infrastructure_resource_model_json is required"
+
+    - name: Validate platform and placement inputs for live discovery
+      ansible.builtin.assert:
+        that:
+          - organization_name | length > 0
+          - resolved_api_key_id | length > 0
+          - resolved_api_private_key | length > 0
+        fail_msg: "platform_yaml and placement_yaml must provide Intersight credentials and organization"
+
+    - name: Look up organization in Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /organization/Organizations
+        query_params:
+          $filter: "Name eq '{{ organization_name }}'"
+      register: organization_lookup_result
+
+    - name: Validate organization exists in Intersight
+      ansible.builtin.assert:
+        that:
+          - organization_lookup_result.api_response.Moid is defined
+          - organization_lookup_result.api_response.Moid | length > 0
+        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
+
+    - name: Query chassis inventory from Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /equipment/Chasses
+        return_list: true
+        query_params:
+          $top: 100
+      register: chassis_lookup_result
+
+    - name: Query chassis identity inventory from Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /equipment/ChassisIdentities
+        return_list: true
+        query_params:
+          $top: 100
+      register: chassis_identity_lookup_result
+
+    - name: Query blade inventory from Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /compute/Blades
+        return_list: true
+        query_params:
+          $top: 100
+      register: blade_lookup_result
+
+    - name: Build current endpoint result facts
+      ansible.builtin.set_fact:
+        current_discovered_chasses: "{{ chassis_lookup_result.api_response | default([]) }}"
+        current_discovered_chassis_identities: "{{ chassis_identity_lookup_result.api_response | default([]) }}"
+        current_discovered_blades: "{{ blade_lookup_result.api_response | default([]) }}"
+
+    - name: Build normalized chassis target inventory from chassis objects
+      ansible.builtin.set_fact:
+        normalized_discovered_chassis: "{{ (normalized_discovered_chassis | default([])) + [normalized_chassis] }}"
+      vars:
+        normalized_chassis:
+          serial: "{{ item.Serial | default('') }}"
+          moid: "{{ item.Moid | default('') }}"
+          model: "{{ item.Model | default('') }}"
+          management_mode: "{{ item.ManagementMode | default('') }}"
+          oper_state: "{{ item.OperState | default('') }}"
+          connection_status: "{{ item.ConnectionStatus | default('') }}"
+          chassis_id: "{{ item.ChassisId | default('') }}"
+          source_endpoint: equipment.Chasses
+      loop: "{{ current_discovered_chasses | default([]) }}"
+      loop_control:
+        label: "{{ item.Serial | default('unknown-chassis') }}"
+
+    - name: Build normalized chassis target inventory from chassis identities when direct chassis objects are absent
+      ansible.builtin.set_fact:
+        normalized_discovered_chassis: "{{ (normalized_discovered_chassis | default([])) + [normalized_chassis_identity] }}"
+      vars:
+        normalized_chassis_identity:
+          serial: "{{ item.Serial | default(item.serial | default('')) }}"
+          moid: "{{ item.Moid | default(item.moid | default('')) }}"
+          model: "{{ item.Model | default(item.model | default('')) }}"
+          management_mode: "{{ item.ManagementMode | default(item.management_mode | default('')) }}"
+          oper_state: "{{ item.OperState | default(item.OperState | default('')) }}"
+          connection_status: "{{ item.ConnectionStatus | default(item.connection_status | default('')) }}"
+          chassis_id: "{{ item.ChassisId | default(item.chassis_id | default('')) }}"
+          source_endpoint: equipment.ChassisIdentities
+      loop: "{{ current_discovered_chassis_identities | default([]) }}"
+      loop_control:
+        label: "{{ item.Serial | default(item.serial | default('unknown-chassis-identity')) }}"
+      when:
+        - (current_discovered_chasses | default([]) | length) == 0
+
+    - name: Build current discovery counts
+      ansible.builtin.set_fact:
+        current_expected_chassis_count: "{{ infrastructure_resource_model.inventory_expectations.expected_chassis_count | default(0) | int }}"
+        current_expected_blade_count: "{{ infrastructure_resource_model.inventory_expectations.expected_blade_count | default(0) | int }}"
+        current_discovered_chassis_count: "{{ normalized_discovered_chassis | default([]) | length }}"
+        current_discovered_chassis_endpoint_count: "{{ current_discovered_chasses | default([]) | length }}"
+        current_discovered_chassis_identity_count: "{{ current_discovered_chassis_identities | default([]) | length }}"
+        current_discovered_blade_count: "{{ current_discovered_blades | default([]) | length }}"
+
+    - name: Build current discovery status facts
+      ansible.builtin.set_fact:
+        current_phase_ready_value: "{{ current_discovered_chassis_count > 0 }}"
+        current_phase_status_value: >-
+          {{
+            'completed'
+            if (current_discovered_chassis_count > 0)
+            else (
+              'inventory_not_yet_present'
+              if ((current_expected_chassis_count > 0) or (current_expected_blade_count > 0))
+              else 'no_targets_discovered'
+            )
+          }}
+        current_phase_message: >-
+          {{
+            'Discovered chassis targets for infrastructure-resource-provisioning.'
+            if (current_discovered_chassis_count > 0)
+            else (
+              'Inventory expects chassis or blades, but live Intersight currently exposes no chassis targets through equipment.Chasses or equipment.ChassisIdentities.'
+              if ((current_expected_chassis_count > 0) or (current_expected_blade_count > 0))
+              else 'No chassis targets were discovered in Intersight.'
+            )
+          }}
+
+    - name: Build infrastructure resource live state
+      ansible.builtin.set_fact:
+        infrastructure_resource_live_state:
+          provider_family: "{{ infrastructure_resource_model.provider.family }}"
+          organization: "{{ organization_name }}"
+          discovered_chassis: "{{ normalized_discovered_chassis | default([]) }}"
+          phase_status: "{{ current_phase_status_value }}"
+          phase_message: "{{ current_phase_message }}"
+          discovery_observations:
+            expected_chassis_count: "{{ current_expected_chassis_count }}"
+            expected_blade_count: "{{ current_expected_blade_count }}"
+            endpoint_counts:
+              chassis_objects: "{{ current_discovered_chassis_endpoint_count }}"
+              chassis_identity_objects: "{{ current_discovered_chassis_identity_count }}"
+              blade_objects: "{{ current_discovered_blade_count }}"
+          resource_targets:
+            chassis:
+              count: "{{ current_discovered_chassis_count }}"
+              serials: "{{ normalized_discovered_chassis | default([]) | map(attribute='serial') | reject('equalto', '') | list }}"
+          discovery_mode: intersight_equipment_chasses
+          execution_intent: "{{ execution_intent | default('validate_only') }}"
+          lifecycle_action: "{{ lifecycle_action | default('create') }}"
+
+    - name: Build discovery readiness outputs
+      ansible.builtin.set_fact:
+        phase_ready_value: "{{ current_phase_ready_value }}"
+        phase_status_value: "{{ current_phase_status_value }}"
+        phase_readiness:
+          phase: infrastructure-resource-provisioning
+          ready: "{{ current_phase_ready_value }}"
+          status: "{{ current_phase_status_value }}"
+          message: "{{ current_phase_message }}"
+
+  post_tasks:
+    - name: Export resource discovery outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          infrastructure_resource_live_state_json: "{{ infrastructure_resource_live_state | to_json }}"
+          phase_ready: "{{ 'true' if phase_ready_value else 'false' }}"
+          phase_status: "{{ phase_status_value }}"
+          phase_readiness_json: "{{ phase_readiness | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

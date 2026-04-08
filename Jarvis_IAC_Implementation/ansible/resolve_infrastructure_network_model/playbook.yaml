@@ -1,0 +1,307 @@
+---
+- name: Resolve infrastructure network provisioning model
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    deployment_root: "{{ (deployment_yaml | default('') | trim | length > 0) | ternary(deployment_yaml | from_yaml, {}) }}"
+    inventory_root: "{{ (inventory_yaml | default('') | trim | length > 0) | ternary(inventory_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    site_root: "{{ (site_yaml | default('') | trim | length > 0) | ternary(site_yaml | from_yaml, {}) }}"
+    domain_selection_root: "{{ (domain_profile_selections_json | default('{\"domains\":{}}') | trim | length > 0) | ternary(domain_profile_selections_json | from_json, {'domains': {}}) }}"
+    deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
+    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    site_data: "{{ site_root.site | default(site_root) }}"
+    site_global_settings: "{{ site_data.global_settings | default({}) }}"
+    inventory_domains: "{{ inventory_data.domains | default([]) }}"
+    supported_policy_ids:
+      - port_policy
+      - switch_control_policy
+      - system_qos_policy
+      - ntp_policy
+      - network_connectivity_policy
+
+  tasks:
+    - name: Validate v1 resolver input contract
+      ansible.builtin.assert:
+        that:
+          - name_prefix | default('') | string | trim | length > 0
+          - policy_profile | default('') in ['default', 'recommended']
+          - port_mapping_profile | default('') in ['ethernet', 'ethernet_fc']
+        fail_msg: "name_prefix, policy_profile, and port_mapping_profile are required and must use v1 supported values"
+
+    - name: Check required domain policy profile bundles exist
+      ansible.builtin.stat:
+        path: >-
+          {{
+            playbook_dir
+            ~ '/../../catalog/domain_profile_profiles/'
+            ~ item
+            ~ '.yaml'
+          }}
+      loop: "{{ ['default', 'recommended'] }}"
+      loop_control:
+        label: "{{ item }}"
+      register: domain_profile_bundle_stat_results
+
+    - name: Validate required domain policy profile bundles exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+        fail_msg: "Required domain policy profile bundle {{ item.item }} does not exist"
+      loop: "{{ domain_profile_bundle_stat_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Build per-domain FI model lookup from inventory devices
+      ansible.builtin.set_fact:
+        domain_fi_model_lookup: "{{ domain_fi_model_lookup | default({}) | combine({item.domain_id: resolved_model}) }}"
+      vars:
+        resolved_model: >-
+          {{
+            (
+              inventory_data.devices | default([])
+              | selectattr('id', 'defined')
+              | selectattr('id', 'in', item.members | default([]))
+              | map(attribute='model')
+              | reject('equalto', None)
+              | reject('equalto', '')
+              | list
+              | first
+            ) | default('UCS-FI-6454')
+          }}
+      loop: "{{ inventory_domains }}"
+      loop_control:
+        label: "{{ item.domain_id | default('unknown-domain') }}"
+
+    - name: Validate supported FI models are used
+      ansible.builtin.assert:
+        that:
+          - item.value in ['UCS-FI-6454', 'UCS-FI-6536', 'UCS-FI-6652', 'UCS-FI-6664']
+        fail_msg: "Unsupported FI model {{ item.value }} for domain {{ item.key }}"
+      loop: "{{ (domain_fi_model_lookup | default({})) | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Load FI model defaults for each domain
+      ansible.builtin.include_vars:
+        file: >-
+          {{
+            playbook_dir
+            ~ '/../../defaults/fi_models/'
+            ~ (item.value | lower | regex_replace('[^a-z0-9]+', '_'))
+            ~ '.yaml'
+          }}
+        name: fi_model_defaults_file
+      loop: "{{ (domain_fi_model_lookup | default({})) | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: fi_model_defaults_results
+
+    - name: Build loaded FI model defaults lookup
+      ansible.builtin.set_fact:
+        loaded_fi_model_defaults: "{{ loaded_fi_model_defaults | default({}) | combine({item.item.key: item.ansible_facts.fi_model_defaults_file}) }}"
+      loop: "{{ fi_model_defaults_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Build selected policy profile id list
+      ansible.builtin.set_fact:
+        selected_policy_profile_ids: >-
+          {{
+            (
+              [policy_profile]
+              + (
+                domain_selection_root.domains
+                | default({})
+                | dict2items
+                | map(attribute='value')
+                | selectattr('policy_profile', 'defined')
+                | map(attribute='policy_profile')
+                | list
+              )
+            ) | unique
+          }}
+
+    - name: Validate selected policy profile ids are supported in v1
+      ansible.builtin.assert:
+        that:
+          - item in ['default', 'recommended']
+        fail_msg: "Unsupported v1 policy profile id {{ item }}"
+      loop: "{{ selected_policy_profile_ids | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Build requested policy catalog load pairs
+      ansible.builtin.set_fact:
+        requested_policy_catalog_pairs: "{{ (requested_policy_catalog_pairs | default([])) + [{'profile_id': item.0, 'policy_id': item.1}] }}"
+      loop: "{{ (selected_policy_profile_ids | default([])) | product(supported_policy_ids) | list }}"
+      loop_control:
+        label: "{{ item.0 ~ '/' ~ item.1 }}"
+
+    - name: Check required policy catalog files exist
+      ansible.builtin.stat:
+        path: >-
+          {{
+            playbook_dir
+            ~ '/../../catalog/domain_profile_policies/'
+            ~ item.profile_id
+            ~ '/'
+            ~ item.policy_id
+            ~ '.yaml'
+          }}
+      loop: "{{ requested_policy_catalog_pairs | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_id ~ '/' ~ item.policy_id }}"
+      register: policy_catalog_stat_results
+
+    - name: Validate required policy catalog files exist for selected profiles
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+        fail_msg: >-
+          Selected policy profile {{ item.item.profile_id }} is missing required
+          catalog policy file {{ item.item.policy_id }}.yaml
+      loop: "{{ policy_catalog_stat_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.profile_id ~ '/' ~ item.item.policy_id }}"
+
+    - name: Load policy catalog files for selected profiles
+      ansible.builtin.include_vars:
+        file: >-
+          {{
+            playbook_dir
+            ~ '/../../catalog/domain_profile_policies/'
+            ~ item.profile_id
+            ~ '/'
+            ~ item.policy_id
+            ~ '.yaml'
+          }}
+        name: loaded_policy_file
+      loop: "{{ requested_policy_catalog_pairs | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_id ~ '/' ~ item.policy_id }}"
+      register: policy_catalog_results
+
+    - name: Build policy catalog lookup by profile id
+      ansible.builtin.set_fact:
+        policy_catalog_by_profile: >-
+          {{
+            policy_catalog_by_profile | default({})
+            | combine(
+                {
+                  item.item.profile_id: (
+                    (policy_catalog_by_profile | default({})).get(item.item.profile_id, {})
+                    | combine({item.item.policy_id: item.ansible_facts.loaded_policy_file})
+                  )
+                },
+                recursive=True
+              )
+          }}
+      loop: "{{ policy_catalog_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.profile_id ~ '/' ~ item.item.policy_id }}"
+
+    - name: Build resolved domain selection list
+      ansible.builtin.set_fact:
+        resolved_domains: "{{ (resolved_domains | default([])) + [resolved_domain] }}"
+      vars:
+        domain_overrides: "{{ domain_selection_root.domains[item.domain_id] | default({}) }}"
+        resolved_policy_profile_id: "{{ domain_overrides.policy_profile | default(policy_profile) }}"
+        resolved_port_mapping_profile_id: "{{ domain_overrides.port_mapping_profile | default(port_mapping_profile) }}"
+        fi_model: "{{ domain_fi_model_lookup[item.domain_id] }}"
+        fi_defaults: "{{ loaded_fi_model_defaults[item.domain_id] }}"
+        member_devices: >-
+          {{
+            inventory_data.devices | default([])
+            | selectattr('id', 'defined')
+            | selectattr('id', 'in', item.members | default([]))
+            | list
+          }}
+        resolved_domain:
+          domain_id: "{{ item.domain_id }}"
+          domain_type: "{{ item.type | default('fi_pair') }}"
+          members: "{{ item.members | default([]) }}"
+          member_devices: "{{ member_devices }}"
+          fi_model: "{{ fi_model }}"
+          policy_profile_id: "{{ resolved_policy_profile_id }}"
+          port_mapping_profile_id: "{{ resolved_port_mapping_profile_id }}"
+          uplink_port_channel_id: "{{ domain_overrides.uplink_port_channel_id | default(100) }}"
+          selected_policies: "{{ supported_policy_ids }}"
+          recommended_port_mapping:
+            transport_mode: "{{ 'ethernet_fc' if resolved_port_mapping_profile_id == 'ethernet_fc' else 'ethernet' }}"
+            recommended_server_ports: "{{ fi_defaults.port_ranges.recommended_server_ports | default([]) }}"
+            recommended_uplink_ports: "{{ fi_defaults.port_ranges.recommended_uplink_ports | default([]) }}"
+            default_uplink_port_channel_members: "{{ fi_defaults.recommended_layout_defaults.default_uplink_port_channel_members | default([]) }}"
+          managed_object_names:
+            port_policy: "{{ name_prefix }}-Port-Policy"
+            switch_control_policy: "{{ name_prefix }}-Switch-Control"
+            system_qos_policy: "{{ name_prefix }}-System-QoS"
+            ntp_policy: "{{ name_prefix }}-NTP"
+            network_connectivity_policy: "{{ name_prefix }}-Network-Connectivity"
+            domain_profile: "{{ name_prefix }}-Domain-Profile"
+            switch_profile_a: "{{ name_prefix }}-A"
+            switch_profile_b: "{{ name_prefix }}-B"
+          policy_values: "{{ policy_catalog_by_profile[resolved_policy_profile_id] }}"
+          site_global_settings: "{{ site_global_settings }}"
+      loop: "{{ inventory_domains }}"
+      loop_control:
+        label: "{{ item.domain_id | default('unknown-domain') }}"
+
+    - name: Build resolved infrastructure network model
+      ansible.builtin.set_fact:
+        infrastructure_network_model:
+          provider:
+            family: intersight_imm_domain
+          deployment:
+            id: "{{ deployment_data.id | default(name_prefix) }}"
+            name_prefix: "{{ name_prefix }}"
+          placement:
+            organization: "{{ placement_data.intersight.organization | default('') }}"
+          site:
+            id: "{{ site_data.id | default(deployment_data.site | default('')) }}"
+            global_settings: "{{ site_global_settings }}"
+          domains: "{{ resolved_domains | default([]) }}"
+        infrastructure_network_summary:
+          provider_family: intersight_imm_domain
+          domain_count: "{{ (resolved_domains | default([])) | length }}"
+          policy_profile_ids: "{{ (resolved_domains | default([])) | map(attribute='policy_profile_id') | list | unique }}"
+          port_mapping_profile_ids: "{{ (resolved_domains | default([])) | map(attribute='port_mapping_profile_id') | list | unique }}"
+
+  post_tasks:
+    - name: Write local resolver outputs when requested
+      ansible.builtin.copy:
+        dest: "{{ local_output_dir }}/{{ item.name }}"
+        content: "{{ item.content }}"
+        mode: "0600"
+      loop:
+        - name: infrastructure_network_model.json
+          content: "{{ infrastructure_network_model | to_json }}"
+        - name: infrastructure_network_model-vars.yaml
+          content: |-
+            infrastructure_network_model_json: |
+              {{ infrastructure_network_model | to_json }}
+        - name: infrastructure_network_summary.json
+          content: "{{ infrastructure_network_summary | to_json }}"
+        - name: infrastructure_network_summary-vars.yaml
+          content: |-
+            infrastructure_network_summary_json: |
+              {{ infrastructure_network_summary | to_json }}
+      loop_control:
+        label: "{{ item.name }}"
+      when:
+        - local_output_dir is defined
+        - local_output_dir | string | trim | length > 0
+
+    - name: Export resolver outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          infrastructure_network_model_json: "{{ infrastructure_network_model | to_json }}"
+          infrastructure_network_summary_json: "{{ infrastructure_network_summary | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

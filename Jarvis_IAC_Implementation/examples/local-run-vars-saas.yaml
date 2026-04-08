@@ -1,0 +1,135 @@
+deployment_yaml: |
+  deployment:
+    id: ai-pod-sjc01-prod
+    site: sjc01
+    environment: prod
+
+platform_yaml: |
+  platform:
+    intersight:
+      endpoint: https://intersight.com/api/v1
+      credentials:
+        api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+        api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+      assists:
+        - id: assist-01
+          enabled: true
+          endpoint: https://assist-01.example.com
+
+placement_yaml: |
+  placement:
+    intersight:
+      organization: ai-prod
+      policy:
+        reuse_existing_organization: true
+        reuse_existing_resource_group: false
+
+inventory_yaml: |
+  inventory:
+    defaults:
+      server_management_type: standalone
+    devices:
+      - id: fi-a
+        serial: FDO272406DE
+        category: fabric_interconnect
+        mgmt_ip: 10.29.135.101
+      - id: fi-b
+        serial: FDO272406CK
+        category: fabric_interconnect
+        mgmt_ip: 10.29.135.102
+      - id: blade-01
+        serial: FCH270978FF
+        category: server
+        attributes:
+          form_factor: blade
+          management_type: fi_managed
+      - id: blade-02
+        serial: FCH270978GL
+        category: server
+        attributes:
+          form_factor: blade
+          management_type: fi_managed
+      - id: blade-03
+        serial: FCH264272FA
+        category: server
+        attributes:
+          form_factor: blade
+          management_type: fi_managed
+      - id: blade-04
+        serial: FCH270177BF
+        category: server
+        attributes:
+          form_factor: blade
+          management_type: fi_managed
+      - id: rack-server-01
+        serial: WZP270500PQ
+        category: server
+        mgmt_ip: 10.29.135.106
+        attributes:
+          form_factor: rack
+          management_type: standalone
+      - id: rack-server-02
+        serial: WZP270500PV
+        category: server
+        mgmt_ip: 10.29.135.107
+        attributes:
+          form_factor: rack
+          management_type: standalone
+      - id: rack-server-03
+        serial: WZP270500PA
+        category: server
+        mgmt_ip: 10.29.135.108
+        attributes:
+          form_factor: rack
+          management_type: standalone
+      - id: rack-server-04
+        serial: WZP280393WA
+        category: server
+        mgmt_ip: 10.29.135.109
+        attributes:
+          form_factor: rack
+          management_type: standalone
+    domains:
+      - domain_id: domain-01
+        type: fi_pair
+        members:
+          - fi-a
+          - fi-b
+        summary:
+          chassis_count: 1
+          blade_count: 4
+
+solution_yaml: ""
+site_yaml: |
+  site:
+    id: sjc01
+    global_settings:
+      location: SJC01-DC
+      dns:
+        servers:
+          - 10.10.10.10
+          - 10.10.10.11
+      ntp:
+        servers:
+          - 10.20.20.10
+          - 10.20.20.11
+      proxy:
+        enabled: false
+baseline_input_source: ""
+baseline_directory: ""
+overrides_yaml: ""
+validation_mode: strict
+execution_intent: validate_only
+name_prefix: vf1
+policy_profile: recommended
+port_mapping_profile: ethernet
+domain_profile_selections_json: |
+  {
+    "domains": {
+      "domain-01": {
+        "policy_profile": "recommended",
+        "port_mapping_profile": "ethernet",
+        "uplink_port_channel_id": 100
+      }
+    }
+  }

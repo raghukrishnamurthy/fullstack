@@ -1,0 +1,114 @@
+spec_version: 2
+description: Infrastructure domain validator for FI-managed inventory readiness
+inputs:
+  agent:
+    type: agent
+    title: Torque Agent
+    description: Torque agent that runs this workflow.
+  deployment_yaml:
+    type: string
+    description: Wrapped deployment context YAML
+  platform_yaml:
+    type: string
+    description: Wrapped platform context YAML
+  placement_yaml:
+    type: string
+    description: Wrapped placement context YAML
+  inventory_yaml:
+    type: string
+    description: Wrapped inventory context YAML
+  site_yaml:
+    type: string
+    description: Optional wrapped site context YAML
+    default: ""
+  validation_mode:
+    type: string
+    default: strict
+  wait_for_readiness:
+    type: string
+    default: "true"
+  readiness_poll_interval:
+    type: string
+    default: "30"
+  readiness_max_attempts:
+    type: string
+    default: "240"
+  execution_intent:
+    type: string
+    default: validate_only
+  lifecycle_action:
+    type: string
+    default: create
+
+grains:
+  validate_infrastructure_domain_inventory:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/validate_infrastructure_domain_inventory/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
+        - site_yaml: '{{ .inputs.site_yaml }}'
+        - validation_mode: '{{ .inputs.validation_mode }}'
+        - wait_for_readiness: '{{ .inputs.wait_for_readiness }}'
+        - readiness_poll_interval: '{{ .inputs.readiness_poll_interval }}'
+        - readiness_max_attempts: '{{ .inputs.readiness_max_attempts }}'
+        - execution_intent: validate_only
+        - lifecycle_action: '{{ .inputs.lifecycle_action }}'
+      outputs:
+        - phase_ready
+        - phase_status
+        - phase_readiness_json
+        - validation_summary_json
+        - inventory_validation_json
+        - tac_handoff_json
+    on-destroy:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/validate_infrastructure_domain_inventory/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
+        - site_yaml: '{{ .inputs.site_yaml }}'
+        - validation_mode: '{{ .inputs.validation_mode }}'
+        - wait_for_readiness: '{{ .inputs.wait_for_readiness }}'
+        - readiness_poll_interval: '{{ .inputs.readiness_poll_interval }}'
+        - readiness_max_attempts: '{{ .inputs.readiness_max_attempts }}'
+        - execution_intent: validate_only
+        - lifecycle_action: destroy
+
+outputs:
+  phase_ready:
+    value: '{{ .grains.validate_infrastructure_domain_inventory.outputs.phase_ready }}'
+  phase_status:
+    value: '{{ .grains.validate_infrastructure_domain_inventory.outputs.phase_status }}'
+  phase_readiness_json:
+    value: '{{ .grains.validate_infrastructure_domain_inventory.outputs.phase_readiness_json }}'
+  validation_summary_json:
+    value: '{{ .grains.validate_infrastructure_domain_inventory.outputs.validation_summary_json }}'
+  inventory_validation_json:
+    value: '{{ .grains.validate_infrastructure_domain_inventory.outputs.inventory_validation_json }}'
+  tac_handoff_json:
+    value: '{{ .grains.validate_infrastructure_domain_inventory.outputs.tac_handoff_json }}'

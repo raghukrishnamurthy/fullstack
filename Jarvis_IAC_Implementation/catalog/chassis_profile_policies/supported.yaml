@@ -1,0 +1,26 @@
+supported_policies:
+  - id: chassis_power_policy
+    resource_type: power.Policy
+    required: true
+    notes:
+      - First mandatory chassis-profile policy in the resource provisioning phase.
+      - Intended target platform is chassis.
+
+  - id: chassis_thermal_policy
+    resource_type: thermal.Policy
+    required: true
+    notes:
+      - First mandatory chassis-profile policy in the resource provisioning phase.
+      - Controls chassis fan behavior.
+
+  - id: chassis_imc_access_policy
+    resource_type: access.Policy
+    required: false
+    notes:
+      - Candidate for later chassis-profile expansion.
+
+  - id: chassis_snmp_policy
+    resource_type: snmp.Policy
+    required: false
+    notes:
+      - Candidate for later chassis-profile expansion.

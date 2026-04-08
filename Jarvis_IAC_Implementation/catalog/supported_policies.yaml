@@ -1,0 +1,137 @@
+supported_policies:
+  - id: port_policy
+    resource_type: fabric.PortPolicy
+    scope: shared_fabric
+    required: true
+    managed_by_phase: infrastructure-network-provisioning
+    notes:
+      - Owns physical FI port-role realization.
+      - Includes server ports, uplink ports, uplink port-channels, unified-port,
+        and breakout-derived layout.
+
+  - id: switch_control_policy
+    resource_type: fabric.SwitchControlPolicy
+    scope: shared_fabric
+    required: true
+    managed_by_phase: infrastructure-network-provisioning
+
+  - id: system_qos_policy
+    resource_type: fabric.SystemQosPolicy
+    scope: shared_fabric
+    required: true
+    managed_by_phase: infrastructure-network-provisioning
+
+  - id: ntp_policy
+    resource_type: ntp.Policy
+    scope: shared_fabric
+    required: true
+    managed_by_phase: infrastructure-network-provisioning
+
+  - id: network_connectivity_policy
+    resource_type: networkconfig.Policy
+    scope: shared_fabric
+    required: true
+    managed_by_phase: infrastructure-network-provisioning
+    notes:
+      - Represents the FI-side DNS policy in the current implementation.
+
+  - id: switch_cluster_profile
+    resource_type: fabric.SwitchClusterProfile
+    scope: shared_fabric
+    required: true
+    managed_by_phase: infrastructure-network-provisioning
+
+  - id: switch_profile
+    resource_type: fabric.SwitchProfile
+    scope: shared_fabric
+    required: true
+    managed_by_phase: infrastructure-network-provisioning
+
+  - id: ldap_policy
+    resource_type: iam.LdapPolicy
+    scope: shared_fabric
+    required: false
+    managed_by_phase: infrastructure-network-provisioning
+    notes:
+      - Observed in the tested domain-profile deployment flow.
+      - Candidate for later shared-fabric expansion, not part of the current v1 core set.
+
+  - id: certificate_policy
+    resource_type: certificate.Policy
+    scope: shared_fabric
+    required: false
+    managed_by_phase: infrastructure-network-provisioning
+    notes:
+      - Observed in the tested domain-profile deployment flow.
+      - Candidate for later shared-fabric expansion, not part of the current v1 core set.
+
+  - id: snmp_policy
+    resource_type: snmp.Policy
+    scope: shared_fabric
+    required: false
+    managed_by_phase: infrastructure-network-provisioning
+    notes:
+      - Observed in the tested domain-profile deployment flow.
+      - Candidate for later shared-fabric expansion, not part of the current v1 core set.
+
+  - id: pin_group_inventory
+    resource_type: runtime.PinGroupInventory
+    scope: shared_fabric_runtime
+    required: false
+    managed_by_phase: infrastructure-network-provisioning
+    notes:
+      - Observed as deployment/runtime inventory in the tested domain-profile flow.
+      - This is runtime/deployment context, not a simple policy object.
+
+  - id: chassis_power_policy
+    resource_type: power.Policy
+    scope: chassis_profile
+    required: true
+    managed_by_phase: infrastructure-resource-provisioning
+    notes:
+      - First mandatory chassis-profile policy in the resource provisioning phase.
+      - Intended target platform is chassis.
+
+  - id: chassis_thermal_policy
+    resource_type: thermal.Policy
+    scope: chassis_profile
+    required: true
+    managed_by_phase: infrastructure-resource-provisioning
+    notes:
+      - First mandatory chassis-profile policy in the resource provisioning phase.
+      - Controls chassis fan behavior.
+
+  - id: chassis_imc_access_policy
+    resource_type: access.Policy
+    scope: chassis_profile
+    required: false
+    managed_by_phase: infrastructure-resource-provisioning
+    notes:
+      - Candidate for later chassis-profile expansion.
+      - Observed in Qali chassis profile flows as an attachable chassis policy.
+
+  - id: chassis_snmp_policy
+    resource_type: snmp.Policy
+    scope: chassis_profile
+    required: false
+    managed_by_phase: infrastructure-resource-provisioning
+    notes:
+      - Candidate for later chassis-profile expansion.
+      - Observed in Qali chassis profile flows as an attachable chassis policy.
+
+  - id: vlan_policy
+    resource_type: fabric.EthNetworkPolicy
+    scope: solution_network
+    required: false
+    managed_by_phase: solution-network-provisioning
+    notes:
+      - Not part of the shared-fabric baseline.
+
+  - id: vsan_policy
+    resource_type: fabric.FcNetworkPolicy
+    scope: solution_network
+    required: false
+    managed_by_phase: solution-network-provisioning
+    notes:
+      - Keep out of shared-fabric baseline unless later requirements prove
+        otherwise.

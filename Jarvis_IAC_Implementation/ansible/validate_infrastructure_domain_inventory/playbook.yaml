@@ -1,0 +1,272 @@
+---
+- name: Validate infrastructure domain inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    deployment_root: "{{ (deployment_yaml | default('') | trim | length > 0) | ternary(deployment_yaml | from_yaml, {}) }}"
+    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    inventory_root: "{{ (inventory_yaml | default('') | trim | length > 0) | ternary(inventory_yaml | from_yaml, {}) }}"
+    site_root: "{{ (site_yaml | default('') | trim | length > 0) | ternary(site_yaml | from_yaml, {}) }}"
+    deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
+    site_data: "{{ site_root.site | default(site_root) }}"
+    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    api_uri_normalized: >-
+      {{
+        raw_api_uri
+        if (raw_api_uri | regex_search('/api/v1/?$'))
+        else (raw_api_uri | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
+    api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') | string }}"
+    api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
+    resolved_api_key_id: >-
+      {{
+        api_key_id_direct
+        if (api_key_id_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+          if (api_key_id_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    resolved_api_private_key: >-
+      {{
+        api_private_key_direct
+        if (api_private_key_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+          if (api_private_key_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false') | string | lower)
+        in ['true', '1', 'yes']
+      }}
+    wait_for_readiness_normalized: "{{ (wait_for_readiness | default('true') | string | lower) in ['true', '1', 'yes'] }}"
+    readiness_poll_interval_normalized: "{{ readiness_poll_interval | default(30) | int }}"
+    readiness_max_attempts_normalized: "{{ ((readiness_max_attempts | default(240)) if wait_for_readiness_normalized else 1) | int }}"
+    inventory_devices: "{{ inventory_data.devices | default([]) }}"
+    inventory_domains: "{{ inventory_data.domains | default([]) }}"
+    expected_fi_serials: >-
+      {{
+        inventory_devices
+        | selectattr('category', 'defined')
+        | selectattr('category', 'equalto', 'fabric_interconnect')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    expected_blade_serials: >-
+      {{
+        inventory_devices
+        | selectattr('category', 'defined')
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('attributes.form_factor', 'defined')
+        | selectattr('attributes.form_factor', 'equalto', 'blade')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    expected_fi_managed_rack_serials: >-
+      {{
+        inventory_devices
+        | selectattr('category', 'defined')
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('attributes.form_factor', 'defined')
+        | selectattr('attributes.form_factor', 'equalto', 'rack')
+        | selectattr('attributes.management_type', 'defined')
+        | selectattr('attributes.management_type', 'equalto', 'fi_managed')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    expected_standalone_rack_serials: >-
+      {{
+        inventory_devices
+        | selectattr('category', 'defined')
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('attributes.form_factor', 'defined')
+        | selectattr('attributes.form_factor', 'equalto', 'rack')
+        | selectattr('attributes.management_type', 'defined')
+        | selectattr('attributes.management_type', 'equalto', 'standalone')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    expected_chassis_count: >-
+      {{
+        inventory_domains
+        | selectattr('summary.chassis_count', 'defined')
+        | map(attribute='summary')
+        | map(attribute='chassis_count')
+        | map('int')
+        | sum
+      }}
+
+  tasks:
+    - name: Validate infrastructure domain validator inputs
+      ansible.builtin.assert:
+        that:
+          - deployment_data.id | default('') | string | trim | length > 0
+          - placement_data.intersight.organization | default('') | string | trim | length > 0
+          - resolved_api_key_id | length > 0
+          - resolved_api_private_key | length > 0
+          - readiness_max_attempts_normalized | int > 0
+          - readiness_poll_interval_normalized | int >= 0
+        fail_msg: >-
+          infrastructure domain validator requires deployment, placement,
+          inventory, and valid Intersight credentials.
+
+    - name: Initialize validator polling facts
+      ansible.builtin.set_fact:
+        validator_attempt_counter: 1
+        validator_completed: false
+        validator_summary:
+          success: false
+          wait_for_readiness: "{{ wait_for_readiness_normalized }}"
+          max_attempts: "{{ readiness_max_attempts_normalized }}"
+          attempts_executed: 0
+          last_attempt: 0
+          expected:
+            fi_serials: "{{ expected_fi_serials }}"
+            blade_serials: "{{ expected_blade_serials }}"
+            fi_managed_rack_serials: "{{ expected_fi_managed_rack_serials }}"
+            standalone_rack_serials: "{{ expected_standalone_rack_serials }}"
+            chassis_count: "{{ expected_chassis_count | int }}"
+          present_devices: []
+          missing_devices: []
+          not_ready_devices: []
+          chassis_validation:
+            expected_count: "{{ expected_chassis_count | int }}"
+            discovered_count: 0
+            ready: "{{ (expected_chassis_count | int) == 0 }}"
+          blocking_scope:
+            - FabricInterconnect
+            - Chassis
+            - Blade
+          advisory_scope:
+            - FiManagedRack
+            - StandaloneRack
+          logic:
+            blade_to_chassis_validation: deferred
+          lifecycle_action: "{{ lifecycle_action | default('create') }}"
+          execution_intent: "{{ execution_intent | default('validate_only') }}"
+          validation_mode: "{{ validation_mode | default('strict') }}"
+
+    - name: Run validator checks
+      ansible.builtin.include_tasks: tasks/check_validation_pass.yaml
+
+    - name: Build inventory validation output
+      ansible.builtin.set_fact:
+        inventory_validation:
+          phase: infrastructure-domain-validator
+          deployment_id: "{{ deployment_data.id }}"
+          site_id: "{{ site_data.id | default(deployment_data.site | default('')) }}"
+          organization: "{{ placement_data.intersight.organization | default('') }}"
+          expected: "{{ validator_summary.expected }}"
+          present_devices: "{{ validator_summary.present_devices }}"
+          missing_devices: "{{ validator_summary.missing_devices }}"
+          not_ready_devices: "{{ validator_summary.not_ready_devices }}"
+          blocking_scope: "{{ validator_summary.blocking_scope }}"
+          advisory_scope: "{{ validator_summary.advisory_scope }}"
+          chassis_validation: "{{ validator_summary.chassis_validation }}"
+          logic: "{{ validator_summary.logic }}"
+          success: "{{ validator_summary.success }}"
+          wait_for_readiness: "{{ validator_summary.wait_for_readiness }}"
+          attempts_executed: "{{ validator_summary.attempts_executed }}"
+          last_attempt: "{{ validator_summary.last_attempt }}"
+
+    - name: Build validation summary
+      ansible.builtin.set_fact:
+        validation_summary:
+          phase: infrastructure-domain-validator
+          success: "{{ validator_summary.success }}"
+          missing_count: "{{ validator_summary.missing_devices | length }}"
+          not_ready_count: "{{ validator_summary.not_ready_devices | length }}"
+          blocking_missing_count: >-
+            {{
+              validator_summary.missing_devices
+              | selectattr('category', 'in', validator_summary.blocking_scope)
+              | list
+              | length
+            }}
+          blocking_not_ready_count: >-
+            {{
+              validator_summary.not_ready_devices
+              | selectattr('category', 'in', validator_summary.blocking_scope)
+              | list
+              | length
+            }}
+          expected_chassis_count: "{{ validator_summary.chassis_validation.expected_count }}"
+          discovered_chassis_count: "{{ validator_summary.chassis_validation.discovered_count }}"
+          attempts_executed: "{{ validator_summary.attempts_executed }}"
+          wait_for_readiness: "{{ validator_summary.wait_for_readiness }}"
+
+    - name: Build phase readiness and TAC handoff outputs
+      ansible.builtin.set_fact:
+        phase_ready_value: "{{ validator_summary.success | bool }}"
+        phase_status_value: "{{ 'completed' if (validator_summary.success | bool) else 'waiting_for_inventory' if (validator_summary.wait_for_readiness | bool) else 'validation_failed' }}"
+        phase_readiness:
+          phase: infrastructure-domain-validator
+          ready: "{{ validator_summary.success | bool }}"
+          status: "{{ 'completed' if (validator_summary.success | bool) else 'waiting_for_inventory' if (validator_summary.wait_for_readiness | bool) else 'validation_failed' }}"
+          message: >-
+            {{
+              'Infrastructure domain inventory is ready for infrastructure-resource-provisioning.'
+              if (validator_summary.success | bool)
+              else 'Infrastructure domain inventory is not ready yet.'
+            }}
+          summary: "{{ validation_summary }}"
+        tac_handoff:
+          deployment_id: "{{ deployment_data.id }}"
+          organization: "{{ placement_data.intersight.organization | default('') }}"
+          missing_devices: "{{ validator_summary.missing_devices }}"
+          not_ready_devices: "{{ validator_summary.not_ready_devices }}"
+          blocking_scope: "{{ validator_summary.blocking_scope }}"
+          advisory_scope: "{{ validator_summary.advisory_scope }}"
+          chassis_validation: "{{ validator_summary.chassis_validation }}"
+          notes:
+            - "Intersight is the source of truth for live inventory state."
+            - "Blade-to-chassis logical validation is deferred in v1."
+            - "FI, chassis count, and blades are the readiness-blocking object families in the first validator slice."
+
+  post_tasks:
+    - name: Export validator outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          phase_ready: "{{ 'true' if phase_ready_value else 'false' }}"
+          phase_status: "{{ phase_status_value }}"
+          phase_readiness_json: "{{ phase_readiness | to_json }}"
+          validation_summary_json: "{{ validation_summary | to_json }}"
+          inventory_validation_json: "{{ inventory_validation | to_json }}"
+          tac_handoff_json: "{{ tac_handoff | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

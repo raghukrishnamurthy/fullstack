@@ -1,0 +1,146 @@
+---
+- name: Validate and summarize infrastructure network provisioning
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    infrastructure_network_model: >-
+      {{
+        (
+          infrastructure_network_effective_model_json
+          if (infrastructure_network_effective_model_json | default('') | string | trim | length) > 0
+          else infrastructure_network_model_json
+        ) | from_json
+      }}
+    infrastructure_network_summary: "{{ infrastructure_network_summary_json | from_json }}"
+    infrastructure_network_validation: "{{ infrastructure_network_validation_json | from_json }}"
+    realized_policy_state: "{{ realized_policy_state_json | from_json }}"
+    policy_realization_summary: "{{ policy_realization_summary_json | from_json }}"
+    domain_profile_state: "{{ domain_profile_state_json | from_json }}"
+    policy_attachment_state: "{{ policy_attachment_state_json | from_json }}"
+    deploy_state: "{{ deploy_state_json | from_json }}"
+    deploy_summary: "{{ deploy_summary_json | from_json }}"
+
+  tasks:
+    - name: Validate final summarization inputs
+      ansible.builtin.assert:
+        that:
+          - infrastructure_network_model.deployment.name_prefix | default('') | length > 0
+          - realized_policy_state.policies is defined
+          - domain_profile_state.domain_profile_name | default('') | length > 0
+        fail_msg: "Final validation requires model, policy realization, and domain profile outputs"
+
+    - name: Validate deployed switch profile states when apply intent was used
+      ansible.builtin.assert:
+        that:
+          - item == 'Associated'
+        fail_msg: "Switch profile deploy did not reach Associated state. Final state was {{ item }}"
+      loop: "{{ deploy_summary.final_state | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+      when:
+        - (deploy_state.execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+        - deploy_summary.deploy_mode | default('') == 'intersight_switch_profile_action'
+
+    - name: Build final validation and summary outputs
+      ansible.builtin.set_fact:
+        managed_object_inventory:
+          provider_family: "{{ infrastructure_network_model.provider.family }}"
+          organization: "{{ infrastructure_network_model.placement.organization | default('') }}"
+          domain_profile:
+            name: "{{ domain_profile_state.domain_profile_name }}"
+            moid: "{{ domain_profile_state.domain_profile_moid | default('') }}"
+          switch_profiles:
+            - name: "{{ domain_profile_state.switch_profile_a_name | default(infrastructure_network_model.deployment.name_prefix ~ '-A') }}"
+            - name: "{{ domain_profile_state.switch_profile_b_name | default(infrastructure_network_model.deployment.name_prefix ~ '-B') }}"
+          policy_objects:
+            - id: port_policy
+              name: "{{ realized_policy_state.policies.port_policy.name }}"
+              moid: "{{ realized_policy_state.policies.port_policy.moid }}"
+            - id: switch_control_policy
+              name: "{{ realized_policy_state.policies.switch_control_policy.name }}"
+              moid: "{{ realized_policy_state.policies.switch_control_policy.moid }}"
+            - id: system_qos_policy
+              name: "{{ realized_policy_state.policies.system_qos_policy.name }}"
+              moid: "{{ realized_policy_state.policies.system_qos_policy.moid }}"
+            - id: ntp_policy
+              name: "{{ realized_policy_state.policies.ntp_policy.name }}"
+              moid: "{{ realized_policy_state.policies.ntp_policy.moid }}"
+            - id: network_connectivity_policy
+              name: "{{ realized_policy_state.policies.network_connectivity_policy.name }}"
+              moid: "{{ realized_policy_state.policies.network_connectivity_policy.moid }}"
+        phase_ready_value: "{{ infrastructure_network_validation.valid | default(false) | bool }}"
+        phase_status_value: >-
+          {{
+            'completed'
+            if (infrastructure_network_validation.valid | default(false) | bool)
+            else 'validation_failed'
+          }}
+
+    - name: Build final validation summary
+      ansible.builtin.set_fact:
+        validation_summary:
+          provider_family: "{{ infrastructure_network_model.provider.family }}"
+          validation_mode: "{{ infrastructure_network_validation.validation_mode | default('strict') }}"
+          execution_intent: "{{ deploy_state.execution_intent | default('validate_only') }}"
+          model_summary: "{{ infrastructure_network_summary }}"
+          policy_realization_summary: "{{ policy_realization_summary }}"
+          policy_attachment_summary:
+            attachment_mode: "{{ policy_attachment_state.attachment_mode | default('unknown') }}"
+            attached_policy_ids: "{{ policy_attachment_state.attached_policy_ids | default([]) }}"
+            attachment_update_count: "{{ policy_attachment_state.attachment_updates | default([]) | length }}"
+          deploy_summary: "{{ deploy_summary }}"
+          managed_object_count: "{{ 1 + (managed_object_inventory.switch_profiles | length) + (managed_object_inventory.policy_objects | length) }}"
+          message: "Infrastructure-network-provisioning validation completed."
+
+    - name: Build final readiness and TAC handoff outputs
+      ansible.builtin.set_fact:
+        phase_readiness:
+          phase: infrastructure-network-provisioning
+          ready: "{{ infrastructure_network_validation.valid | default(false) | bool }}"
+          status: "{{ phase_status_value }}"
+          message: "{{ validation_summary.message }}"
+        tac_handoff:
+          provider_family: "{{ infrastructure_network_model.provider.family }}"
+          deployment_name_prefix: "{{ infrastructure_network_model.deployment.name_prefix }}"
+          organization: "{{ infrastructure_network_model.placement.organization | default('') }}"
+          domains: "{{ infrastructure_network_model.domains | map(attribute='domain_id') | list }}"
+          managed_object_inventory: "{{ managed_object_inventory }}"
+          validation_summary: "{{ validation_summary }}"
+
+  post_tasks:
+    - name: Write local final summary outputs when requested
+      ansible.builtin.copy:
+        dest: "{{ local_output_dir }}/{{ item.name }}"
+        content: "{{ item.content }}"
+        mode: "0600"
+      loop:
+        - name: managed_object_inventory.json
+          content: "{{ managed_object_inventory | to_json }}"
+        - name: validation_summary.json
+          content: "{{ validation_summary | to_json }}"
+        - name: phase_readiness.json
+          content: "{{ phase_readiness | to_json }}"
+        - name: tac_handoff.json
+          content: "{{ tac_handoff | to_json }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when:
+        - local_output_dir is defined
+        - local_output_dir | string | trim | length > 0
+
+    - name: Export final summary outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          phase_ready: "{{ 'true' if phase_ready_value else 'false' }}"
+          phase_status: "{{ phase_status_value }}"
+          phase_readiness_json: "{{ phase_readiness | to_json }}"
+          managed_object_inventory_json: "{{ managed_object_inventory | to_json }}"
+          validation_summary_json: "{{ validation_summary | to_json }}"
+          tac_handoff_json: "{{ tac_handoff | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

@@ -1,0 +1,490 @@
+---
+- name: Realize infrastructure chassis resources
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    infrastructure_resource_model: "{{ infrastructure_resource_model_json | from_json }}"
+    infrastructure_resource_live_state: "{{ infrastructure_resource_live_state_json | from_json }}"
+    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    api_uri_normalized: >-
+      {{
+        raw_api_uri
+        if (raw_api_uri | regex_search('/api/v1/?$'))
+        else (raw_api_uri | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
+    api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') | string }}"
+    api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
+    resolved_api_key_id: >-
+      {{
+        api_key_id_direct
+        if (api_key_id_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+          if (api_key_id_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    resolved_api_private_key: >-
+      {{
+        api_private_key_direct
+        if (api_private_key_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+          if (api_private_key_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
+    validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false') | string | lower)
+        in ['true', '1', 'yes']
+      }}
+    apply_mode: "{{ (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'provision', 'onboard', 'claim_and_onboard'] }}"
+    lifecycle_action_normalized: "{{ lifecycle_action | default('create') | string | lower }}"
+    api_info: &api_info
+      api_private_key: "{{ resolved_api_private_key }}"
+      api_key_id: "{{ resolved_api_key_id }}"
+      api_uri: "{{ api_uri_normalized }}"
+      validate_certs: "{{ validate_certs }}"
+
+  tasks:
+    - name: Validate chassis realization inputs
+      ansible.builtin.assert:
+        that:
+          - infrastructure_resource_model.resource_bundles.chassis_profile.profile_id | default('') | length > 0
+          - infrastructure_resource_live_state.resource_targets.chassis is defined
+          - organization_name | length > 0
+          - resolved_api_key_id | length > 0
+          - resolved_api_private_key | length > 0
+        fail_msg: "Resource model and live chassis discovery outputs are required"
+
+    - name: Look up organization in Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /organization/Organizations
+        query_params:
+          $filter: "Name eq '{{ organization_name }}'"
+      register: organization_lookup_result
+
+    - name: Validate organization exists in Intersight
+      ansible.builtin.assert:
+        that:
+          - organization_lookup_result.api_response.Moid is defined
+          - organization_lookup_result.api_response.Moid | length > 0
+        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
+
+    - name: Build current chassis profile targets
+      ansible.builtin.set_fact:
+        current_chassis_profile_targets: "{{ (current_chassis_profile_targets | default([])) + [current_target] }}"
+      vars:
+        current_target:
+          serial: "{{ item.serial | default('') }}"
+          moid: "{{ item.moid | default('') }}"
+          model: "{{ item.model | default('') }}"
+          profile_name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_profile_prefix }}-{{ item.serial | default(item.chassis_id | default('unknown')) }}"
+      loop: "{{ infrastructure_resource_live_state.discovered_chassis | default([]) }}"
+      loop_control:
+        label: "{{ item.serial | default('unknown-chassis') }}"
+
+    - name: Realize shared chassis power policy
+      cisco.intersight.intersight_power_policy:
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_uri: "{{ api_uri_normalized }}"
+        validate_certs: "{{ validate_certs }}"
+        organization: "{{ organization_name }}"
+        name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_power_policy }}"
+        description: "Shared chassis power policy for infrastructure-resource-provisioning"
+        target_platform: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.target_platform }}"
+        power_redundancy: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_redundancy }}"
+        power_save_mode: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_save_mode }}"
+        dynamic_power_rebalancing: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.dynamic_power_rebalancing }}"
+        extended_power_capacity: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.extended_power_capacity }}"
+        power_allocation: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_allocation }}"
+        state: present
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+      register: chassis_power_policy_realization
+
+    - name: Realize shared chassis thermal policy
+      cisco.intersight.intersight_thermal_policy:
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_uri: "{{ api_uri_normalized }}"
+        validate_certs: "{{ validate_certs }}"
+        organization: "{{ organization_name }}"
+        name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_thermal_policy }}"
+        description: "Shared chassis thermal policy for infrastructure-resource-provisioning"
+        fan_control_mode: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_thermal_policy.settings.fan_control_mode }}"
+        state: present
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+      register: chassis_thermal_policy_realization
+
+    - name: Look up realized shared chassis power policy
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /power/Policies
+        query_params:
+          $filter: "Name eq '{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_power_policy }}'"
+      register: chassis_power_policy_lookup
+
+    - name: Look up realized shared chassis thermal policy
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /thermal/Policies
+        query_params:
+          $filter: "Name eq '{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_thermal_policy }}'"
+      register: chassis_thermal_policy_lookup
+
+    - name: Validate shared chassis policies are present when apply intent was used
+      ansible.builtin.assert:
+        that:
+          - chassis_power_policy_lookup.api_response.Moid | default('') | length > 0
+          - chassis_thermal_policy_lookup.api_response.Moid | default('') | length > 0
+        fail_msg: "Shared chassis Power and Thermal policies must exist before chassis profile realization"
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+
+    - name: Create or reconcile chassis profile template with shared policy bucket
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /chassis/ProfileTemplates
+        query_params:
+          $filter: "Name eq '{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_profile_template }}'"
+        api_body:
+          Name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_profile_template }}"
+          Description: "Shared chassis profile template for infrastructure-resource-provisioning"
+          Organization:
+            ObjectType: organization.Organization
+            Moid: "{{ organization_lookup_result.api_response.Moid }}"
+          PolicyBucket:
+            - Moid: "{{ chassis_power_policy_lookup.api_response.Moid }}"
+              ObjectType: power.Policy
+            - Moid: "{{ chassis_thermal_policy_lookup.api_response.Moid }}"
+              ObjectType: thermal.Policy
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+      register: chassis_profile_template_realization
+
+    - name: Look up chassis profile template after realization
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /chassis/ProfileTemplates
+        query_params:
+          $filter: "Name eq '{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_profile_template }}'"
+      register: chassis_profile_template_lookup
+
+    - name: Validate chassis profile template is present when apply intent was used
+      ansible.builtin.assert:
+        that:
+          - chassis_profile_template_lookup.api_response.Moid | default('') | length > 0
+        fail_msg: "Shared chassis profile template must exist before deriving chassis profiles"
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+
+    - name: Look up existing chassis profiles
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /chassis/Profiles
+        query_params:
+          $filter: "Name eq '{{ item.profile_name }}'"
+      loop: "{{ current_chassis_profile_targets | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_name }}"
+      register: existing_chassis_profile_lookup_results
+
+    - name: Build chassis profile reconciliation targets
+      ansible.builtin.set_fact:
+        chassis_profile_reconciliation_targets: "{{ (chassis_profile_reconciliation_targets | default([])) + [current_profile_state] }}"
+      vars:
+        current_profile_state:
+          serial: "{{ item.item.serial }}"
+          chassis_moid: "{{ item.item.moid }}"
+          profile_name: "{{ item.item.profile_name }}"
+          profile_moid: "{{ item.api_response.Moid | default('') }}"
+          config_state: "{{ item.api_response.ConfigContext.ConfigState | default('') }}"
+          src_template_moid: "{{ item.api_response.SrcTemplate.Moid | default('') }}"
+          derive_required: "{{ (item.api_response.Moid | default('') | length) == 0 }}"
+      loop: "{{ existing_chassis_profile_lookup_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.profile_name }}"
+
+    - name: Derive chassis profiles from shared template
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /bulk/MoCloners
+        update_method: post
+        api_body:
+          Sources:
+            - ObjectType: chassis.ProfileTemplate
+              Moid: "{{ chassis_profile_template_lookup.api_response.Moid }}"
+          Targets:
+            - Name: "{{ item.profile_name }}"
+              ObjectType: chassis.Profile
+              Organization:
+                ObjectType: organization.Organization
+                Moid: "{{ organization_lookup_result.api_response.Moid }}"
+              AssignedChassis:
+                Moid: "{{ item.chassis_moid }}"
+                ObjectType: equipment.Chassis
+      loop: "{{ chassis_profile_reconciliation_targets | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_name }}"
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+        - item.chassis_moid | default('') | length > 0
+        - item.derive_required | default(false) | bool
+      register: chassis_profile_derivation_results
+
+    - name: Merge shared chassis profile template into existing chassis profiles when template changed
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /bulk/MoMergers
+        update_method: post
+        api_body:
+          Sources:
+            - ObjectType: chassis.ProfileTemplate
+              Moid: "{{ chassis_profile_template_lookup.api_response.Moid }}"
+          Targets:
+            - ObjectType: chassis.Profile
+              Moid: "{{ item.profile_moid }}"
+          MergeAction: Replace
+      loop: "{{ chassis_profile_reconciliation_targets | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_name }}"
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+        - not (item.derive_required | default(false) | bool)
+        - item.profile_moid | default('') | length > 0
+        - chassis_profile_template_realization.changed | default(false)
+      register: chassis_profile_merge_results
+
+    - name: Look up chassis profiles after derive or merge
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /chassis/Profiles
+        query_params:
+          $filter: "Name eq '{{ item.profile_name }}'"
+      loop: "{{ chassis_profile_reconciliation_targets | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_name }}"
+      register: chassis_profile_post_reconcile_lookup_results
+
+    - name: Build post-reconciliation chassis profile targets
+      ansible.builtin.set_fact:
+        post_assignment_chassis_profile_targets: "{{ (post_assignment_chassis_profile_targets | default([])) + [current_profile_state] }}"
+      vars:
+        current_profile_state:
+          serial: "{{ item.item.serial }}"
+          chassis_moid: "{{ item.item.chassis_moid }}"
+          profile_name: "{{ item.item.profile_name }}"
+          profile_moid: "{{ item.api_response.Moid | default('') }}"
+          config_state: "{{ item.api_response.ConfigContext.ConfigState | default('') }}"
+          inconsistency_reason: "{{ item.api_response.ConfigContext.InconsistencyReason | default('') }}"
+          assigned_chassis_moid: "{{ item.api_response.AssignedChassis.Moid | default('') }}"
+          deploy_required: >-
+            {{
+              (item.api_response.Moid | default('') | length > 0)
+              and
+              (
+                (item.api_response.ConfigContext.ConfigState | default('')) in ['Pending-changes', 'Inconsistent', 'Out-of-sync', 'Assigned']
+                or
+                ('Pending-changes' in (item.api_response.ConfigContext.InconsistencyReason | default('')))
+              )
+            }}
+      loop: "{{ chassis_profile_post_reconcile_lookup_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.profile_name }}"
+
+    - name: Ensure derived chassis profiles are assigned to the expected chassis
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /chassis/Profiles
+        query_params:
+          $filter: "Name eq '{{ item.profile_name }}'"
+        api_body:
+          AssignedChassis:
+            Moid: "{{ item.chassis_moid }}"
+            ObjectType: equipment.Chassis
+      loop: "{{ post_assignment_chassis_profile_targets | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_name }}"
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+        - item.profile_moid | default('') | length > 0
+        - item.chassis_moid | default('') | length > 0
+        - (item.assigned_chassis_moid | default('')) != (item.chassis_moid | default(''))
+      register: chassis_profile_assignment_results
+
+    - name: Look up chassis profiles after assignment reconciliation
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /chassis/Profiles
+        query_params:
+          $filter: "Name eq '{{ item.profile_name }}'"
+      loop: "{{ post_assignment_chassis_profile_targets | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_name }}"
+      register: chassis_profile_post_assignment_lookup_results
+
+    - name: Build final pre-deploy chassis profile targets
+      ansible.builtin.set_fact:
+        final_predeploy_chassis_profile_targets: "{{ (final_predeploy_chassis_profile_targets | default([])) + [current_profile_state] }}"
+      vars:
+        current_profile_state:
+          serial: "{{ item.item.serial }}"
+          chassis_moid: "{{ item.item.chassis_moid }}"
+          profile_name: "{{ item.item.profile_name }}"
+          profile_moid: "{{ item.api_response.Moid | default('') }}"
+          config_state: "{{ item.api_response.ConfigContext.ConfigState | default(item.item.config_state | default('')) }}"
+          inconsistency_reason: "{{ item.api_response.ConfigContext.InconsistencyReason | default(item.item.inconsistency_reason | default('')) }}"
+          assigned_chassis_moid: "{{ item.api_response.AssignedChassis.Moid | default('') }}"
+          deploy_required: >-
+            {{
+              (item.api_response.Moid | default('') | length > 0)
+              and
+              (
+                (item.api_response.ConfigContext.ConfigState | default(item.item.config_state | default(''))) in ['Pending-changes', 'Inconsistent', 'Out-of-sync', 'Assigned']
+                or
+                ('Pending-changes' in (item.api_response.ConfigContext.InconsistencyReason | default(item.item.inconsistency_reason | default(''))))
+              )
+            }}
+      loop: "{{ chassis_profile_post_assignment_lookup_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.profile_name }}"
+
+    - name: Deploy chassis profiles with pending changes
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /chassis/Profiles
+        query_params:
+          $filter: "Name eq '{{ item.profile_name }}'"
+        api_body:
+          Action: Deploy
+      loop: "{{ final_predeploy_chassis_profile_targets | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_name }}"
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+        - item.profile_moid | default('') | length > 0
+        - item.deploy_required | default(false) | bool
+      register: chassis_profile_deploy_results
+
+    - name: Wait for chassis profiles to reach a clean or terminal state
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /chassis/Profiles
+        query_params:
+          $filter: "Name eq '{{ item.profile_name }}'"
+      loop: "{{ final_predeploy_chassis_profile_targets | default([]) }}"
+      loop_control:
+        label: "{{ item.profile_name }}"
+      register: chassis_profile_state_wait_results
+      until: >-
+        (chassis_profile_state_wait_results.api_response.ConfigContext.ConfigState | default(''))
+        in ['Associated', 'Not-assigned', 'Failed', 'Out-of-sync', 'Inconsistent']
+      retries: 30
+      delay: 10
+      when:
+        - apply_mode
+        - lifecycle_action_normalized == 'create'
+        - item.profile_moid | default('') | length > 0
+        - item.deploy_required | default(false) | bool
+
+    - name: Build final chassis profile deployment states
+      ansible.builtin.set_fact:
+        final_chassis_profile_states: "{{ (final_chassis_profile_states | default([])) + [current_final_state] }}"
+      vars:
+        current_final_state:
+          serial: "{{ item.item.serial | default(item.item.profile_name | regex_replace('^.*-Chassis-', '')) }}"
+          profile_name: "{{ item.item.profile_name }}"
+          profile_moid: "{{ item.api_response.Moid | default('') }}"
+          config_state: "{{ item.api_response.ConfigContext.ConfigState | default(item.item.config_state | default('')) }}"
+          assigned_chassis_moid: "{{ item.api_response.AssignedChassis.Moid | default('') }}"
+      loop: >-
+        {{
+          (chassis_profile_state_wait_results.results | default([]))
+          if (apply_mode and lifecycle_action_normalized == 'create')
+          else
+          (chassis_profile_post_assignment_lookup_results.results | default([]))
+        }}
+      loop_control:
+        label: "{{ item.item.profile_name }}"
+
+    - name: Build chassis resource realization state
+      ansible.builtin.set_fact:
+        chassis_resource_state:
+          profile_id: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.profile_id }}"
+          realization_mode: shared_chassis_profile_bundle
+          execution_intent: "{{ execution_intent | default('validate_only') }}"
+          lifecycle_action: "{{ lifecycle_action | default('create') }}"
+          attachment_strategy: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.attachment }}"
+          policies:
+            chassis_power_policy:
+              name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_power_policy }}"
+              values: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings | default({}) }}"
+              moid: "{{ chassis_power_policy_lookup.api_response.Moid | default('') }}"
+            chassis_thermal_policy:
+              name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_thermal_policy }}"
+              values: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_thermal_policy.settings | default({}) }}"
+              moid: "{{ chassis_thermal_policy_lookup.api_response.Moid | default('') }}"
+          profile_template:
+            name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_profile_template }}"
+            moid: "{{ chassis_profile_template_lookup.api_response.Moid | default('') }}"
+          target_chassis_serials: "{{ infrastructure_resource_live_state.resource_targets.chassis.serials | default([]) }}"
+          target_chassis_count: "{{ infrastructure_resource_live_state.resource_targets.chassis.count | default(0) }}"
+          chassis_profiles: "{{ final_chassis_profile_states | default([]) }}"
+          implementation_state:
+            policy_realization: "{{ 'realized' if (apply_mode and lifecycle_action_normalized == 'create') else 'planned' }}"
+            template_realization: "{{ 'realized' if (apply_mode and lifecycle_action_normalized == 'create') else 'planned' }}"
+            chassis_profile_realization: "{{ 'realized' if (apply_mode and lifecycle_action_normalized == 'create') else 'planned' }}"
+            attachment_realization: "{{ 'realized' if (apply_mode and lifecycle_action_normalized == 'create') else 'planned' }}"
+            notes:
+              - "Shared chassis Power and Thermal policies are attached to a shared chassis profile template."
+              - "One derived chassis profile is created per discovered chassis target."
+              - "Template changes reconcile to derived profiles, and only profiles with pending changes should deploy."
+              - "Destroy behavior remains deferred for coordinated lifecycle work later."
+
+    - name: Build chassis realization summary
+      ansible.builtin.set_fact:
+        resource_realization_summary:
+          profile_id: "{{ chassis_resource_state.profile_id }}"
+          realization_mode: "{{ chassis_resource_state.realization_mode }}"
+          target_chassis_count: "{{ chassis_resource_state.target_chassis_count }}"
+          policy_names:
+            - "{{ chassis_resource_state.policies.chassis_power_policy.name }}"
+            - "{{ chassis_resource_state.policies.chassis_thermal_policy.name }}"
+          chassis_profile_names: "{{ chassis_resource_state.chassis_profiles | map(attribute='profile_name') | list }}"
+          final_profile_states: "{{ chassis_resource_state.chassis_profiles | map(attribute='config_state') | list }}"
+          mutation_state: "{{ 'applied' if (apply_mode and lifecycle_action_normalized == 'create') else 'planned' }}"
+
+  post_tasks:
+    - name: Export chassis realization outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          chassis_resource_state_json: "{{ chassis_resource_state | to_json }}"
+          resource_realization_summary_json: "{{ resource_realization_summary | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

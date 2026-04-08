@@ -1,0 +1,294 @@
+---
+- name: Set current validator attempt number
+  ansible.builtin.set_fact:
+    validation_attempt_number: "{{ validator_attempt_counter | default(1) | int }}"
+
+- name: Wait before next validator poll
+  ansible.builtin.pause:
+    seconds: "{{ readiness_poll_interval_normalized }}"
+  when:
+    - not (validator_completed | default(false))
+    - validation_attempt_number | int > 1
+    - wait_for_readiness_normalized | bool
+
+- name: Query expected fabric interconnects in Intersight
+  cisco.intersight.intersight_rest_api:
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_uri: "{{ api_uri_normalized }}"
+    validate_certs: "{{ validate_certs }}"
+    resource_path: /network/Elements
+    return_list: true
+    query_params:
+      $filter: >-
+        {{
+          expected_fi_serials
+          | map('regex_replace', '^', "Serial eq '")
+          | map('regex_replace', '$', "'")
+          | join(' or ')
+        }}
+      $top: 10
+  register: fi_query_result
+  when: expected_fi_serials | length > 0
+
+- name: Query expected compute devices in Intersight
+  cisco.intersight.intersight_rest_api:
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_uri: "{{ api_uri_normalized }}"
+    validate_certs: "{{ validate_certs }}"
+    resource_path: /compute/PhysicalSummaries
+    return_list: true
+    query_params:
+      $filter: >-
+        {{
+          (
+            expected_blade_serials
+            + expected_fi_managed_rack_serials
+            + expected_standalone_rack_serials
+          )
+          | unique
+          | map('regex_replace', '^', "Serial eq '")
+          | map('regex_replace', '$', "'")
+          | join(' or ')
+        }}
+      $top: 50
+  register: compute_query_result
+  when: ((expected_blade_serials + expected_fi_managed_rack_serials + expected_standalone_rack_serials) | unique | length) > 0
+
+- name: Query chassis inventory in Intersight
+  cisco.intersight.intersight_rest_api:
+    api_private_key: "{{ resolved_api_private_key }}"
+    api_key_id: "{{ resolved_api_key_id }}"
+    api_uri: "{{ api_uri_normalized }}"
+    validate_certs: "{{ validate_certs }}"
+    resource_path: /equipment/Chasses
+    return_list: true
+    query_params:
+      $top: 20
+  register: chassis_query_result
+
+- name: Build FI presence and readiness lists
+  ansible.builtin.set_fact:
+    fi_present_serials: >-
+      {{
+        ((fi_query_result | default({})).api_response | default([]))
+        | selectattr('Serial', 'defined')
+        | map(attribute='Serial')
+        | select('in', expected_fi_serials)
+        | list
+      }}
+    fi_not_ready_devices: >-
+      {{
+        ((fi_query_result | default({})).api_response | default([]))
+        | selectattr('Serial', 'defined')
+        | selectattr('Serial', 'in', expected_fi_serials)
+        | rejectattr('Operability', 'defined')
+        | map('combine', {'category': 'FabricInterconnect', 'status': 'not_ready', 'reason': 'Operability undefined'})
+        | list
+        +
+        (
+          ((fi_query_result | default({})).api_response | default([]))
+          | selectattr('Serial', 'defined')
+          | selectattr('Serial', 'in', expected_fi_serials)
+          | selectattr('Operability', 'defined')
+          | rejectattr('Operability', 'equalto', 'online')
+          | map('combine', {'category': 'FabricInterconnect', 'status': 'not_ready'})
+          | list
+        )
+      }}
+
+- name: Build compute device readiness maps
+  ansible.builtin.set_fact:
+    blade_present_serials: >-
+      {{
+        ((compute_query_result | default({})).api_response | default([]))
+        | selectattr('Serial', 'defined')
+        | map(attribute='Serial')
+        | select('in', expected_blade_serials)
+        | list
+      }}
+    fi_managed_rack_present_serials: >-
+      {{
+        ((compute_query_result | default({})).api_response | default([]))
+        | selectattr('Serial', 'defined')
+        | map(attribute='Serial')
+        | select('in', expected_fi_managed_rack_serials)
+        | list
+      }}
+    standalone_rack_present_serials: >-
+      {{
+        ((compute_query_result | default({})).api_response | default([]))
+        | selectattr('Serial', 'defined')
+        | map(attribute='Serial')
+        | select('in', expected_standalone_rack_serials)
+        | list
+      }}
+
+- name: Initialize validator device lists for current pass
+  ansible.builtin.set_fact:
+    fi_missing_devices: []
+    blade_missing_devices: []
+    fi_managed_rack_missing_devices: []
+    standalone_rack_missing_devices: []
+    present_devices_current_pass: []
+
+- name: Add missing fabric interconnect records
+  ansible.builtin.set_fact:
+    fi_missing_devices: "{{ fi_missing_devices + [ {'category': 'FabricInterconnect', 'serial': item, 'status': 'missing'} ] }}"
+  loop: "{{ expected_fi_serials | difference(fi_present_serials) }}"
+
+- name: Add missing blade records
+  ansible.builtin.set_fact:
+    blade_missing_devices: "{{ blade_missing_devices + [ {'category': 'Blade', 'serial': item, 'status': 'missing'} ] }}"
+  loop: "{{ expected_blade_serials | difference(blade_present_serials) }}"
+
+- name: Add missing FI-managed rack records
+  ansible.builtin.set_fact:
+    fi_managed_rack_missing_devices: "{{ fi_managed_rack_missing_devices + [ {'category': 'FiManagedRack', 'serial': item, 'status': 'missing'} ] }}"
+  loop: "{{ expected_fi_managed_rack_serials | difference(fi_managed_rack_present_serials) }}"
+
+- name: Add missing standalone rack records
+  ansible.builtin.set_fact:
+    standalone_rack_missing_devices: "{{ standalone_rack_missing_devices + [ {'category': 'StandaloneRack', 'serial': item, 'status': 'missing'} ] }}"
+  loop: "{{ expected_standalone_rack_serials | difference(standalone_rack_present_serials) }}"
+
+- name: Add present fabric interconnect records
+  ansible.builtin.set_fact:
+    present_devices_current_pass: "{{ present_devices_current_pass + [ {'category': 'FabricInterconnect', 'serial': item, 'status': 'present'} ] }}"
+  loop: "{{ fi_present_serials }}"
+
+- name: Add present blade records
+  ansible.builtin.set_fact:
+    present_devices_current_pass: "{{ present_devices_current_pass + [ {'category': 'Blade', 'serial': item, 'status': 'present'} ] }}"
+  loop: "{{ blade_present_serials }}"
+
+- name: Add present FI-managed rack records
+  ansible.builtin.set_fact:
+    present_devices_current_pass: "{{ present_devices_current_pass + [ {'category': 'FiManagedRack', 'serial': item, 'status': 'present'} ] }}"
+  loop: "{{ fi_managed_rack_present_serials }}"
+
+- name: Add present standalone rack records
+  ansible.builtin.set_fact:
+    present_devices_current_pass: "{{ present_devices_current_pass + [ {'category': 'StandaloneRack', 'serial': item, 'status': 'present'} ] }}"
+  loop: "{{ standalone_rack_present_serials }}"
+
+- name: Build compute not-ready lists
+  ansible.builtin.set_fact:
+    blade_not_ready_devices: >-
+      {{
+        ((compute_query_result | default({})).api_response | default([]))
+        | selectattr('Serial', 'defined')
+        | selectattr('Serial', 'in', expected_blade_serials)
+        | rejectattr('Lifecycle', 'defined')
+        | map('combine', {'category': 'Blade', 'status': 'not_ready', 'reason': 'Lifecycle undefined'})
+        | list
+        +
+        (
+          ((compute_query_result | default({})).api_response | default([]))
+          | selectattr('Serial', 'defined')
+          | selectattr('Serial', 'in', expected_blade_serials)
+          | selectattr('Lifecycle', 'defined')
+          | rejectattr('Lifecycle', 'equalto', 'Active')
+          | map('combine', {'category': 'Blade', 'status': 'not_ready'})
+          | list
+        )
+      }}
+    fi_managed_rack_not_ready_devices: []
+    standalone_rack_not_ready_devices: []
+
+- name: Build current pass validator summary
+  ansible.builtin.set_fact:
+    current_blocking_missing_devices: >-
+      {{
+        fi_missing_devices
+        + blade_missing_devices
+      }}
+    current_blocking_not_ready_devices: >-
+      {{
+        fi_not_ready_devices
+        + blade_not_ready_devices
+      }}
+    current_missing_devices: >-
+      {{
+        fi_missing_devices
+        + blade_missing_devices
+        + fi_managed_rack_missing_devices
+        + standalone_rack_missing_devices
+      }}
+    current_not_ready_devices: >-
+      {{
+        fi_not_ready_devices
+        + blade_not_ready_devices
+        + fi_managed_rack_not_ready_devices
+        + standalone_rack_not_ready_devices
+      }}
+    current_chassis_validation:
+      expected_count: "{{ expected_chassis_count | int }}"
+      discovered_count: "{{ ((chassis_query_result | default({})).api_response | default([]) | length) }}"
+      ready: "{{ (((chassis_query_result | default({})).api_response | default([]) | length | int) >= (expected_chassis_count | int)) }}"
+
+- name: Update validator summary for current pass
+  ansible.builtin.set_fact:
+    validator_completed: >-
+      {{
+        (current_blocking_missing_devices | length == 0)
+        and (current_blocking_not_ready_devices | length == 0)
+        and (current_chassis_validation.ready | bool)
+      }}
+    validator_summary:
+      success: >-
+        {{
+          (current_blocking_missing_devices | length == 0)
+          and (current_blocking_not_ready_devices | length == 0)
+          and (current_chassis_validation.ready | bool)
+        }}
+      wait_for_readiness: "{{ wait_for_readiness_normalized }}"
+      max_attempts: "{{ readiness_max_attempts_normalized }}"
+      attempts_executed: "{{ validation_attempt_number | int }}"
+      last_attempt: "{{ validation_attempt_number | int }}"
+      expected:
+        fi_serials: "{{ expected_fi_serials }}"
+        blade_serials: "{{ expected_blade_serials }}"
+        fi_managed_rack_serials: "{{ expected_fi_managed_rack_serials }}"
+        standalone_rack_serials: "{{ expected_standalone_rack_serials }}"
+        chassis_count: "{{ expected_chassis_count | int }}"
+      present_devices: "{{ present_devices_current_pass }}"
+      missing_devices: "{{ current_missing_devices }}"
+      not_ready_devices: "{{ current_not_ready_devices }}"
+      blocking_scope:
+        - FabricInterconnect
+        - Chassis
+        - Blade
+      advisory_scope:
+        - FiManagedRack
+        - StandaloneRack
+      chassis_validation: "{{ current_chassis_validation }}"
+      logic:
+        blade_to_chassis_validation: deferred
+      lifecycle_action: "{{ lifecycle_action | default('create') }}"
+      execution_intent: "{{ execution_intent | default('validate_only') }}"
+      validation_mode: "{{ validation_mode | default('strict') }}"
+
+- name: Pause before next recursive validator poll
+  ansible.builtin.pause:
+    seconds: "{{ readiness_poll_interval_normalized }}"
+  when:
+    - not (validator_completed | default(false))
+    - wait_for_readiness_normalized | bool
+    - validation_attempt_number | int < readiness_max_attempts_normalized | int
+
+- name: Run next recursive validator pass
+  ansible.builtin.set_fact:
+    validator_attempt_counter: "{{ (validation_attempt_number | int) + 1 }}"
+  when:
+    - not (validator_completed | default(false))
+    - wait_for_readiness_normalized | bool
+    - validation_attempt_number | int < readiness_max_attempts_normalized | int
+
+- name: Continue recursive validator polling
+  ansible.builtin.include_tasks: tasks/check_validation_pass.yaml
+  when:
+    - not (validator_completed | default(false))
+    - wait_for_readiness_normalized | bool
+    - validation_attempt_number | int < readiness_max_attempts_normalized | int

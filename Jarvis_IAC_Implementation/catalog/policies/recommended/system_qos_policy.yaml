@@ -1,0 +1,20 @@
+policy_id: system_qos_policy
+profile_id: recommended
+settings:
+  classes:
+    - name: Bronze
+      admin_state: Enabled
+      weight: 7
+    - name: Silver
+      admin_state: Enabled
+      weight: 8
+    - name: Gold
+      admin_state: Enabled
+      weight: 9
+    - name: Platinum
+      admin_state: Enabled
+      weight: 10
+    - name: Best Effort
+      weight: 5
+    - name: FC
+      weight: 5

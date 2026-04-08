@@ -1,0 +1,17 @@
+profile_id: recommended
+description: Recommended chassis profile bundle for infrastructure resource provisioning
+included_policies:
+  - chassis_power_policy
+  - chassis_thermal_policy
+attachment:
+  target_scope: all_discovered_chassis
+  attachment_mode: shared_profile_policies
+  per_chassis_overrides_supported: false
+naming:
+  profile_suffixes:
+    chassis_profile: Chassis-Profile
+policy_defaults:
+  chassis_power_policy:
+    source: catalog_recommended
+  chassis_thermal_policy:
+    source: catalog_recommended

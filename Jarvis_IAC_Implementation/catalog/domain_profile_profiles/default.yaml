@@ -1,0 +1,30 @@
+profile_id: default
+description: Default shared-fabric domain policy bundle for infrastructure provisioning
+included_policies:
+  - port_policy
+  - switch_control_policy
+  - system_qos_policy
+  - ntp_policy
+  - network_connectivity_policy
+  - switch_cluster_profile
+  - switch_profile
+naming:
+  profile_suffixes:
+    switch_cluster_profile: Domain-Profile
+    switch_profile_a: A
+    switch_profile_b: B
+  policy_suffixes:
+    port_policy: Port-Policy
+    switch_control_policy: Switch-Control
+    system_qos_policy: System-QoS
+    ntp_policy: NTP
+    network_connectivity_policy: Network-Connectivity
+policy_defaults:
+  switch_control_policy:
+    ethernet_switching_mode: end-host
+  system_qos_policy:
+    class_profile: default
+  ntp_policy:
+    source: site_global_settings_preferred
+  network_connectivity_policy:
+    dns_source: site_global_settings_preferred

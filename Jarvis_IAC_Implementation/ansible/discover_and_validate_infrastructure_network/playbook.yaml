@@ -1,0 +1,332 @@
+---
+- name: Discover and validate infrastructure network state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    infrastructure_network_model: "{{ infrastructure_network_model_json | from_json }}"
+    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
+    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    placement_data: "{{ placement_root.placement | default(placement_root) }}"
+    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    api_uri_normalized: >-
+      {{
+        raw_api_uri
+        if (raw_api_uri | regex_search('/api/v1/?$'))
+        else (raw_api_uri | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
+    api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') | string }}"
+    api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
+    resolved_api_key_id: >-
+      {{
+        api_key_id_direct
+        if (api_key_id_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+          if (api_key_id_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    resolved_api_private_key: >-
+      {{
+        api_private_key_direct
+        if (api_private_key_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+          if (api_private_key_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
+    validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false') | string | lower)
+        in ['true', '1', 'yes']
+      }}
+    api_info: &api_info
+      api_private_key: "{{ resolved_api_private_key }}"
+      api_key_id: "{{ resolved_api_key_id }}"
+      api_uri: "{{ api_uri_normalized }}"
+      validate_certs: "{{ validate_certs }}"
+
+  tasks:
+    - name: Validate resolver output input
+      ansible.builtin.assert:
+        that:
+          - infrastructure_network_model.provider.family | default('') == 'intersight_imm_domain'
+          - infrastructure_network_model.domains is defined
+        fail_msg: "infrastructure_network_model_json is required"
+
+    - name: Validate platform and placement inputs for live discovery
+      ansible.builtin.assert:
+        that:
+          - organization_name | length > 0
+          - resolved_api_key_id | length > 0
+          - resolved_api_private_key | length > 0
+        fail_msg: "platform_yaml and placement_yaml must provide Intersight credentials and organization"
+
+    - name: Look up organization in Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /organization/Organizations
+        query_params:
+          $filter: "Name eq '{{ organization_name }}'"
+      register: organization_lookup_result
+
+    - name: Validate organization exists in Intersight
+      ansible.builtin.assert:
+        that:
+          - organization_lookup_result.api_response.Moid is defined
+          - organization_lookup_result.api_response.Moid | length > 0
+        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
+
+    - name: Query FI members from Intersight by serial number
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /network/Elements
+        query_params:
+          $filter: "Serial eq '{{ item.serial | default(item.serial_number | default('')) }}'"
+      loop: >-
+        {{
+          infrastructure_network_model.domains
+          | map(attribute='member_devices')
+          | flatten
+          | list
+        }}
+      loop_control:
+        label: "{{ item.id | default(item.serial | default('unknown-fi')) }}"
+      when:
+        - (item.serial | default(item.serial_number | default('')) | string | trim | length) > 0
+      register: fi_lookup_results
+
+    - name: Build discovered FI inventory
+      ansible.builtin.set_fact:
+        discovered_fis: "{{ (discovered_fis | default([])) + [discovered_fi] }}"
+      vars:
+        discovered_fi:
+          id: "{{ item.item.id | default('') }}"
+          serial: "{{ item.item.serial | default(item.item.serial_number | default('')) }}"
+          expected_model: "{{ item.item.model | default('') }}"
+          live_moid: "{{ item.api_response.Moid | default('') }}"
+          live_name: "{{ item.api_response.Name | default('') }}"
+          live_model: "{{ item.api_response.Model | default('') }}"
+          operability: "{{ item.api_response.Operability | default('') }}"
+      loop: "{{ fi_lookup_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.id | default('unknown-fi') }}"
+
+    - name: Validate all requested FIs were discovered
+      ansible.builtin.assert:
+        that:
+          - item.live_moid | length > 0
+        fail_msg: "FI {{ item.id }} with serial {{ item.serial }} was not discovered in Intersight"
+      loop: "{{ discovered_fis | default([]) }}"
+      loop_control:
+        label: "{{ item.id | default('unknown-fi') }}"
+
+    - name: Look up existing shared Port Policy
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/PortPolicies
+        query_params:
+          $filter: "Name eq '{{ infrastructure_network_model.deployment.name_prefix }}-Port-Policy'"
+      register: port_policy_lookup
+
+    - name: Look up existing shared Switch Cluster Profile
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchClusterProfiles
+        query_params:
+          $filter: "Name eq '{{ infrastructure_network_model.deployment.name_prefix }}-Domain-Profile'"
+      register: switch_cluster_profile_lookup
+
+    - name: Look up existing A Switch Profile
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchProfiles
+        query_params:
+          $filter: "Name eq '{{ infrastructure_network_model.deployment.name_prefix }}-A'"
+      register: switch_profile_a_lookup
+
+    - name: Look up existing B Switch Profile
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchProfiles
+        query_params:
+          $filter: "Name eq '{{ infrastructure_network_model.deployment.name_prefix }}-B'"
+      register: switch_profile_b_lookup
+
+    - name: Build FI live model lookup by device id
+      ansible.builtin.set_fact:
+        fi_live_model_lookup: >-
+          {{
+            fi_live_model_lookup | default({})
+            | combine({item.id: item.live_model})
+          }}
+      loop: "{{ discovered_fis | default([]) }}"
+      loop_control:
+        label: "{{ item.id | default('unknown-fi') }}"
+      when:
+        - item.id | default('') | length > 0
+        - item.live_model | default('') | length > 0
+
+    - name: Build live FI model lookup by domain id
+      ansible.builtin.set_fact:
+        domain_live_model_lookup: "{{ domain_live_model_lookup | default({}) | combine({item.domain_id: effective_model}) }}"
+      vars:
+        effective_model: >-
+          {%- set member_models = [] -%}
+          {%- for member_id in (item.members | default([])) -%}
+          {%- set live_model = (fi_live_model_lookup | default({})).get(member_id, '') -%}
+          {%- if live_model | length > 0 and live_model not in member_models -%}
+          {%- set _ = member_models.append(live_model) -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {{ (member_models | first) if (member_models | length) > 0 else (item.fi_model | default('')) }}
+      loop: "{{ infrastructure_network_model.domains | default([]) }}"
+      loop_control:
+        label: "{{ item.domain_id | default('unknown-domain') }}"
+
+    - name: Load FI defaults for live-corrected domains
+      ansible.builtin.include_vars:
+        file: >-
+          {{
+            playbook_dir
+            ~ '/../../defaults/fi_models/'
+            ~ (item.value | lower | regex_replace('[^a-z0-9]+', '_'))
+            ~ '.yaml'
+          }}
+        name: live_fi_model_defaults_file
+      loop: "{{ (domain_live_model_lookup | default({})) | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: live_fi_model_defaults_results
+
+    - name: Build live-loaded FI defaults lookup
+      ansible.builtin.set_fact:
+        live_loaded_fi_model_defaults: "{{ live_loaded_fi_model_defaults | default({}) | combine({item.item.key: item.ansible_facts.live_fi_model_defaults_file}) }}"
+      loop: "{{ live_fi_model_defaults_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Build live-corrected domain model from Intersight discovery
+      ansible.builtin.set_fact:
+        infrastructure_network_effective_model:
+          provider: "{{ infrastructure_network_model.provider }}"
+          deployment: "{{ infrastructure_network_model.deployment }}"
+          placement: "{{ infrastructure_network_model.placement }}"
+          domains: "{{ effective_domains }}"
+      vars:
+        effective_domains: >-
+          {%- set out = [] -%}
+          {%- for domain in (infrastructure_network_model.domains | default([])) -%}
+          {%- set effective_model = (domain_live_model_lookup | default({})).get(domain.domain_id, domain.fi_model | default('')) -%}
+          {%- set fi_defaults = (live_loaded_fi_model_defaults | default({})).get(domain.domain_id, {}) -%}
+          {%- set updated_domain = domain | combine({
+                'fi_model': effective_model,
+                'recommended_port_mapping': {
+                  'transport_mode': (
+                    'ethernet_fc'
+                    if domain.port_mapping_profile_id | default('ethernet') == 'ethernet_fc'
+                    else 'ethernet'
+                  ),
+                  'recommended_server_ports': fi_defaults.port_ranges.recommended_server_ports | default(domain.recommended_port_mapping.recommended_server_ports | default([])),
+                  'recommended_uplink_ports': fi_defaults.port_ranges.recommended_uplink_ports | default(domain.recommended_port_mapping.recommended_uplink_ports | default([])),
+                  'default_uplink_port_channel_members': fi_defaults.recommended_layout_defaults.default_uplink_port_channel_members | default(domain.recommended_port_mapping.default_uplink_port_channel_members | default([]))
+                }
+              }, recursive=True) -%}
+          {%- set _ = out.append(updated_domain) -%}
+          {%- endfor -%}
+          {{ out }}
+
+    - name: Build live state and validation outputs
+      ansible.builtin.set_fact:
+        infrastructure_network_live_state:
+          provider_family: "{{ infrastructure_network_model.provider.family }}"
+          organization:
+            name: "{{ organization_name }}"
+            moid: "{{ organization_lookup_result.api_response.Moid }}"
+          discovered_fis: "{{ discovered_fis | default([]) }}"
+          existing_objects:
+            port_policy:
+              moid: "{{ port_policy_lookup.api_response.Moid | default('') }}"
+              name: "{{ port_policy_lookup.api_response.Name | default('') }}"
+            switch_cluster_profile:
+              moid: "{{ switch_cluster_profile_lookup.api_response.Moid | default('') }}"
+              name: "{{ switch_cluster_profile_lookup.api_response.Name | default('') }}"
+              config_state: "{{ switch_cluster_profile_lookup.api_response.ConfigContext.ConfigState | default('') }}"
+            switch_profile_a:
+              moid: "{{ switch_profile_a_lookup.api_response.Moid | default('') }}"
+              name: "{{ switch_profile_a_lookup.api_response.Name | default('') }}"
+              config_state: "{{ switch_profile_a_lookup.api_response.ConfigContext.ConfigState | default('') }}"
+            switch_profile_b:
+              moid: "{{ switch_profile_b_lookup.api_response.Moid | default('') }}"
+              name: "{{ switch_profile_b_lookup.api_response.Name | default('') }}"
+              config_state: "{{ switch_profile_b_lookup.api_response.ConfigContext.ConfigState | default('') }}"
+        infrastructure_network_validation:
+          valid: true
+          validation_mode: "{{ validation_mode | default('strict') }}"
+          execution_intent: "{{ execution_intent | default('validate_only') }}"
+          messages:
+            - "Intersight organization and FI discovery completed."
+            - "Existing domain-profile-related objects were inspected."
+            - "Live FI model data was used to build an effective domain model."
+        phase_ready_value: true
+        phase_status_value: discovered
+        phase_readiness:
+          phase: infrastructure-network-provisioning
+          ready: true
+          status: discovered
+          message: "Live Intersight discovery completed for the target FI domains."
+
+  post_tasks:
+    - name: Write local discovery outputs when requested
+      ansible.builtin.copy:
+        dest: "{{ local_output_dir }}/{{ item.name }}"
+        content: "{{ item.content }}"
+        mode: "0600"
+      loop:
+        - name: infrastructure_network_live_state.json
+          content: "{{ infrastructure_network_live_state | to_json }}"
+        - name: live-state-vars.yaml
+          content: |-
+            infrastructure_network_live_state_json: |
+              {{ infrastructure_network_live_state | to_json }}
+        - name: infrastructure_network_effective_model.json
+          content: "{{ infrastructure_network_effective_model | to_json }}"
+        - name: effective-model-vars.yaml
+          content: |-
+            infrastructure_network_effective_model_json: |
+              {{ infrastructure_network_effective_model | to_json }}
+        - name: infrastructure_network_validation.json
+          content: "{{ infrastructure_network_validation | to_json }}"
+        - name: infrastructure_network_validation-vars.yaml
+          content: |-
+            infrastructure_network_validation_json: |
+              {{ infrastructure_network_validation | to_json }}
+        - name: phase_readiness.json
+          content: "{{ phase_readiness | to_json }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when:
+        - local_output_dir is defined
+        - local_output_dir | string | trim | length > 0
+
+    - name: Export discovery and validation outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          infrastructure_network_live_state_json: "{{ infrastructure_network_live_state | to_json }}"
+          infrastructure_network_effective_model_json: "{{ infrastructure_network_effective_model | to_json }}"
+          infrastructure_network_validation_json: "{{ infrastructure_network_validation | to_json }}"
+          phase_ready: "{{ 'true' if phase_ready_value else 'false' }}"
+          phase_status: "{{ phase_status_value }}"
+          phase_readiness_json: "{{ phase_readiness | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

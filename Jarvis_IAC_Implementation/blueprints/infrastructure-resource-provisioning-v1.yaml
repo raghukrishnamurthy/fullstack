@@ -1,0 +1,172 @@
+spec_version: 2
+description: Infrastructure resource provisioning for shared chassis resources in Intersight IMM
+inputs:
+  agent:
+    type: agent
+    title: Torque Agent
+    description: Torque agent that runs this workflow.
+  deployment_yaml:
+    type: string
+    description: Wrapped deployment context YAML
+  platform_yaml:
+    type: string
+    description: Wrapped platform context YAML
+  placement_yaml:
+    type: string
+    description: Wrapped placement context YAML
+  inventory_yaml:
+    type: string
+    description: Wrapped inventory context YAML
+  solution_yaml:
+    type: string
+    description: Optional wrapped solution context YAML
+    default: ""
+  site_yaml:
+    type: string
+    description: Optional wrapped site context YAML
+    default: ""
+  execution_intent:
+    type: string
+    default: validate_only
+  lifecycle_action:
+    type: string
+    default: create
+  name_prefix:
+    type: string
+    description: Prefix used to construct managed object names
+  chassis_profile:
+    type: string
+    description: Named built-in chassis profile bundle id
+    default: recommended
+  resource_profile_selections_json:
+    type: string
+    description: Reserved for future per-domain or per-resource refinement as JSON
+    default: '{"domains":{}}'
+
+grains:
+  resolve_infrastructure_resource_model:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/resolve_infrastructure_resource_model/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
+        - solution_yaml: '{{ .inputs.solution_yaml }}'
+        - site_yaml: '{{ .inputs.site_yaml }}'
+        - name_prefix: '{{ .inputs.name_prefix }}'
+        - chassis_profile: '{{ .inputs.chassis_profile }}'
+        - resource_profile_selections_json: '{{ .inputs.resource_profile_selections_json }}'
+      outputs:
+        - infrastructure_resource_model_json
+        - infrastructure_resource_summary_json
+
+  discover_infrastructure_resource_targets:
+    kind: ansible
+    depends-on: resolve_infrastructure_resource_model
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/discover_infrastructure_resource_targets/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - infrastructure_resource_model_json: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_model_json }}'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - execution_intent: '{{ .inputs.execution_intent }}'
+        - lifecycle_action: '{{ .inputs.lifecycle_action }}'
+      outputs:
+        - infrastructure_resource_live_state_json
+        - phase_ready
+        - phase_status
+        - phase_readiness_json
+
+  realize_infrastructure_chassis_resources:
+    kind: ansible
+    depends-on: discover_infrastructure_resource_targets
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/realize_infrastructure_chassis_resources/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - infrastructure_resource_model_json: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_model_json }}'
+        - infrastructure_resource_live_state_json: '{{ .grains.discover_infrastructure_resource_targets.outputs.infrastructure_resource_live_state_json }}'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - execution_intent: '{{ .inputs.execution_intent }}'
+        - lifecycle_action: '{{ .inputs.lifecycle_action }}'
+      outputs:
+        - chassis_resource_state_json
+        - resource_realization_summary_json
+
+  validate_and_summarize_infrastructure_resources:
+    kind: ansible
+    depends-on: realize_infrastructure_chassis_resources
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/validate_and_summarize_infrastructure_resources/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - infrastructure_resource_model_json: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_model_json }}'
+        - infrastructure_resource_summary_json: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_summary_json }}'
+        - infrastructure_resource_live_state_json: '{{ .grains.discover_infrastructure_resource_targets.outputs.infrastructure_resource_live_state_json }}'
+        - chassis_resource_state_json: '{{ .grains.realize_infrastructure_chassis_resources.outputs.chassis_resource_state_json }}'
+        - resource_realization_summary_json: '{{ .grains.realize_infrastructure_chassis_resources.outputs.resource_realization_summary_json }}'
+      outputs:
+        - phase_ready
+        - phase_status
+        - phase_readiness_json
+        - validation_summary_json
+        - tac_handoff_json
+
+outputs:
+  phase_ready:
+    value: '{{ .grains.validate_and_summarize_infrastructure_resources.outputs.phase_ready }}'
+  phase_status:
+    value: '{{ .grains.validate_and_summarize_infrastructure_resources.outputs.phase_status }}'
+  phase_readiness_json:
+    value: '{{ .grains.validate_and_summarize_infrastructure_resources.outputs.phase_readiness_json }}'
+  infrastructure_resource_model_json:
+    value: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_model_json }}'
+  infrastructure_resource_live_state_json:
+    value: '{{ .grains.discover_infrastructure_resource_targets.outputs.infrastructure_resource_live_state_json }}'
+  chassis_resource_state_json:
+    value: '{{ .grains.realize_infrastructure_chassis_resources.outputs.chassis_resource_state_json }}'
+  validation_summary_json:
+    value: '{{ .grains.validate_and_summarize_infrastructure_resources.outputs.validation_summary_json }}'
+  tac_handoff_json:
+    value: '{{ .grains.validate_and_summarize_infrastructure_resources.outputs.tac_handoff_json }}'

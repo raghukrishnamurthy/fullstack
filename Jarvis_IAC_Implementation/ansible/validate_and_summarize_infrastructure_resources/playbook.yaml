@@ -1,0 +1,149 @@
+---
+- name: Validate and summarize infrastructure resources
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    infrastructure_resource_model: "{{ infrastructure_resource_model_json | from_json }}"
+    infrastructure_resource_summary: "{{ infrastructure_resource_summary_json | from_json }}"
+    infrastructure_resource_live_state: "{{ infrastructure_resource_live_state_json | from_json }}"
+    chassis_resource_state: "{{ chassis_resource_state_json | from_json }}"
+    resource_realization_summary: "{{ resource_realization_summary_json | from_json }}"
+    apply_mode: "{{ (chassis_resource_state.execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'provision', 'onboard', 'claim_and_onboard'] }}"
+
+  tasks:
+    - name: Validate final resource summarization inputs
+      ansible.builtin.assert:
+        that:
+          - infrastructure_resource_model.provider.family | default('') == 'intersight_imm_resource'
+          - chassis_resource_state.profile_id | default('') | length > 0
+        fail_msg: "Resource model, live state, and chassis realization outputs are required"
+
+    - name: Build current resource summary facts
+      ansible.builtin.set_fact:
+        current_chassis_count: "{{ infrastructure_resource_live_state.resource_targets.chassis.count | default(0) | int }}"
+        current_discovery_status: "{{ infrastructure_resource_live_state.phase_status | default('') }}"
+        current_discovery_message: "{{ infrastructure_resource_live_state.phase_message | default('') }}"
+        current_expected_chassis_count: "{{ infrastructure_resource_live_state.discovery_observations.expected_chassis_count | default(0) | int }}"
+        current_expected_blade_count: "{{ infrastructure_resource_live_state.discovery_observations.expected_blade_count | default(0) | int }}"
+        current_failed_profile_count: >-
+          {{
+            chassis_resource_state.chassis_profiles | default([])
+            | selectattr('config_state', 'equalto', 'Failed')
+            | list
+            | length
+          }}
+        current_associated_profile_count: >-
+          {{
+            chassis_resource_state.chassis_profiles | default([])
+            | selectattr('config_state', 'equalto', 'Associated')
+            | list
+            | length
+          }}
+
+    - name: Build final resource summary outputs
+      ansible.builtin.set_fact:
+        phase_ready_value: >-
+          {{
+            (
+              current_chassis_count > 0
+            )
+            and
+            (
+              (not apply_mode)
+              or
+              (
+                current_failed_profile_count == 0
+                and current_associated_profile_count == current_chassis_count
+              )
+            )
+          }}
+        phase_status_value: >-
+          {{
+            'completed'
+            if (
+              (current_chassis_count > 0)
+              and
+              (
+                (not apply_mode)
+                or
+                (
+                  current_failed_profile_count == 0
+                  and current_associated_profile_count == current_chassis_count
+                )
+              )
+            )
+            else 'apply_failed'
+            if (
+              apply_mode
+              and current_failed_profile_count > 0
+            )
+            else 'waiting_for_profile_association'
+            if (
+              apply_mode
+              and current_chassis_count > 0
+              and current_associated_profile_count < current_chassis_count
+            )
+            else (
+              current_discovery_status
+              if (current_discovery_status | length > 0)
+              else 'no_targets_discovered'
+            )
+          }}
+        validation_summary:
+          provider_family: "{{ infrastructure_resource_model.provider.family }}"
+          resource_summary: "{{ infrastructure_resource_summary }}"
+          discovery_summary:
+            target_chassis_count: "{{ current_chassis_count }}"
+            target_chassis_serials: "{{ infrastructure_resource_live_state.resource_targets.chassis.serials | default([]) }}"
+            expected_chassis_count: "{{ current_expected_chassis_count }}"
+            expected_blade_count: "{{ current_expected_blade_count }}"
+            observations: "{{ infrastructure_resource_live_state.discovery_observations | default({}) }}"
+          realization_summary: "{{ resource_realization_summary }}"
+          chassis_profile_summary:
+            associated_count: "{{ current_associated_profile_count }}"
+            failed_count: "{{ current_failed_profile_count }}"
+          message: >-
+            {{
+              'Infrastructure-resource-provisioning completed successfully.'
+              if phase_ready_value
+              else 'Infrastructure-resource-provisioning apply did not fully converge.'
+              if apply_mode
+              else (
+                current_discovery_message
+                if (current_discovery_message | length > 0)
+                else 'Infrastructure-resource-provisioning found no chassis targets.'
+              )
+            }}
+
+    - name: Build final readiness and TAC handoff outputs
+      ansible.builtin.set_fact:
+        phase_readiness:
+          phase: infrastructure-resource-provisioning
+          ready: "{{ phase_ready_value }}"
+          status: "{{ phase_status_value }}"
+          message: "{{ validation_summary.message }}"
+        tac_handoff:
+          provider_family: "{{ infrastructure_resource_model.provider.family }}"
+          organization: "{{ infrastructure_resource_model.placement.organization | default('') }}"
+          chassis_profile_id: "{{ chassis_resource_state.profile_id }}"
+          target_chassis_serials: "{{ chassis_resource_state.target_chassis_serials | default([]) }}"
+          realization_mode: "{{ chassis_resource_state.realization_mode }}"
+          implementation_state: "{{ chassis_resource_state.implementation_state | default({}) }}"
+          validation_summary: "{{ validation_summary }}"
+
+  post_tasks:
+    - name: Export final resource outputs to Torque
+      torque.collections.export_torque_outputs:
+        outputs:
+          phase_ready: "{{ 'true' if phase_ready_value else 'false' }}"
+          phase_status: "{{ phase_status_value }}"
+          phase_readiness_json: "{{ phase_readiness | to_json }}"
+          validation_summary_json: "{{ validation_summary | to_json }}"
+          tac_handoff_json: "{{ tac_handoff | to_json }}"
+      delegate_to: localhost
+      run_once: true
+      tags: always
+      ignore_errors: true

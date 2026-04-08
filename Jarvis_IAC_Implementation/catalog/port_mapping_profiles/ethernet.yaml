@@ -1,0 +1,18 @@
+profile_id: ethernet
+description: Default shared-fabric Ethernet-only physical layout profile
+transport_mode: ethernet_only
+breakout_strategy:
+  mode: none
+  allowed: false
+uplink_strategy:
+  default_mode: port_channel
+  default_port_channel_count: 1
+  requires_port_channel_id: true
+  disjoint_supported: false
+server_port_strategy:
+  source: fi_model_recommended_ranges
+  role: server
+optional_features:
+  unified_ports: false
+  fc_uplinks: false
+  fc_storage_ports: false

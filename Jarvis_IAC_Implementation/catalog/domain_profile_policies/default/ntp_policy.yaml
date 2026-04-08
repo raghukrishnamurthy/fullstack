@@ -1,0 +1,6 @@
+policy_id: ntp_policy
+profile_id: default
+settings:
+  enabled: true
+  servers:
+    - pool.ntp.org

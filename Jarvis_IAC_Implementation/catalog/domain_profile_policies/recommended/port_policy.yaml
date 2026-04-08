@@ -1,0 +1,9 @@
+policy_id: port_policy
+profile_id: recommended
+port_defaults:
+  uplink_mode: port_channel
+  uplink_port_channel_count: 1
+  admin_speed: Auto
+  fec: Auto
+  server_role: server
+  uplink_role: ethernet_uplink

@@ -1,0 +1,12 @@
+supported_policies:
+  required:
+    - port_policy
+    - switch_control_policy
+    - system_qos_policy
+    - ntp_policy
+    - network_connectivity_policy
+  expansion_candidates:
+    - ldap_policy
+    - certificate_policy
+    - snmp_policy
+    - pin_group_inventory

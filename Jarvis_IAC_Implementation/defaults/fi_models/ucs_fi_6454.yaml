@@ -1,0 +1,40 @@
+model: UCS-FI-6454
+transport_modes:
+  supported:
+    - ethernet_only
+    - ethernet_fc
+  default: ethernet_only
+unified_ports:
+  supported: true
+  ports:
+    start: 1
+    end: 16
+breakout:
+  ethernet_breakout_supported: true
+  fc_breakout_supported: false
+  breakout_capable_ports:
+    - 49
+    - 50
+    - 51
+    - 52
+    - 53
+    - 54
+port_ranges:
+  recommended_server_ports:
+    - fabric: "1"
+      start: 1
+      end: 48
+  recommended_uplink_ports:
+    - fabric: "1"
+      start: 49
+      end: 54
+recommended_layout_defaults:
+  default_uplink_mode: port_channel
+  default_uplink_port_channel_members:
+    - "1/49"
+    - "1/50"
+    - "1/51"
+    - "1/52"
+constraints:
+  fc_mode_requires_unified_ports: true
+  breakout_and_unified_configuration_must_follow_model_capabilities: true

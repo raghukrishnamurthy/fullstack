@@ -1,0 +1,34 @@
+model: UCS-FI-6652
+transport_modes:
+  supported:
+    - ethernet
+    - ethernet_fc
+  default: ethernet
+unified_ports:
+  supported: true
+  ports:
+    start: 17
+    end: 32
+breakout:
+  ethernet_breakout_supported: false
+  fc_breakout_supported: false
+  breakout_capable_ports: []
+port_ranges:
+  recommended_server_ports:
+    - fabric: "1"
+      start: 1
+      end: 48
+  recommended_uplink_ports:
+    - fabric: "1"
+      start: 49
+      end: 52
+recommended_layout_defaults:
+  default_uplink_mode: port_channel
+  default_uplink_port_channel_members:
+    - "1/49"
+    - "1/50"
+    - "1/51"
+    - "1/52"
+constraints:
+  fc_mode_requires_unified_ports: true
+  breakout_profiles_exposed_in_v1: false

@@ -1,0 +1,194 @@
+---
+- name: Debug infrastructure domain object shapes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
+    inventory_root: "{{ (inventory_yaml | default('') | trim | length > 0) | ternary(inventory_yaml | from_yaml, {}) }}"
+    platform_data: "{{ platform_root.platform | default(platform_root) }}"
+    inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
+    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    api_uri_normalized: >-
+      {{
+        raw_api_uri
+        if (raw_api_uri | regex_search('/api/v1/?$'))
+        else (raw_api_uri | regex_replace('/+$', '')) ~ '/api/v1'
+      }}
+    api_key_id_direct: "{{ platform_data.intersight.credentials.api_key_id | default('') | string | trim }}"
+    api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
+    api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') | string }}"
+    api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
+    resolved_api_key_id: >-
+      {{
+        api_key_id_direct
+        if (api_key_id_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+          if (api_key_id_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    resolved_api_private_key: >-
+      {{
+        api_private_key_direct
+        if (api_private_key_direct | length > 0)
+        else (
+          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+          if (api_private_key_ref | regex_search('^env://'))
+          else ''
+        )
+      }}
+    validate_certs: >-
+      {{
+        (platform_data.intersight.validate_certs | default('false') | string | lower)
+        in ['true', '1', 'yes']
+      }}
+    fi_serials: >-
+      {{
+        inventory_data.devices | default([])
+        | selectattr('category', 'defined')
+        | selectattr('category', 'equalto', 'fabric_interconnect')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | list
+      }}
+    compute_serials: >-
+      {{
+        inventory_data.devices | default([])
+        | selectattr('category', 'defined')
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | list
+      }}
+    blade_serials: >-
+      {{
+        inventory_data.devices | default([])
+        | selectattr('category', 'defined')
+        | selectattr('category', 'equalto', 'server')
+        | selectattr('attributes', 'defined')
+        | selectattr('attributes.form_factor', 'defined')
+        | selectattr('attributes.form_factor', 'equalto', 'blade')
+        | selectattr('serial', 'defined')
+        | map(attribute='serial')
+        | list
+      }}
+    fi_filter: >-
+      {{
+        fi_serials
+        | map('regex_replace', '^', "Serial eq '")
+        | map('regex_replace', '$', "'")
+        | join(' or ')
+      }}
+    compute_filter: >-
+      {{
+        compute_serials
+        | map('regex_replace', '^', "Serial eq '")
+        | map('regex_replace', '$', "'")
+        | join(' or ')
+      }}
+    blade_filter: >-
+      {{
+        blade_serials
+        | map('regex_replace', '^', "Serial eq '")
+        | map('regex_replace', '$', "'")
+        | join(' or ')
+      }}
+
+  tasks:
+    - name: Query fabric interconnect objects
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_uri: "{{ api_uri_normalized }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: /network/Elements
+        return_list: true
+        query_params:
+          $filter: "{{ fi_filter }}"
+          $top: 10
+      register: fi_result
+      when: fi_serials | length > 0
+
+    - name: Query chassis objects
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_uri: "{{ api_uri_normalized }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: /equipment/Chasses
+        return_list: true
+        query_params:
+          $top: 10
+      register: chassis_result
+
+    - name: Query chassis identity objects
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_uri: "{{ api_uri_normalized }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: /equipment/ChassisIdentities
+        return_list: true
+        query_params:
+          $top: 10
+      register: chassis_identity_result
+
+    - name: Query compute physical summaries
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_uri: "{{ api_uri_normalized }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: /compute/PhysicalSummaries
+        return_list: true
+        query_params:
+          $filter: "{{ compute_filter }}"
+          $top: 50
+      register: compute_result
+      when: compute_serials | length > 0
+
+    - name: Query compute blades
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_uri: "{{ api_uri_normalized }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: /compute/Blades
+        return_list: true
+        query_params:
+          $filter: "{{ blade_filter }}"
+          $top: 20
+      register: blade_result
+      when: blade_serials | length > 0
+
+    - name: Query compute blade identities
+      cisco.intersight.intersight_rest_api:
+        api_private_key: "{{ resolved_api_private_key }}"
+        api_key_id: "{{ resolved_api_key_id }}"
+        api_uri: "{{ api_uri_normalized }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_path: /compute/BladeIdentities
+        return_list: true
+        query_params:
+          $filter: "{{ blade_filter }}"
+          $top: 20
+      register: blade_identity_result
+      when: blade_serials | length > 0
+
+    - name: Build debug object summary
+      ansible.builtin.set_fact:
+        debug_summary:
+          fi_objects: "{{ fi_result.api_response | default([]) }}"
+          chassis_objects: "{{ chassis_result.api_response | default([]) }}"
+          chassis_identity_objects: "{{ chassis_identity_result.api_response | default([]) }}"
+          compute_objects: "{{ compute_result.api_response | default([]) }}"
+          blade_objects: "{{ blade_result.api_response | default([]) }}"
+          blade_identity_objects: "{{ blade_identity_result.api_response | default([]) }}"
+
+    - name: Print debug object summary
+      ansible.builtin.debug:
+        var: debug_summary

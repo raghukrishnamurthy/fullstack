@@ -1,0 +1,9 @@
+policy_id: switch_control_policy
+profile_id: recommended
+settings:
+  ethernet_switching_mode: end-host
+  fc_switching_mode: end-host
+  mac_aging_option: default
+  vlan_port_optimization_enabled: false
+  reserved_vlan_start_id: 3915
+  message_interval: 15

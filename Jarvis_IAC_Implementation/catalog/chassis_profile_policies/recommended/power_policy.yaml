@@ -1,0 +1,9 @@
+policy_id: chassis_power_policy
+profile_id: recommended
+settings:
+  target_platform: chassis
+  power_redundancy: N+1
+  power_save_mode: Enabled
+  dynamic_power_rebalancing: Enabled
+  extended_power_capacity: Enabled
+  power_allocation: 0
