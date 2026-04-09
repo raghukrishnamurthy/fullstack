@@ -16,6 +16,8 @@ Supplemental repo documentation lives here so the active contracts are easier to
   Customer-facing and automation-facing input contract guidance.
 - [Implementation Notes](/Users/rkrishn2/Documents/Jarvis_IAC/docs/implementation-notes.md)
   Current checkpoint and longer-lived repo assumptions.
+- [Phase Validator Steps](/tmp/jarvis-main-push/docs/phase-validator-steps.md)
+  Current phase blueprints, their validator grains, and the checks each validator performs.
 
 ## Architecture
 
