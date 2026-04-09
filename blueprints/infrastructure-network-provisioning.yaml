@@ -82,6 +82,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -95,9 +98,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id: '{{ .inputs.intersight_api_key_id }}'
-                  api_private_key: |
-                    {{ .inputs.intersight_api_private_key }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_json }}'
         - inventory_yaml: '{{ .inputs.inventory_json }}'
         - solution_yaml: '{{ .inputs.solution_json }}'
@@ -123,6 +125,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -136,9 +141,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id: '{{ .inputs.intersight_api_key_id }}'
-                  api_private_key: |
-                    {{ .inputs.intersight_api_private_key }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_json }}'
         - validation_mode: '{{ .inputs.validation_mode }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
@@ -160,6 +164,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -175,9 +182,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id: '{{ .inputs.intersight_api_key_id }}'
-                  api_private_key: |
-                    {{ .inputs.intersight_api_private_key }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_json }}'
         - site_yaml: '{{ .inputs.site_json }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
@@ -195,6 +201,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -210,9 +219,8 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id: '{{ .inputs.intersight_api_key_id }}'
-                  api_private_key: |
-                    {{ .inputs.intersight_api_private_key }}
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_json }}'
         - realized_policy_state_json: '{{ .grains.realize_infrastructure_network_policies.outputs.realized_policy_state_json }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
