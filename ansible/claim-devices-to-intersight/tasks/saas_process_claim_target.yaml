@@ -31,6 +31,28 @@
         (
           (claim_target_context.target_credential_candidates | default([]))
           + (claim_target_context.manufacturing_credential_candidates | default([]))
+          + (
+              [
+                {
+                  'username': (claim_target_context.claim_username | default('')),
+                  'password': (claim_target_context.claim_password | default('')),
+                  'password_ref': (claim_target_context.claim_password_ref | default(''))
+                }
+              ]
+              if (
+                (claim_target_context.claim_username | default('') | string | trim | length) > 0
+                and (
+                  (claim_target_context.claim_password | default('') | string | trim | length) > 0
+                  or (claim_target_context.claim_password_ref | default('') | string | trim | length) > 0
+                )
+              )
+              else []
+            )
+          + (
+              [claim_target_context.selected_target_credential]
+              if ((claim_target_context.selected_target_credential | default({})) | length) > 0
+              else []
+            )
         )
         if (
           (claim_target_context.target_category | default('')) == 'server'
