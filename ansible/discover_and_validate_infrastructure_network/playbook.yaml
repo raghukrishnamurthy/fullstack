@@ -59,6 +59,8 @@
           (lookup('ansible.builtin.env', 'TORQUE_WORKSPACE') | string | trim | length) > 0
         )
       }}
+    intersight_read_retry_count: 5
+    intersight_read_retry_delay: 10
     api_info: &api_info
       api_private_key: "{{ resolved_api_private_key }}"
       api_key_id: "{{ resolved_api_key_id }}"
@@ -94,8 +96,8 @@
         query_params:
           $filter: "Name eq '{{ organization_name }}'"
       register: organization_lookup_result
-      retries: 3
-      delay: 5
+      retries: "{{ intersight_read_retry_count }}"
+      delay: "{{ intersight_read_retry_delay }}"
       until: organization_lookup_result is succeeded
 
     - name: Validate organization exists in Intersight
@@ -125,6 +127,9 @@
       when:
         - (item.serial | default(item.serial_number | default('')) | string | trim | length) > 0
       register: fi_lookup_results
+      retries: "{{ intersight_read_retry_count }}"
+      delay: "{{ intersight_read_retry_delay }}"
+      until: fi_lookup_results is succeeded
 
     - name: Build discovered FI inventory
       ansible.builtin.set_fact:

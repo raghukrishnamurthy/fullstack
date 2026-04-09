@@ -57,6 +57,13 @@ It is optimized for:
 - Keep the module call focused on sending already-shaped data rather than computing it inline.
 - Prefer one clear normalized variable such as `formatted_system_qos_classes` or `formatted_uplink_ports` over repeating shape logic inside each task.
 
+9. Retry live Intersight reads explicitly.
+- Treat `cisco.intersight.intersight_rest_api` lookups as transient-failure prone, especially for discovery, validation, and idempotent reruns.
+- Use explicit Ansible task retries on read-heavy Intersight calls instead of assuming a single GET will be stable.
+- Prefer a shared play-level retry contract such as `intersight_read_retry_count` and `intersight_read_retry_delay` so read retries stay consistent across phases.
+- Quali's Intersight client code supports retry-aware patterns and many internal callers pass explicit retry counts for reads; mirror that style in repo playbooks rather than relying on one-shot API calls.
+- As a default repo stance, retry transient read failures such as HTTP `500`, `502`, `503`, `504`, and usually `429`; do not paper over deterministic contract errors like `400`, `401`, `403`, or `404`.
+
 ## Repo Patterns
 - Public Torque blueprint path:
   - `blueprints/claim-devices-to-intersight.yaml`

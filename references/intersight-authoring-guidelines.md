@@ -93,6 +93,40 @@ Read live state when:
 
 Do not invent or cache live values in blueprint outputs unless there is a strong reason and the downstream stage cannot safely look them up again.
 
+## Retry Rules For Live Intersight Reads
+
+Live Intersight reads are not perfectly stable during discovery, validation, or idempotent reruns.
+
+Repo rule:
+
+1. Add explicit retries around `cisco.intersight.intersight_rest_api` read tasks that query existing live state.
+2. Keep the retry contract consistent within a playbook by defining shared values such as:
+   - `intersight_read_retry_count`
+   - `intersight_read_retry_delay`
+3. Apply those values to lookups for:
+   - organizations
+   - fabric interconnects
+   - chassis
+   - policies
+   - profiles
+   - other live inventory or validation reads
+4. Prefer retrying transient upstream failures such as:
+   - HTTP `500`
+   - HTTP `502`
+   - HTTP `503`
+   - HTTP `504`
+   - usually HTTP `429`
+5. Do not use retries to hide deterministic authoring or contract problems such as:
+   - HTTP `400`
+   - HTTP `401`
+   - HTTP `403`
+   - HTTP `404`
+
+Reason:
+
+- Quali's Intersight codebase has retry-aware client plumbing and many internal callers pass explicit retry counts for read operations.
+- In this repo, explicit playbook retries are the clearest and safest way to make idempotent read paths resilient without obscuring true schema or payload defects.
+
 ## Recommended Authoring Flow
 
 1. Validate user/model inputs.
