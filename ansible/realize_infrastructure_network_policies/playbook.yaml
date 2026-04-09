@@ -262,10 +262,61 @@
       ansible.builtin.set_fact:
         organization_moid: "{{ policy_realization_organization_lookup.api_response.Moid }}"
 
+    - name: Look up existing policy objects by name for REST realization
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: "{{ item.resource_path }}"
+        query_params:
+          $filter: "Name eq '{{ item.name }}' and Organization.Moid eq '{{ organization_moid }}'"
+          $expand: Organization
+      loop:
+        - key: switch_control_policy
+          name: "{{ switch_control_policy_name }}"
+          resource_path: /fabric/SwitchControlPolicies
+        - key: system_qos_policy
+          name: "{{ system_qos_policy_name }}"
+          resource_path: /fabric/SystemQosPolicies
+        - key: ntp_policy
+          name: "{{ ntp_policy_name }}"
+          resource_path: /ntp/Policies
+        - key: network_connectivity_policy
+          name: "{{ network_connectivity_policy_name }}"
+          resource_path: /networkconfig/Policies
+        - key: port_policy
+          name: "{{ port_policy_name }}"
+          resource_path: /fabric/PortPolicies
+      loop_control:
+        label: "{{ item.key }}"
+      register: existing_policy_lookup_results
+
+    - name: Build existing policy map for REST realization
+      ansible.builtin.set_fact:
+        existing_policy_map: >-
+          {{
+            existing_policy_map | default({})
+            | combine(
+                {
+                  item.item.key: {
+                    'moid': item.api_response.Moid | default(''),
+                    'exists': (item.api_response.Moid is defined and (item.api_response.Moid | string | length) > 0)
+                  }
+                },
+                recursive=True
+              )
+          }}
+      loop: "{{ existing_policy_lookup_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
     - name: Create switch control policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: /fabric/SwitchControlPolicies
+        resource_path: >-
+          {{
+            '/fabric/SwitchControlPolicies/' ~ existing_policy_map.switch_control_policy.moid
+            if (existing_policy_map.switch_control_policy.exists | default(false))
+            else '/fabric/SwitchControlPolicies'
+          }}
         query_params:
           $filter: "Name eq '{{ switch_control_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
@@ -274,7 +325,6 @@
             {
               'Name': switch_control_policy_name,
               'Description': 'Switch control policy for ' ~ infrastructure_network_model.deployment.name_prefix,
-              'Organization': {'Name': organization_name},
               'EthernetSwitchingMode': effective_target_domain.policy_values.switch_control_policy.settings.ethernet_switching_mode,
               'FcSwitchingMode': effective_target_domain.policy_values.switch_control_policy.settings.fc_switching_mode,
               'VlanPortOptimizationEnabled': effective_target_domain.policy_values.switch_control_policy.settings.vlan_port_optimization_enabled,
@@ -289,6 +339,11 @@
               'FabricPcVhbaReset': 'Disabled',
               'AesPrimaryKey': ''
             }
+            | combine(
+                (existing_policy_map.switch_control_policy.exists | default(false))
+                | ternary({}, {'Organization': {'Name': organization_name}}),
+                recursive=True
+              )
           }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: switch_control_policy_result
@@ -299,7 +354,12 @@
     - name: Create system QoS policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: /fabric/SystemQosPolicies
+        resource_path: >-
+          {{
+            '/fabric/SystemQosPolicies/' ~ existing_policy_map.system_qos_policy.moid
+            if (existing_policy_map.system_qos_policy.exists | default(false))
+            else '/fabric/SystemQosPolicies'
+          }}
         query_params:
           $filter: "Name eq '{{ system_qos_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
@@ -308,9 +368,13 @@
             {
               'Name': system_qos_policy_name,
               'Description': 'System QoS policy for ' ~ infrastructure_network_model.deployment.name_prefix,
-              'Organization': {'Name': organization_name},
               'Classes': effective_target_domain.policy_values.system_qos_policy.settings.classes
             }
+            | combine(
+                (existing_policy_map.system_qos_policy.exists | default(false))
+                | ternary({}, {'Organization': {'Name': organization_name}}),
+                recursive=True
+              )
           }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: system_qos_policy_result
@@ -321,7 +385,12 @@
     - name: Create NTP policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: /ntp/Policies
+        resource_path: >-
+          {{
+            '/ntp/Policies/' ~ existing_policy_map.ntp_policy.moid
+            if (existing_policy_map.ntp_policy.exists | default(false))
+            else '/ntp/Policies'
+          }}
         query_params:
           $filter: "Name eq '{{ ntp_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
@@ -330,10 +399,14 @@
             {
               'Name': ntp_policy_name,
               'Description': 'NTP policy for ' ~ infrastructure_network_model.deployment.name_prefix,
-              'Organization': {'Name': organization_name},
               'Enabled': effective_target_domain.policy_values.ntp_policy.settings.enabled,
               'NtpServers': effective_target_domain.policy_values.ntp_policy.settings.servers
             }
+            | combine(
+                (existing_policy_map.ntp_policy.exists | default(false))
+                | ternary({}, {'Organization': {'Name': organization_name}}),
+                recursive=True
+              )
           }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: ntp_policy_result
@@ -344,7 +417,12 @@
     - name: Create network connectivity policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: /networkconfig/Policies
+        resource_path: >-
+          {{
+            '/networkconfig/Policies/' ~ existing_policy_map.network_connectivity_policy.moid
+            if (existing_policy_map.network_connectivity_policy.exists | default(false))
+            else '/networkconfig/Policies'
+          }}
         query_params:
           $filter: "Name eq '{{ network_connectivity_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
@@ -353,12 +431,16 @@
             {
               'Name': network_connectivity_policy_name,
               'Description': 'Network connectivity policy for ' ~ infrastructure_network_model.deployment.name_prefix,
-              'Organization': {'Name': organization_name},
               'EnableDynamicDns': effective_target_domain.policy_values.network_connectivity_policy.settings.enable_dynamic_dns,
               'EnableIpv4dnsFromDhcp': effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv4_dns_from_dhcp,
               'EnableIpv6': effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6,
               'EnableIpv6dnsFromDhcp': effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6_dns_from_dhcp
             }
+            | combine(
+                (existing_policy_map.network_connectivity_policy.exists | default(false))
+                | ternary({}, {'Organization': {'Name': organization_name}}),
+                recursive=True
+              )
             | combine(
                 (
                   effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv4_dns_from_dhcp
@@ -383,7 +465,12 @@
     - name: Create port policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: /fabric/PortPolicies
+        resource_path: >-
+          {{
+            '/fabric/PortPolicies/' ~ existing_policy_map.port_policy.moid
+            if (existing_policy_map.port_policy.exists | default(false))
+            else '/fabric/PortPolicies'
+          }}
         query_params:
           $filter: "Name eq '{{ port_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
@@ -392,9 +479,13 @@
             {
               'Name': port_policy_name,
               'Description': 'Port policy for ' ~ infrastructure_network_model.deployment.name_prefix ~ ' infrastructure-network-provisioning',
-              'Organization': {'Name': organization_name},
               'DeviceModel': effective_target_domain.fi_model
             }
+            | combine(
+                (existing_policy_map.port_policy.exists | default(false))
+                | ternary({}, {'Organization': {'Name': organization_name}}),
+                recursive=True
+              )
           }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: port_policy_result
