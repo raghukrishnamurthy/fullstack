@@ -58,11 +58,28 @@
         (platform_data.intersight.validate_certs | default('false') | string | lower)
         in ['true', '1', 'yes']
       }}
+    python_bootstrap_enabled: "{{ (bootstrap_python_requirements | default('auto') | string | lower) }}"
+    python_bootstrap_should_run: >-
+      {{
+        true
+        if python_bootstrap_enabled == 'true'
+        else false
+        if python_bootstrap_enabled == 'false'
+        else (
+          (lookup('ansible.builtin.env', 'TORQUE_WORKSPACE') | string | trim | length) > 0
+        )
+      }}
     api_info: &api_info
       api_private_key: "{{ resolved_api_private_key }}"
       api_key_id: "{{ resolved_api_key_id }}"
       api_uri: "{{ api_uri_normalized }}"
       validate_certs: "{{ validate_certs }}"
+
+  pre_tasks:
+    - name: Install shared Python requirements
+      ansible.builtin.pip:
+        requirements: "{{ playbook_dir }}/../requirements.txt"
+      when: python_bootstrap_should_run | bool
 
   tasks:
     - name: Validate policy realization inputs
