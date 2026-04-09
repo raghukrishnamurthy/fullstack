@@ -243,98 +243,237 @@
               {%- endfor -%}
               {{ out }}
 
-    - name: Create switch control policy in Intersight
-      cisco.intersight.intersight_switch_control_policy:
+    - name: Look up organization in Intersight for policy realization
+      cisco.intersight.intersight_rest_api:
         <<: *api_info
-        organization: "{{ organization_name }}"
-        name: "{{ switch_control_policy_name }}"
-        description: "Switch control policy for {{ infrastructure_network_model.deployment.name_prefix }}"
-        ethernet_switching_mode: "{{ effective_target_domain.policy_values.switch_control_policy.settings.ethernet_switching_mode }}"
-        fc_switching_mode: "{{ effective_target_domain.policy_values.switch_control_policy.settings.fc_switching_mode }}"
-        mac_aging_option: "{{ effective_target_domain.policy_values.switch_control_policy.settings.mac_aging_option }}"
-        vlan_port_optimization_enabled: "{{ effective_target_domain.policy_values.switch_control_policy.settings.vlan_port_optimization_enabled }}"
-        reserved_vlan_start_id: "{{ effective_target_domain.policy_values.switch_control_policy.settings.reserved_vlan_start_id }}"
-        message_interval: "{{ effective_target_domain.policy_values.switch_control_policy.settings.message_interval }}"
+        resource_path: /organization/Organizations
+        query_params:
+          $filter: "Name eq '{{ organization_name }}'"
+      register: policy_realization_organization_lookup
+
+    - name: Validate organization exists for policy realization
+      ansible.builtin.assert:
+        that:
+          - policy_realization_organization_lookup.api_response.Moid is defined
+          - policy_realization_organization_lookup.api_response.Moid | length > 0
+        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
+
+    - name: Capture organization Moid for REST policy realization
+      ansible.builtin.set_fact:
+        organization_moid: "{{ policy_realization_organization_lookup.api_response.Moid }}"
+
+    - name: Create switch control policy in Intersight via REST
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/SwitchControlPolicies
+        query_params:
+          $filter: "Name eq '{{ switch_control_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
+          $expand: Organization
+        api_body:
+          Name: "{{ switch_control_policy_name }}"
+          Description: "Switch control policy for {{ infrastructure_network_model.deployment.name_prefix }}"
+          Organization:
+            Moid: "{{ organization_moid }}"
+          EthernetSwitchingMode: "{{ effective_target_domain.policy_values.switch_control_policy.settings.ethernet_switching_mode }}"
+          FcSwitchingMode: "{{ effective_target_domain.policy_values.switch_control_policy.settings.fc_switching_mode }}"
+          VlanPortOptimizationEnabled: "{{ effective_target_domain.policy_values.switch_control_policy.settings.vlan_port_optimization_enabled }}"
+          ReservedVlanStartId: "{{ effective_target_domain.policy_values.switch_control_policy.settings.reserved_vlan_start_id }}"
+          MacAgingSettings:
+            MacAgingOption: "{{ effective_target_domain.policy_values.switch_control_policy.settings.mac_aging_option | string | capitalize }}"
+          UdldSettings:
+            MessageInterval: "{{ effective_target_domain.policy_values.switch_control_policy.settings.message_interval }}"
+            RecoveryAction: none
+          FabricPcVhbaReset: Disabled
+          AesPrimaryKey: ""
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: switch_control_policy_result
       retries: 3
       delay: 5
       until: switch_control_policy_result is succeeded
 
-    - name: Create system QoS policy in Intersight
-      cisco.intersight.intersight_system_qos_policy:
+    - name: Create system QoS policy in Intersight via REST
+      cisco.intersight.intersight_rest_api:
         <<: *api_info
-        organization: "{{ organization_name }}"
-        name: "{{ system_qos_policy_name }}"
-        description: "System QoS policy for {{ infrastructure_network_model.deployment.name_prefix }}"
-        classes: "{{ effective_target_domain.policy_values.system_qos_policy.settings.classes }}"
+        resource_path: /fabric/SystemQosPolicies
+        query_params:
+          $filter: "Name eq '{{ system_qos_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
+          $expand: Organization
+        api_body:
+          Name: "{{ system_qos_policy_name }}"
+          Description: "System QoS policy for {{ infrastructure_network_model.deployment.name_prefix }}"
+          Organization:
+            Moid: "{{ organization_moid }}"
+          Classes: "{{ effective_target_domain.policy_values.system_qos_policy.settings.classes }}"
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: system_qos_policy_result
       retries: 3
       delay: 5
       until: system_qos_policy_result is succeeded
 
-    - name: Create NTP policy in Intersight
-      cisco.intersight.intersight_ntp_policy:
+    - name: Create NTP policy in Intersight via REST
+      cisco.intersight.intersight_rest_api:
         <<: *api_info
-        organization: "{{ organization_name }}"
-        name: "{{ ntp_policy_name }}"
-        description: "NTP policy for {{ infrastructure_network_model.deployment.name_prefix }}"
-        enable: "{{ effective_target_domain.policy_values.ntp_policy.settings.enabled }}"
-        ntp_servers: "{{ effective_target_domain.policy_values.ntp_policy.settings.servers }}"
+        resource_path: /ntp/Policies
+        query_params:
+          $filter: "Name eq '{{ ntp_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
+          $expand: Organization
+        api_body:
+          Name: "{{ ntp_policy_name }}"
+          Description: "NTP policy for {{ infrastructure_network_model.deployment.name_prefix }}"
+          Organization:
+            Moid: "{{ organization_moid }}"
+          Enabled: "{{ effective_target_domain.policy_values.ntp_policy.settings.enabled }}"
+          NtpServers: "{{ effective_target_domain.policy_values.ntp_policy.settings.servers }}"
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: ntp_policy_result
       retries: 3
       delay: 5
       until: ntp_policy_result is succeeded
 
-    - name: Create network connectivity policy in Intersight
-      cisco.intersight.intersight_network_connectivity_policy:
+    - name: Create network connectivity policy in Intersight via REST
+      cisco.intersight.intersight_rest_api:
         <<: *api_info
-        organization: "{{ organization_name }}"
-        name: "{{ network_connectivity_policy_name }}"
-        description: "Network connectivity policy for {{ infrastructure_network_model.deployment.name_prefix }}"
-        enable_dynamic_dns: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_dynamic_dns }}"
-        enable_ipv4_dns_from_dhcp: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv4_dns_from_dhcp }}"
-        preferred_ipv4_dns_server: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.preferred_ipv4_dns_server }}"
-        alternate_ipv4_dns_server: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.alternate_ipv4_dns_server }}"
-        enable_ipv6: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6 }}"
-        enable_ipv6_dns_from_dhcp: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6_dns_from_dhcp }}"
+        resource_path: /networkconfig/Policies
+        query_params:
+          $filter: "Name eq '{{ network_connectivity_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
+          $expand: Organization
+        api_body:
+          Name: "{{ network_connectivity_policy_name }}"
+          Description: "Network connectivity policy for {{ infrastructure_network_model.deployment.name_prefix }}"
+          Organization:
+            Moid: "{{ organization_moid }}"
+          EnableDynamicDns: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_dynamic_dns }}"
+          EnableIpv4dnsFromDhcp: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv4_dns_from_dhcp }}"
+          PreferredIpv4dnsServer: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.preferred_ipv4_dns_server }}"
+          AlternateIpv4dnsServer: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.alternate_ipv4_dns_server }}"
+          EnableIpv6: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6 }}"
+          EnableIpv6dnsFromDhcp: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6_dns_from_dhcp }}"
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: network_connectivity_policy_result
       retries: 3
       delay: 5
       until: network_connectivity_policy_result is succeeded
 
-    - name: Create port policy in Intersight
-      cisco.intersight.intersight_port_policy:
+    - name: Create port policy in Intersight via REST
+      cisco.intersight.intersight_rest_api:
         <<: *api_info
-        organization: "{{ organization_name }}"
-        name: "{{ port_policy_name }}"
-        description: "Port policy for {{ infrastructure_network_model.deployment.name_prefix }} infrastructure-network-provisioning"
-        device_model: "{{ effective_target_domain.fi_model }}"
-        fc_port_mode: >-
-          {{
-            {
-              'port_id_start': (effective_target_domain.fi_model == 'UCS-FI-6664') | ternary(25, 1),
-              'port_id_end': (
-                effective_target_domain.fi_model == 'UCS-FI-6664'
-                | ternary(
-                    effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int,
-                    effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int
-                  )
-              )
-            }
-            if effective_target_domain.port_mapping_profile_id == 'ethernet_fc'
-            else omit
-          }}
-        ethernet_uplink_port_channels: "{{ module_ethernet_uplink_port_channels }}"
-        server_ports: "{{ module_server_ports }}"
+        resource_path: /fabric/PortPolicies
+        query_params:
+          $filter: "Name eq '{{ port_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
+          $expand: Organization
+        api_body:
+          Name: "{{ port_policy_name }}"
+          Description: "Port policy for {{ infrastructure_network_model.deployment.name_prefix }} infrastructure-network-provisioning"
+          Organization:
+            Moid: "{{ organization_moid }}"
+          DeviceModel: "{{ effective_target_domain.fi_model }}"
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: port_policy_result
       retries: 3
       delay: 5
       until: port_policy_result is succeeded
+
+    - name: Capture port policy Moid for REST secondary realization
+      ansible.builtin.set_fact:
+        port_policy_moid: "{{ port_policy_result.api_response.Moid }}"
+      when:
+        - (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+        - port_policy_result.api_response is defined
+        - port_policy_result.api_response.Moid is defined
+
+    - name: Create FC port mode in Intersight via REST
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/PortModes
+        query_params:
+          $filter: >-
+            PortPolicy.Moid eq '{{ port_policy_moid }}'
+            and PortIdStart eq {{ (effective_target_domain.fi_model == 'UCS-FI-6664') | ternary(25, 1) }}
+            and PortIdEnd eq {{ effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int }}
+        api_body:
+          PortPolicy: "{{ port_policy_moid }}"
+          SlotId: 1
+          PortIdStart: "{{ (effective_target_domain.fi_model == 'UCS-FI-6664') | ternary(25, 1) }}"
+          PortIdEnd: "{{ effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int }}"
+      when:
+        - (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+        - effective_target_domain.port_mapping_profile_id == 'ethernet_fc'
+        - port_policy_moid is defined
+        - port_policy_moid | length > 0
+      register: fc_port_mode_result
+      retries: 3
+      delay: 5
+      until: fc_port_mode_result is succeeded
+
+    - name: Create server roles in Intersight via REST
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/ServerRoles
+        query_params:
+          $filter: >-
+            PortPolicy.Moid eq '{{ port_policy_moid }}'
+            and PortId eq {{ (item.port_id | string).split('/')[0] | int }}
+            {%- if '/' in (item.port_id | string) -%}
+            and AggregatePortId eq {{ (item.port_id | string).split('/')[1] | int }}
+            {%- endif -%}
+        api_body:
+          PortPolicy: "{{ port_policy_moid }}"
+          SlotId: 1
+          PortId: "{{ (item.port_id | string).split('/')[0] | int }}"
+          Fec: "{{ item.fec | default('Auto') }}"
+          AutoNegotiationDisabled: "{{ item.manual_numbering | default(false) }}"
+          AggregatePortId: "{{ ((item.port_id | string).split('/')[1] | int) if ('/' in (item.port_id | string)) else omit }}"
+          UserLabel: "{{ item.user_label if (item.user_label | default('') | length > 0) else omit }}"
+          PreferredDeviceType: "{{ item.preferred_device_type if (item.preferred_device_type | default('') | length > 0) else omit }}"
+          PreferredDeviceId: "{{ item.preferred_device_id if (item.preferred_device_id is defined) else omit }}"
+      loop: "{{ module_server_ports | default([]) }}"
+      loop_control:
+        label: "{{ item.port_id }}"
+      when:
+        - (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+        - port_policy_moid is defined
+        - port_policy_moid | length > 0
+      register: server_role_results
+      retries: 3
+      delay: 5
+      until: server_role_results is succeeded
+
+    - name: Create Ethernet uplink port channels in Intersight via REST
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /fabric/UplinkPcRoles
+        query_params:
+          $filter: >-
+            PortPolicy.Moid eq '{{ port_policy_moid }}'
+            and PcId eq {{ item.pc_id | int }}
+        api_body:
+          PortPolicy: "{{ port_policy_moid }}"
+          PcId: "{{ item.pc_id | int }}"
+          AdminSpeed: "{{ item.admin_speed | default('Auto') }}"
+          Fec: "{{ item.fec | default('Auto') }}"
+          UserLabel: "{{ item.user_label if (item.user_label | default('') | length > 0) else omit }}"
+          Ports: >-
+            {%- set out = [] -%}
+            {%- for member in item.ports | default([]) -%}
+            {%- set member_parts = (member.port_id | string).split('/') -%}
+            {%- set entry = {'PortId': (member_parts[0] | int), 'SlotId': 1, 'id': (member.port_id | string)} -%}
+            {%- if member_parts | length > 1 -%}
+            {%- set _ = entry.update({'AggregatePortId': (member_parts[1] | int)}) -%}
+            {%- endif -%}
+            {%- set _ = out.append(entry) -%}
+            {%- endfor -%}
+            {{ out }}
+      loop: "{{ module_ethernet_uplink_port_channels | default([]) }}"
+      loop_control:
+        label: "{{ item.pc_id }}"
+      when:
+        - (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
+        - port_policy_moid is defined
+        - port_policy_moid | length > 0
+      register: ethernet_uplink_pc_results
+      retries: 3
+      delay: 5
+      until: ethernet_uplink_pc_results is succeeded
 
     - name: Look up realized policy objects by name
       cisco.intersight.intersight_rest_api:
@@ -384,7 +523,7 @@
           domains:
             - "{{ effective_target_domain }}"
           execution_intent: "{{ execution_intent | default('validate_only') }}"
-          realization_mode: intersight_collection_modules
+          realization_mode: intersight_rest_api
           policies:
             port_policy:
               name: "{{ port_policy_name }}"
@@ -444,7 +583,7 @@
         policy_realization_summary:
           policy_count: 5
           domain_count: "{{ infrastructure_network_model.domains | length }}"
-          realization_mode: intersight_collection_modules
+          realization_mode: intersight_rest_api
           fi_model: "{{ effective_target_domain.fi_model }}"
           policy_profile_id: "{{ effective_target_domain.policy_profile_id }}"
           port_mapping_profile_id: "{{ effective_target_domain.port_mapping_profile_id }}"
