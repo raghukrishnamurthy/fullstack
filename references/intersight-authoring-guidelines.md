@@ -110,13 +110,14 @@ Repo rule:
    - policies
    - profiles
    - other live inventory or validation reads
-4. Prefer retrying transient upstream failures such as:
+4. Do not stop after hardening the first read in a playbook. Follow-on live lookups in the same phase should use the same retry contract unless there is a clear reason not to.
+5. Prefer retrying transient upstream failures such as:
    - HTTP `500`
    - HTTP `502`
    - HTTP `503`
    - HTTP `504`
    - usually HTTP `429`
-5. Do not use retries to hide deterministic authoring or contract problems such as:
+6. Do not use retries to hide deterministic authoring or contract problems such as:
    - HTTP `400`
    - HTTP `401`
    - HTTP `403`
@@ -144,6 +145,11 @@ That validator grain is the phase completion authority and should:
 
 The validator grain should be the canonical end-of-phase signal that later blueprints depend on.
 
+Validator export rule:
+
+- if the validator owns `phase_ready`, `phase_status`, and final handoff JSON, its export path should be treated as required
+- avoid `ignore_errors: true` on the final validator export unless there is a separately enforced failure path
+
 Repo expectation:
 
 1. A second full run with the same inputs should complete successfully across discovery, realization, deployment, validation, and summary phases.
@@ -159,6 +165,7 @@ When reviewing idempotency, pay special attention to:
 - deployment actions that trigger again even though the final state is already terminal and clean
 - worker bootstrap tasks that mutate the runtime on every execution
 - transient Intersight read failures that should have been retried
+- validators that declare success while relying only on prior in-memory artifacts instead of re-checking durable state where practical
 
 Preferred authoring pattern:
 

@@ -69,6 +69,11 @@ Phase blueprint pattern:
 
 The validator grain is the completion authority for the phase.
 
+Validator-authority rules:
+
+- validator export tasks should not ignore failure when publishing the final phase contract
+- `phase_ready`, `phase_status`, and validator-owned JSON outputs should be treated as required outputs, not best-effort outputs
+
 ## Python Documentation Standard
 
 Python used in helpers, embedded validation blocks, or supporting scripts should
@@ -108,6 +113,7 @@ Read-path rules:
 - keep shared retry vars such as:
   - `intersight_read_retry_count`
   - `intersight_read_retry_delay`
+- apply the retry contract consistently to all live lookup stages in the playbook, not only the first organization or inventory read
 - treat `500`, `502`, `503`, `504`, and usually `429` as transient read failures
 - do not hide `400`, `401`, `403`, or `404` with broad retry loops
 
@@ -129,6 +135,7 @@ Things to treat as idempotency bugs:
 - repeated deployment actions after terminal success
 - worker bootstrap steps that mutate the environment every run
 - read failures caused by missing retries on transient Intersight responses
+- validator grains that can succeed locally while silently failing to export the final Torque contract
 
 ## Validator Grain Standard
 
@@ -145,6 +152,12 @@ The validator grain is the official completion authority for the phase.
 
 Earlier grains still need to be rerun-safe. A correct validator pattern does not
 replace the need for idempotent discovery and realization.
+
+Preferred validator behavior:
+
+- re-read durable live state when the final readiness decision depends on mutable provider state
+- avoid making the validator a pure repackaging step when a direct live check is practical
+- fail visibly if the final contract cannot be exported
 
 ## Documentation Standard For Each Phase
 

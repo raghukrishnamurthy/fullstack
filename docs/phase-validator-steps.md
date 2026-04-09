@@ -37,6 +37,11 @@ Validator steps:
    - `phase_status`
    - `phase_readiness_json`
 
+Implementation notes from review:
+
+- this validator already does real live polling and pair validation, which matches the intended validator-grain role well
+- its per-poll Intersight read path should use explicit retries so transient `500 Retry later` responses do not abort the validator loop
+
 ### `infrastructure-network-provisioning`
 
 - Blueprint:
@@ -68,6 +73,12 @@ Validator steps:
    - `managed_object_inventory_json`
    - `validation_summary_json`
    - `tac_handoff_json`
+
+Implementation notes from review:
+
+- this validator currently acts more as a final gate and summarizer than a fully independent live-state validator
+- it should remain the phase completion authority, but future hardening should prefer direct durable-state checks where practical
+- validator-owned Torque output export should be treated as authoritative and should not be silently ignored on failure
 
 ### `infrastructure-resource-provisioning-v1`
 
@@ -143,3 +154,7 @@ When adding a new phase blueprint:
 2. document what that validator checks
 3. make that validator the source for `phase_ready` and `phase_status`
 4. keep downstream handoff outputs owned by that validator
+
+Review reminder:
+
+- the validator pattern is not complete unless its live reads are resilient and its final export path is authoritative
