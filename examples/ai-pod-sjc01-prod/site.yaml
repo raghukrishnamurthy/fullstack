@@ -4,11 +4,9 @@ site:
     location: SJC01-DC
     dns:
       servers:
-        - 10.10.10.10
-        - 10.10.10.11
+        - 171.70.168.183
     ntp:
       servers:
-        - 10.20.20.10
-        - 10.20.20.11
+        - ntp.esl.cisco.com
     proxy:
       enabled: false
