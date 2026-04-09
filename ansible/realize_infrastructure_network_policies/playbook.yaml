@@ -600,8 +600,11 @@
               'AutoNegotiationDisabled': item.manual_numbering | default(false)
             }
             | combine(
-                ('/' in (item.port_id | string))
-                | ternary({'AggregatePortId': ((item.port_id | string).split('/')[1] | int)}, {}),
+                (
+                  {'AggregatePortId': (((item.port_id | string).split('/'))[1] | int)}
+                  if (((item.port_id | string).split('/')) | length > 1)
+                  else {}
+                ),
                 recursive=True
               )
             | combine(
@@ -657,12 +660,10 @@
                     }
                     | combine(
                         (
-                          ((member.port_id | string).split('/')) | length > 1
-                        )
-                        | ternary(
-                            {'AggregatePortId': ((member.port_id | string).split('/')[1] | int)},
-                            {}
-                          ),
+                          {'AggregatePortId': (((member.port_id | string).split('/'))[1] | int)}
+                          if (((member.port_id | string).split('/')) | length > 1)
+                          else {}
+                        ),
                         recursive=True
                       )
                   )
