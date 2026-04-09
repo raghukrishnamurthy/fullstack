@@ -650,26 +650,7 @@
               'PcId': (item.pc_id | int),
               'AdminSpeed': item.admin_speed | default('Auto'),
               'Fec': item.fec | default('Auto'),
-              'Ports': (
-                [
-                  (
-                    {
-                      'PortId': ((member.port_id | string).split('/')[0] | int),
-                      'SlotId': 1,
-                      'id': (member.port_id | string)
-                    }
-                    | combine(
-                        (
-                          {'AggregatePortId': (((member.port_id | string).split('/'))[1] | int)}
-                          if (((member.port_id | string).split('/')) | length > 1)
-                          else {}
-                        ),
-                        recursive=True
-                      )
-                  )
-                  for member in (item.ports | default([]))
-                ]
-              )
+              'Ports': formatted_uplink_ports
             }
             | combine(
                 ((item.user_label | default('') | length) > 0)
@@ -677,6 +658,22 @@
                 recursive=True
               )
           }}
+      vars:
+        formatted_uplink_ports: >-
+          {%- set out = [] -%}
+          {%- for member in (item.ports | default([])) -%}
+          {%-   set parts = (member.port_id | string).split('/') -%}
+          {%-   set entry = {
+                  'PortId': (parts[0] | int),
+                  'SlotId': 1,
+                  'id': (member.port_id | string)
+                } -%}
+          {%-   if (parts | length) > 1 -%}
+          {%-     set _ = entry.update({'AggregatePortId': (parts[1] | int)}) -%}
+          {%-   endif -%}
+          {%-   set _ = out.append(entry) -%}
+          {%- endfor -%}
+          {{ out }}
       loop: "{{ module_ethernet_uplink_port_channels | default([]) }}"
       loop_control:
         label: "{{ item.pc_id }}"
