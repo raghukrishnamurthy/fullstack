@@ -1,5 +1,5 @@
 spec_version: 2
-description: Infrastructure network provisioning phase blueprint that plans shared FI and fabric/network foundation from shared JSON-string context
+description: Infrastructure network provisioning for Intersight IMM FI-attached domains using onboarding-style public inputs
 inputs:
   agent:
     type: agent
@@ -20,7 +20,7 @@ inputs:
     description: Intersight API private key PEM content
   platform_json:
     type: string
-    description: Optional JSON platform override; direct Intersight inputs are preferred
+    description: Optional JSON platform context override including Intersight endpoint and non-secret settings
     default: ''
   placement_json:
     type: string
@@ -30,18 +30,7 @@ inputs:
     description: JSON inventory context for the infrastructure domain
   solution_json:
     type: string
-    description: JSON solution profile context used to resolve built-in baseline selection
-  credential_candidates_json:
-    type: string
-    description: Optional JSON credential-candidate contract used by the integrated model grain
-    default: "{}"
-  encrypted_device_secret_bundle_path:
-    type: string
-    description: Optional encrypted device secret bundle path; defaults to the repo-staged bundle when present
-    default: ''
-  device_secret_bundle_key:
-    type: string
-    description: Optional unwrap key used to decrypt encrypted_device_secret_bundle_path at runtime
+    description: Optional JSON solution profile context
     default: ''
   site_json:
     type: string
@@ -67,54 +56,32 @@ inputs:
     type: string
     description: Execution intent for the network phase
     default: validate_only
-grains:
-  prepare_device_secret_bundle:
-    kind: ansible
-    spec:
-      source:
-        store: intersight-fullstack-repo
-        path: ansible/prepare-device-secret-bundle/playbook.yaml
-      files:
-        - source: intersight-fullstack-repo
-          path: assets/secrets/device-secrets.enc
-      command-arguments: -vvv
-      agent:
-        name: '{{ .inputs.agent }}'
-      inventory-file:
-        localhost:
-          hosts:
-            localhost:
-              ansible_connection: local
-      inputs:
-        - encrypted_device_secret_bundle_path: '{{ .inputs.encrypted_device_secret_bundle_path }}'
-        - device_secret_bundle_key: '{{ .inputs.device_secret_bundle_key }}'
-        - credential_candidates_yaml: '{{ .inputs.credential_candidates_json }}'
-      outputs:
-        - resolved_credential_candidates_yaml
-        - resolved_device_secret_bundle_root
-    on-destroy:
-      - source:
-          store: intersight-fullstack-repo
-          path: ansible/prepare-device-secret-bundle/playbook.yaml
-        inventory-file:
-          localhost:
-            hosts:
-              localhost:
-                ansible_connection: local
+  name_prefix:
+    type: string
+    description: Prefix used to construct managed object names
+  policy_profile:
+    type: string
+    description: Named built-in policy profile id
+    default: recommended
+  port_mapping_profile:
+    type: string
+    description: Named built-in port mapping profile id
+    default: ethernet
+  domain_profile_selections_json:
+    type: string
+    description: Optional per-domain selection refinements as JSON
+    default: '{"domains":{}}'
 
-  build_infrastructure_domain_model:
+grains:
+  resolve_infrastructure_network_model:
     kind: ansible
-    depends-on: prepare_device_secret_bundle
     spec:
       source:
         store: intersight-fullstack-repo
-        path: ansible/build-infrastructure-domain-model/playbook.yaml
+        path: ansible/resolve_infrastructure_network_model/playbook.yaml
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
-      env-vars:
-        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
-        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -128,37 +95,31 @@ grains:
                 endpoint: {{ .inputs.api_uri }}
                 validate_certs: false
                 credentials:
-                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
-                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+                  api_key_id: '{{ .inputs.intersight_api_key_id }}'
+                  api_private_key: |
+                    {{ .inputs.intersight_api_private_key }}
         - placement_yaml: '{{ .inputs.placement_json }}'
         - inventory_yaml: '{{ .inputs.inventory_json }}'
         - solution_yaml: '{{ .inputs.solution_json }}'
-        - credential_candidates_yaml: '{{ .grains.prepare_device_secret_bundle.outputs.resolved_credential_candidates_yaml }}'
         - site_yaml: '{{ .inputs.site_json }}'
         - baseline_input_source: '{{ .inputs.baseline_input_source }}'
         - baseline_directory: '{{ .inputs.baseline_directory }}'
         - overrides_yaml: '{{ .inputs.overrides_json }}'
-        - validation_mode: '{{ .inputs.validation_mode }}'
-        - execution_intent: validate_only
+        - name_prefix: '{{ .inputs.name_prefix }}'
+        - policy_profile: '{{ .inputs.policy_profile }}'
+        - port_mapping_profile: '{{ .inputs.port_mapping_profile }}'
+        - domain_profile_selections_json: '{{ .inputs.domain_profile_selections_json }}'
       outputs:
-        - discovery_model_json
-        - discovery_summary_json
-    on-destroy:
-      - source:
-          store: intersight-fullstack-repo
-          path: ansible/build-infrastructure-domain-model/teardown.yaml
-        inventory-file:
-          localhost:
-            hosts:
-              localhost:
-                ansible_connection: local
-  infrastructure_network_provisioning:
+        - infrastructure_network_model_json
+        - infrastructure_network_summary_json
+
+  discover_and_validate_infrastructure_network:
     kind: ansible
-    depends-on: build_infrastructure_domain_model
+    depends-on: resolve_infrastructure_network_model
     spec:
       source:
         store: intersight-fullstack-repo
-        path: ansible/infrastructure-network-provisioning/playbook.yaml
+        path: ansible/discover_and_validate_infrastructure_network/playbook.yaml
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
@@ -168,38 +129,155 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - discovery_model_json: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_model_json }}'
-        - discovery_summary_json: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_summary_json }}'
+        - infrastructure_network_model_json: '{{ .grains.resolve_infrastructure_network_model.outputs.infrastructure_network_model_json }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id: '{{ .inputs.intersight_api_key_id }}'
+                  api_private_key: |
+                    {{ .inputs.intersight_api_private_key }}
+        - placement_yaml: '{{ .inputs.placement_json }}'
+        - validation_mode: '{{ .inputs.validation_mode }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
+      outputs:
+        - infrastructure_network_live_state_json
+        - infrastructure_network_effective_model_json
+        - infrastructure_network_validation_json
+        - phase_ready
+        - phase_status
+        - phase_readiness_json
+
+  realize_infrastructure_network_policies:
+    kind: ansible
+    depends-on: discover_and_validate_infrastructure_network
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/realize_infrastructure_network_policies/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - infrastructure_network_model_json: '{{ .grains.resolve_infrastructure_network_model.outputs.infrastructure_network_model_json }}'
+        - infrastructure_network_effective_model_json: '{{ .grains.discover_and_validate_infrastructure_network.outputs.infrastructure_network_effective_model_json }}'
+        - infrastructure_network_live_state_json: '{{ .grains.discover_and_validate_infrastructure_network.outputs.infrastructure_network_live_state_json }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id: '{{ .inputs.intersight_api_key_id }}'
+                  api_private_key: |
+                    {{ .inputs.intersight_api_private_key }}
+        - placement_yaml: '{{ .inputs.placement_json }}'
+        - site_yaml: '{{ .inputs.site_json }}'
+        - execution_intent: '{{ .inputs.execution_intent }}'
+      outputs:
+        - realized_policy_state_json
+        - policy_realization_summary_json
+
+  realize_and_deploy_infrastructure_domain_profiles:
+    kind: ansible
+    depends-on: realize_infrastructure_network_policies
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/realize_and_deploy_infrastructure_domain_profiles/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - infrastructure_network_model_json: '{{ .grains.resolve_infrastructure_network_model.outputs.infrastructure_network_model_json }}'
+        - infrastructure_network_effective_model_json: '{{ .grains.discover_and_validate_infrastructure_network.outputs.infrastructure_network_effective_model_json }}'
+        - infrastructure_network_live_state_json: '{{ .grains.discover_and_validate_infrastructure_network.outputs.infrastructure_network_live_state_json }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id: '{{ .inputs.intersight_api_key_id }}'
+                  api_private_key: |
+                    {{ .inputs.intersight_api_private_key }}
+        - placement_yaml: '{{ .inputs.placement_json }}'
+        - realized_policy_state_json: '{{ .grains.realize_infrastructure_network_policies.outputs.realized_policy_state_json }}'
+        - execution_intent: '{{ .inputs.execution_intent }}'
+      outputs:
+        - domain_profile_state_json
+        - policy_attachment_state_json
+        - deploy_state_json
+        - deploy_summary_json
+
+  validate_and_summarize_infrastructure_network:
+    kind: ansible
+    depends-on: realize_and_deploy_infrastructure_domain_profiles
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/validate_and_summarize_infrastructure_network/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - infrastructure_network_model_json: '{{ .grains.resolve_infrastructure_network_model.outputs.infrastructure_network_model_json }}'
+        - infrastructure_network_effective_model_json: '{{ .grains.discover_and_validate_infrastructure_network.outputs.infrastructure_network_effective_model_json }}'
+        - infrastructure_network_summary_json: '{{ .grains.resolve_infrastructure_network_model.outputs.infrastructure_network_summary_json }}'
+        - infrastructure_network_validation_json: '{{ .grains.discover_and_validate_infrastructure_network.outputs.infrastructure_network_validation_json }}'
+        - realized_policy_state_json: '{{ .grains.realize_infrastructure_network_policies.outputs.realized_policy_state_json }}'
+        - policy_realization_summary_json: '{{ .grains.realize_infrastructure_network_policies.outputs.policy_realization_summary_json }}'
+        - domain_profile_state_json: '{{ .grains.realize_and_deploy_infrastructure_domain_profiles.outputs.domain_profile_state_json }}'
+        - policy_attachment_state_json: '{{ .grains.realize_and_deploy_infrastructure_domain_profiles.outputs.policy_attachment_state_json }}'
+        - deploy_state_json: '{{ .grains.realize_and_deploy_infrastructure_domain_profiles.outputs.deploy_state_json }}'
+        - deploy_summary_json: '{{ .grains.realize_and_deploy_infrastructure_domain_profiles.outputs.deploy_summary_json }}'
       outputs:
         - phase_ready
         - phase_status
         - phase_readiness_json
-        - network_foundation_plan_json
-        - network_foundation_summary_json
-    on-destroy:
-      - source:
-          store: intersight-fullstack-repo
-          path: ansible/infrastructure-network-provisioning/teardown.yaml
-        inventory-file:
-          localhost:
-            hosts:
-              localhost:
-                ansible_connection: local
+        - managed_object_inventory_json
+        - validation_summary_json
+        - tac_handoff_json
+
 outputs:
   phase_ready:
-    value: '{{ .grains.infrastructure_network_provisioning.outputs.phase_ready }}'
+    value: '{{ .grains.validate_and_summarize_infrastructure_network.outputs.phase_ready }}'
   phase_status:
-    value: '{{ .grains.infrastructure_network_provisioning.outputs.phase_status }}'
+    value: '{{ .grains.validate_and_summarize_infrastructure_network.outputs.phase_status }}'
   phase_readiness_json:
-    value: '{{ .grains.infrastructure_network_provisioning.outputs.phase_readiness_json }}'
-  phase_summary_json:
-    value: '{{ .grains.infrastructure_network_provisioning.outputs.network_foundation_summary_json }}'
-  network_foundation_plan_json:
-    value: '{{ .grains.infrastructure_network_provisioning.outputs.network_foundation_plan_json }}'
-  network_foundation_summary_json:
-    value: '{{ .grains.infrastructure_network_provisioning.outputs.network_foundation_summary_json }}'
-  discovery_model_json:
-    value: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_model_json }}'
-  discovery_summary_json:
-    value: '{{ .grains.build_infrastructure_domain_model.outputs.discovery_summary_json }}'
+    value: '{{ .grains.validate_and_summarize_infrastructure_network.outputs.phase_readiness_json }}'
+  infrastructure_network_model_json:
+    value: '{{ .grains.resolve_infrastructure_network_model.outputs.infrastructure_network_model_json }}'
+  infrastructure_network_effective_model_json:
+    value: '{{ .grains.discover_and_validate_infrastructure_network.outputs.infrastructure_network_effective_model_json }}'
+  infrastructure_network_summary_json:
+    value: '{{ .grains.resolve_infrastructure_network_model.outputs.infrastructure_network_summary_json }}'
+  realized_policy_state_json:
+    value: '{{ .grains.realize_infrastructure_network_policies.outputs.realized_policy_state_json }}'
+  domain_profile_state_json:
+    value: '{{ .grains.realize_and_deploy_infrastructure_domain_profiles.outputs.domain_profile_state_json }}'
+  deploy_summary_json:
+    value: '{{ .grains.realize_and_deploy_infrastructure_domain_profiles.outputs.deploy_summary_json }}'
+  managed_object_inventory_json:
+    value: '{{ .grains.validate_and_summarize_infrastructure_network.outputs.managed_object_inventory_json }}'
+  validation_summary_json:
+    value: '{{ .grains.validate_and_summarize_infrastructure_network.outputs.validation_summary_json }}'
+  tac_handoff_json:
+    value: '{{ .grains.validate_and_summarize_infrastructure_network.outputs.tac_handoff_json }}'
