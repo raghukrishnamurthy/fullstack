@@ -89,12 +89,14 @@
       ansible.builtin.set_fact:
         org_status: ready
         org_name: ""
+        org_moid: ""
         org_action: default_org_used
         org_result_json: >-
           {{
             {
               "requested_org_name": requested_organization,
               "effective_org_name": "",
+              "effective_org_moid": "",
               "org_action": "default_org_used",
               "implementation_state": "validated_default_behavior"
             } | to_json
@@ -145,12 +147,23 @@
       ansible.builtin.set_fact:
         org_status: ready
         org_name: "{{ requested_organization }}"
+        org_moid: >-
+          {{
+            (existing_org_query.api_response | default([]) | map(attribute='Moid') | list | first | default(''))
+            if (existing_org_query.api_response | default([]) | length) > 0
+            else (created_org.api_response.Moid | default(''))
+          }}
         org_action: "{{ 'existing' if (existing_org_query.api_response | default([]) | length) > 0 else 'created' }}"
         org_result_json: >-
           {{
             {
               "requested_org_name": requested_organization,
               "effective_org_name": requested_organization,
+              "effective_org_moid": (
+                (existing_org_query.api_response | default([]) | map(attribute='Moid') | list | first | default(''))
+                if (existing_org_query.api_response | default([]) | length) > 0
+                else (created_org.api_response.Moid | default(''))
+              ),
               "org_action": ('existing' if (existing_org_query.api_response | default([]) | length) > 0 else 'created'),
               "existing_match_count": (existing_org_query.api_response | default([]) | length),
               "implementation_state": "validated_with_cisco_intersight_collection"
@@ -169,6 +182,7 @@
             {
               "platform_endpoint": normalized_intersight_endpoint,
               "organization": (org_name | default('')),
+              "organization_moid": (org_moid | default('')),
               "org_status": (org_status | default('ready')),
               "org_action": (org_action | default('default_org_used')),
               "validate_certs": context_validate_certs
@@ -184,6 +198,7 @@
           - context_status == 'ready'
           - org_status is defined
           - org_name is defined
+          - org_moid is defined
           - org_action is defined
           - org_result_json is defined
           - context_result_json is defined
@@ -198,6 +213,7 @@
           context_status: "{{ context_status }}"
           org_status: "{{ org_status }}"
           org_name: "{{ org_name }}"
+          org_moid: "{{ org_moid }}"
           org_action: "{{ org_action }}"
           org_result_json: "{{ org_result_json }}"
           context_result_json: "{{ context_result_json }}"

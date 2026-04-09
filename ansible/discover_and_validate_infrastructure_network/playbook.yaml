@@ -43,6 +43,7 @@
         )
       }}
     organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
+    prepared_organization_moid: "{{ organization_moid | default('') | string | trim }}"
     validate_certs: >-
       {{
         (platform_data.intersight.validate_certs | default('false') | string | lower)
@@ -87,20 +88,29 @@
           - resolved_api_private_key | length > 0
         fail_msg: "platform_yaml and placement_yaml must provide Intersight credentials and organization"
 
-    - name: Look up organization in Intersight
+    - name: Look up organization in Intersight when no prepared org Moid is available
       cisco.intersight.intersight_rest_api:
         <<: *api_info
         resource_path: /organization/Organizations
         query_params:
           $filter: "Name eq '{{ organization_name }}'"
       register: organization_lookup_result
+      when: prepared_organization_moid | length == 0
 
-    - name: Validate organization exists in Intersight
+    - name: Capture effective organization Moid
+      ansible.builtin.set_fact:
+        effective_organization_moid: >-
+          {{
+            prepared_organization_moid
+            if (prepared_organization_moid | length > 0)
+            else (organization_lookup_result.api_response.Moid | default(''))
+          }}
+
+    - name: Validate effective organization context is available
       ansible.builtin.assert:
         that:
-          - organization_lookup_result.api_response.Moid is defined
-          - organization_lookup_result.api_response.Moid | length > 0
-        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
+          - effective_organization_moid | length > 0
+        fail_msg: "A prepared organization_moid or a successful organization lookup is required for {{ organization_name }}"
 
     - name: Query FI members from Intersight by serial number
       cisco.intersight.intersight_rest_api:
@@ -267,7 +277,7 @@
           provider_family: "{{ infrastructure_network_model.provider.family }}"
           organization:
             name: "{{ organization_name }}"
-            moid: "{{ organization_lookup_result.api_response.Moid }}"
+            moid: "{{ effective_organization_moid }}"
           discovered_fis: "{{ discovered_fis | default([]) }}"
           existing_objects:
             port_policy:

@@ -211,6 +211,7 @@ grains:
         - overrides_json: '{{ .inputs.overrides_json }}'
         - validation_mode: '{{ .inputs.network_validation_mode }}'
         - execution_intent: '{{ .inputs.network_execution_intent }}'
+        - organization_moid: '{{ .grains.onboarding.outputs.org_moid }}'
         - name_prefix: '{{ .inputs.name_prefix }}'
         - policy_profile: '{{ .inputs.policy_profile }}'
         - port_mapping_profile: '{{ .inputs.port_mapping_profile }}'
