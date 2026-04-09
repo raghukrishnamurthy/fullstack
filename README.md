@@ -48,6 +48,8 @@ Start here:
   Current checkpoint and longer repo assumptions.
 - [references/intersight-authoring-guidelines.md](/tmp/jarvis-main-push/references/intersight-authoring-guidelines.md)
   What to use, when to normalize, and how to safely realize or patch Intersight-backed objects.
+- [docs/phase-authoring-standards.md](/tmp/jarvis-main-push/docs/phase-authoring-standards.md)
+  Shared coding style, Torque-ready Ansible, Python documentation, Intersight, and validator standards for all phases.
 - [docs/phase-validator-steps.md](/tmp/jarvis-main-push/docs/phase-validator-steps.md)
   Phase-by-phase list of validator grains and the checks each validator performs.
 
