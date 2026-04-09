@@ -46,6 +46,17 @@ It is optimized for:
 - Focused leaf-workflow blueprints should use narrow action names.
 - Reserve broader names such as `onboard-*` for true end-to-end orchestration flows.
 
+7. Treat Jinja syntax as a first-class failure mode.
+- Keep nontrivial payload shaping out of inline module arguments when possible.
+- Prefer precomputed `set_fact` values or task-level `vars` for complex lists, nested dicts, and provider-specific normalization.
+- Avoid fragile inline Jinja constructs such as list comprehensions mixed with filters, or `ternary` branches that index optional split elements.
+- After editing Ansible YAML or Jinja-heavy payload builders, run `ansible-playbook --syntax-check` before considering the change done.
+
+8. Simplify provider payload builders aggressively.
+- If an Intersight or REST body starts accumulating conditional keys, split/parse logic, or nested combines, move that shaping into an explicit preparation step.
+- Keep the module call focused on sending already-shaped data rather than computing it inline.
+- Prefer one clear normalized variable such as `formatted_system_qos_classes` or `formatted_uplink_ports` over repeating shape logic inside each task.
+
 ## Repo Patterns
 - Public Torque blueprint path:
   - `blueprints/claim-devices-to-intersight.yaml`
@@ -59,6 +70,7 @@ It is optimized for:
 - refining grain inputs and outputs
 - making a playbook work both locally and in Torque
 - deciding whether logic belongs in a blueprint, wrapper, or leaf grain
+- stabilizing Jinja-heavy Ansible tasks that keep failing on parse or template-evaluation issues
 
 ## References
 - [official-quali-guides.md](references/official-quali-guides.md)
