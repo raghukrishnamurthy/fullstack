@@ -66,6 +66,7 @@
               inventory_data.devices | default([])
               | selectattr('id', 'defined')
               | selectattr('id', 'in', item.members | default([]))
+              | selectattr('model', 'defined')
               | map(attribute='model')
               | reject('equalto', None)
               | reject('equalto', '')
