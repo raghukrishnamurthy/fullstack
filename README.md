@@ -49,6 +49,12 @@ Start here:
 - [references/intersight-authoring-guidelines.md](/tmp/jarvis-main-push/references/intersight-authoring-guidelines.md)
   What to use, when to normalize, and how to safely realize or patch Intersight-backed objects.
 
+Repo execution standard:
+
+- Intersight-backed workflows are expected to pass full idempotent reruns, not just first-run provisioning.
+- A successful validation or summary grain does not by itself prove end-to-end idempotency; the discovery and realization phases must also rerun cleanly with the same inputs.
+- Live Intersight reads should use explicit retries for transient upstream failures, and realization logic should mutate only when live state meaningfully differs from desired state.
+
 Design requirement:
 
 - reusable grains must remain narrow and standalone

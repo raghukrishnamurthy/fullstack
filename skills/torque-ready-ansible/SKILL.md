@@ -64,6 +64,13 @@ It is optimized for:
 - Quali's Intersight client code supports retry-aware patterns and many internal callers pass explicit retry counts for reads; mirror that style in repo playbooks rather than relying on one-shot API calls.
 - As a default repo stance, retry transient read failures such as HTTP `500`, `502`, `503`, `504`, and usually `429`; do not paper over deterministic contract errors like `400`, `401`, `403`, or `404`.
 
+10. Design for full idempotent phase reruns.
+- Do not optimize only for first-run success; the same phase chain should rerun cleanly with identical inputs.
+- Discovery, realization, deployment, and validation grains should all be safe on repeated execution.
+- A summary grain going green is not enough if earlier realization or discovery grains still fail or report avoidable drift on rerun.
+- Re-read durable live state from Intersight when possible instead of depending on fragile previous grain outputs.
+- Treat repeated environment bootstrap changes, repeated deployment triggers, and repeated lookup failures as idempotency bugs, not normal noise.
+
 ## Repo Patterns
 - Public Torque blueprint path:
   - `blueprints/claim-devices-to-intersight.yaml`

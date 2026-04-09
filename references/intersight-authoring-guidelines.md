@@ -127,6 +127,36 @@ Reason:
 - Quali's Intersight codebase has retry-aware client plumbing and many internal callers pass explicit retry counts for read operations.
 - In this repo, explicit playbook retries are the clearest and safest way to make idempotent read paths resilient without obscuring true schema or payload defects.
 
+## Full Idempotent Run Rules
+
+Every Intersight-backed phase should be authored with full reruns in mind.
+
+Repo expectation:
+
+1. A second full run with the same inputs should complete successfully across discovery, realization, deployment, validation, and summary phases.
+2. Read-heavy phases should tolerate transient upstream instability with explicit retries rather than failing on the first `500 Retry later` response.
+3. Realization phases should re-read live state, compare by stable identity, and only mutate when live state truly differs from desired state.
+4. Validation and summary phases should be safe to rerun repeatedly and should not depend on ephemeral outputs from previous runs when they can re-read durable state from Intersight.
+5. Do not treat a green summary grain as proof that the earlier realization grains are fully idempotent; the real idempotency bar is that the full phase chain reruns cleanly.
+
+When reviewing idempotency, pay special attention to:
+
+- repeated `changed` results on pure lookup or validation tasks
+- create tasks that should have fallen back to patch or no-op behavior
+- deployment actions that trigger again even though the final state is already terminal and clean
+- worker bootstrap tasks that mutate the runtime on every execution
+- transient Intersight read failures that should have been retried
+
+Preferred authoring pattern:
+
+1. validate inputs
+2. read live state with retries
+3. derive normalized desired payloads
+4. compare live versus desired using stable identities and meaningful fields
+5. mutate only when needed
+6. validate terminal state
+7. export stable summaries
+
 ## Recommended Authoring Flow
 
 1. Validate user/model inputs.
