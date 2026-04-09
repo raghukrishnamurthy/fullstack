@@ -94,13 +94,18 @@
         query_params:
           $filter: "Name eq '{{ organization_name }}'"
       register: organization_lookup_result
+      retries: 3
+      delay: 5
+      until: organization_lookup_result is succeeded
 
     - name: Validate organization exists in Intersight
       ansible.builtin.assert:
         that:
           - organization_lookup_result.api_response.Moid is defined
           - organization_lookup_result.api_response.Moid | length > 0
-        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
+        fail_msg: >-
+          Organization {{ organization_name }} could not be confirmed in Intersight.
+          Lookup message: {{ organization_lookup_result.msg | default('no module error message returned') }}
 
     - name: Query FI members from Intersight by serial number
       cisco.intersight.intersight_rest_api:
