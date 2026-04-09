@@ -14,10 +14,6 @@ inputs:
   placement_yaml:
     type: string
     description: Wrapped placement context YAML
-  organization_moid:
-    type: string
-    description: Optional prepared Intersight organization Moid from onboarding/context prep
-    default: ""
   inventory_yaml:
     type: string
     description: Wrapped inventory context YAML
@@ -115,7 +111,6 @@ grains:
         - infrastructure_network_model_json: '{{ .grains.resolve_infrastructure_network_model.outputs.infrastructure_network_model_json }}'
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
-        - organization_moid: '{{ .inputs.organization_moid }}'
         - validation_mode: '{{ .inputs.validation_mode }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:
@@ -148,7 +143,6 @@ grains:
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - site_yaml: '{{ .inputs.site_yaml }}'
-        - organization_moid: '{{ .inputs.organization_moid }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:
         - realized_policy_state_json
@@ -176,7 +170,6 @@ grains:
         - platform_yaml: '{{ .inputs.platform_yaml }}'
         - placement_yaml: '{{ .inputs.placement_yaml }}'
         - realized_policy_state_json: '{{ .grains.realize_infrastructure_network_policies.outputs.realized_policy_state_json }}'
-        - organization_moid: '{{ .inputs.organization_moid }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:
         - domain_profile_state_json

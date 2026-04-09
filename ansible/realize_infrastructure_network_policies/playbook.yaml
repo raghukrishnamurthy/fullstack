@@ -53,12 +53,6 @@
         )
       }}
     organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
-    prepared_organization_moid: >-
-      {{
-        organization_moid | default(
-          infrastructure_network_live_state.organization.moid | default('')
-        ) | string | trim
-      }}
     validate_certs: >-
       {{
         (platform_data.intersight.validate_certs | default('false') | string | lower)
@@ -93,7 +87,6 @@
         that:
           - infrastructure_network_model.domains | length == 1
           - organization_name | length > 0
-          - prepared_organization_moid | length > 0
           - resolved_api_key_id | length > 0
           - resolved_api_private_key | length > 0
         fail_msg: "realize_infrastructure_network_policies currently requires one FI-pair domain plus valid Intersight context"
@@ -250,9 +243,24 @@
               {%- endfor -%}
               {{ out }}
 
+    - name: Look up organization in Intersight for policy realization
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /organization/Organizations
+        query_params:
+          $filter: "Name eq '{{ organization_name }}'"
+      register: policy_realization_organization_lookup
+
+    - name: Validate organization exists for policy realization
+      ansible.builtin.assert:
+        that:
+          - policy_realization_organization_lookup.api_response.Moid is defined
+          - policy_realization_organization_lookup.api_response.Moid | length > 0
+        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
+
     - name: Capture organization Moid for REST policy realization
       ansible.builtin.set_fact:
-        organization_moid: "{{ prepared_organization_moid }}"
+        organization_moid: "{{ policy_realization_organization_lookup.api_response.Moid }}"
 
     - name: Create switch control policy in Intersight via REST
       cisco.intersight.intersight_rest_api:

@@ -51,12 +51,6 @@
         )
       }}
     organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
-    prepared_organization_moid: >-
-      {{
-        organization_moid | default(
-          infrastructure_network_live_state.organization.moid | default('')
-        ) | string | trim
-      }}
     validate_certs: >-
       {{
         (platform_data.intersight.validate_certs | default('false') | string | lower)
@@ -92,7 +86,6 @@
           - infrastructure_network_model.deployment.name_prefix | default('') | length > 0
           - infrastructure_network_model.domains | length == 1
           - organization_name | length > 0
-          - prepared_organization_moid | length > 0
           - resolved_api_key_id | length > 0
           - resolved_api_private_key | length > 0
           - (infrastructure_network_live_state.discovered_fis | default([])) | length >= 2
@@ -104,6 +97,21 @@
         domain_profile_name: "{{ infrastructure_network_model.deployment.name_prefix }}-Domain-Profile"
         switch_profile_a_name: "{{ infrastructure_network_model.deployment.name_prefix }}-A"
         switch_profile_b_name: "{{ infrastructure_network_model.deployment.name_prefix }}-B"
+
+    - name: Look up organization in Intersight
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /organization/Organizations
+        query_params:
+          $filter: "Name eq '{{ organization_name }}'"
+      register: organization_lookup_result
+
+    - name: Validate organization lookup returned a Moid
+      ansible.builtin.assert:
+        that:
+          - organization_lookup_result.api_response.Moid is defined
+          - organization_lookup_result.api_response.Moid | length > 0
+        fail_msg: "Organization {{ organization_name }} does not exist in Intersight"
 
     - name: Look up named policy objects by name
       cisco.intersight.intersight_rest_api:
@@ -143,7 +151,7 @@
 
     - name: Capture resource Moids for domain-profile creation
       ansible.builtin.set_fact:
-        organization_moid: "{{ prepared_organization_moid }}"
+        organization_moid: "{{ organization_lookup_result.api_response.Moid }}"
         port_policy_moid: >-
           {{
             (named_policy_lookup_results.results

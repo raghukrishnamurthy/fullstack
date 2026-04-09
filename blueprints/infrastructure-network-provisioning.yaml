@@ -25,10 +25,6 @@ inputs:
   placement_json:
     type: string
     description: JSON placement context for Intersight organization and related settings
-  organization_moid:
-    type: string
-    description: Optional prepared Intersight organization Moid from onboarding/context prep
-    default: ''
   inventory_json:
     type: string
     description: JSON inventory context for the infrastructure domain
@@ -148,7 +144,6 @@ grains:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_json }}'
-        - organization_moid: '{{ .inputs.organization_moid }}'
         - bootstrap_python_requirements: 'true'
         - validation_mode: '{{ .inputs.validation_mode }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
@@ -192,7 +187,6 @@ grains:
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_json }}'
         - site_yaml: '{{ .inputs.site_json }}'
-        - organization_moid: '{{ .inputs.organization_moid }}'
         - bootstrap_python_requirements: 'true'
         - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:
@@ -231,7 +225,6 @@ grains:
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
         - placement_yaml: '{{ .inputs.placement_json }}'
         - realized_policy_state_json: '{{ .grains.realize_infrastructure_network_policies.outputs.realized_policy_state_json }}'
-        - organization_moid: '{{ .inputs.organization_moid }}'
         - bootstrap_python_requirements: 'true'
         - execution_intent: '{{ .inputs.execution_intent }}'
       outputs:

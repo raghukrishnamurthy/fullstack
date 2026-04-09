@@ -112,7 +112,6 @@ grains:
         - context_status
         - org_status
         - org_name
-        - org_moid
         - org_action
         - org_result_json
         - context_result_json
@@ -553,10 +552,6 @@ grains:
                 ansible_connection: local
 
 outputs:
-  org_name:
-    value: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
-  org_moid:
-    value: '{{ .grains.prepare_intersight_context.outputs.org_moid }}'
   phase_ready:
     value: '{{ .grains.validate_infrastructure_onboarding.outputs.phase_ready }}'
   phase_status:
