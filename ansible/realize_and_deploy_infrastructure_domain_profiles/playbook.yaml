@@ -284,6 +284,7 @@
                   switch_profile_results.results
                   | default([])
                   | selectattr('item.switch_id', 'equalto', 'A')
+                  | selectattr('api_response', 'defined')
                   | map(attribute='api_response')
                   | map(attribute='Moid')
                   | list
@@ -300,6 +301,7 @@
                   switch_profile_results.results
                   | default([])
                   | selectattr('item.switch_id', 'equalto', 'B')
+                  | selectattr('api_response', 'defined')
                   | map(attribute='api_response')
                   | map(attribute='Moid')
                   | list
@@ -400,6 +402,7 @@
         - >
           (
             current_switch_profile_results.results
+            | selectattr('api_response', 'defined')
             | selectattr('item.switch_profile_name', 'equalto', item.switch_profile_name)
             | map(attribute='api_response')
             | map(attribute='ConfigContext')
@@ -454,6 +457,7 @@
               (
                 current_switch_profile_results.results
                 | default([])
+                | selectattr('api_response', 'defined')
                 | map(attribute='api_response')
                 | map(attribute='ConfigContext')
                 | map(attribute='ConfigState')
@@ -469,6 +473,7 @@
               (
                 final_switch_profile_status_results.results
                 | default([])
+                | selectattr('api_response', 'defined')
                 | map(attribute='api_response')
                 | map(attribute='ConfigContext')
                 | map(attribute='ConfigState')
@@ -487,6 +492,7 @@
               (
                 current_switch_profile_results.results
                 | default([])
+                | selectattr('api_response', 'defined')
                 | map(attribute='api_response')
                 | map(attribute='ConfigContext')
                 | map(attribute='ConfigState')
@@ -500,6 +506,7 @@
               (
                 final_switch_profile_status_results.results
                 | default([])
+                | selectattr('api_response', 'defined')
                 | map(attribute='api_response')
                 | map(attribute='ConfigContext')
                 | map(attribute='ConfigState')
