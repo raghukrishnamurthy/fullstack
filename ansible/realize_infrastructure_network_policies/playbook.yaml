@@ -269,22 +269,27 @@
         query_params:
           $filter: "Name eq '{{ switch_control_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
-        api_body:
-          Name: "{{ switch_control_policy_name }}"
-          Description: "Switch control policy for {{ infrastructure_network_model.deployment.name_prefix }}"
-          Organization:
-            Moid: "{{ organization_moid }}"
-          EthernetSwitchingMode: "{{ effective_target_domain.policy_values.switch_control_policy.settings.ethernet_switching_mode }}"
-          FcSwitchingMode: "{{ effective_target_domain.policy_values.switch_control_policy.settings.fc_switching_mode }}"
-          VlanPortOptimizationEnabled: "{{ effective_target_domain.policy_values.switch_control_policy.settings.vlan_port_optimization_enabled }}"
-          ReservedVlanStartId: "{{ effective_target_domain.policy_values.switch_control_policy.settings.reserved_vlan_start_id }}"
-          MacAgingSettings:
-            MacAgingOption: "{{ effective_target_domain.policy_values.switch_control_policy.settings.mac_aging_option | string | capitalize }}"
-          UdldSettings:
-            MessageInterval: "{{ effective_target_domain.policy_values.switch_control_policy.settings.message_interval }}"
-            RecoveryAction: none
-          FabricPcVhbaReset: Disabled
-          AesPrimaryKey: ""
+        api_body: >-
+          {{
+            {
+              'Name': switch_control_policy_name,
+              'Description': 'Switch control policy for ' ~ infrastructure_network_model.deployment.name_prefix,
+              'Organization': {'Name': organization_name},
+              'EthernetSwitchingMode': effective_target_domain.policy_values.switch_control_policy.settings.ethernet_switching_mode,
+              'FcSwitchingMode': effective_target_domain.policy_values.switch_control_policy.settings.fc_switching_mode,
+              'VlanPortOptimizationEnabled': effective_target_domain.policy_values.switch_control_policy.settings.vlan_port_optimization_enabled,
+              'ReservedVlanStartId': effective_target_domain.policy_values.switch_control_policy.settings.reserved_vlan_start_id | int,
+              'MacAgingSettings': {
+                'MacAgingOption': effective_target_domain.policy_values.switch_control_policy.settings.mac_aging_option | string | capitalize
+              },
+              'UdldSettings': {
+                'MessageInterval': effective_target_domain.policy_values.switch_control_policy.settings.message_interval | int,
+                'RecoveryAction': 'none'
+              },
+              'FabricPcVhbaReset': 'Disabled',
+              'AesPrimaryKey': ''
+            }
+          }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: switch_control_policy_result
       retries: 3
@@ -298,12 +303,15 @@
         query_params:
           $filter: "Name eq '{{ system_qos_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
-        api_body:
-          Name: "{{ system_qos_policy_name }}"
-          Description: "System QoS policy for {{ infrastructure_network_model.deployment.name_prefix }}"
-          Organization:
-            Moid: "{{ organization_moid }}"
-          Classes: "{{ effective_target_domain.policy_values.system_qos_policy.settings.classes }}"
+        api_body: >-
+          {{
+            {
+              'Name': system_qos_policy_name,
+              'Description': 'System QoS policy for ' ~ infrastructure_network_model.deployment.name_prefix,
+              'Organization': {'Name': organization_name},
+              'Classes': effective_target_domain.policy_values.system_qos_policy.settings.classes
+            }
+          }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: system_qos_policy_result
       retries: 3
@@ -317,13 +325,16 @@
         query_params:
           $filter: "Name eq '{{ ntp_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
-        api_body:
-          Name: "{{ ntp_policy_name }}"
-          Description: "NTP policy for {{ infrastructure_network_model.deployment.name_prefix }}"
-          Organization:
-            Moid: "{{ organization_moid }}"
-          Enabled: "{{ effective_target_domain.policy_values.ntp_policy.settings.enabled }}"
-          NtpServers: "{{ effective_target_domain.policy_values.ntp_policy.settings.servers }}"
+        api_body: >-
+          {{
+            {
+              'Name': ntp_policy_name,
+              'Description': 'NTP policy for ' ~ infrastructure_network_model.deployment.name_prefix,
+              'Organization': {'Name': organization_name},
+              'Enabled': effective_target_domain.policy_values.ntp_policy.settings.enabled,
+              'NtpServers': effective_target_domain.policy_values.ntp_policy.settings.servers
+            }
+          }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: ntp_policy_result
       retries: 3
@@ -337,17 +348,32 @@
         query_params:
           $filter: "Name eq '{{ network_connectivity_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
-        api_body:
-          Name: "{{ network_connectivity_policy_name }}"
-          Description: "Network connectivity policy for {{ infrastructure_network_model.deployment.name_prefix }}"
-          Organization:
-            Moid: "{{ organization_moid }}"
-          EnableDynamicDns: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_dynamic_dns }}"
-          EnableIpv4dnsFromDhcp: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv4_dns_from_dhcp }}"
-          PreferredIpv4dnsServer: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.preferred_ipv4_dns_server }}"
-          AlternateIpv4dnsServer: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.alternate_ipv4_dns_server }}"
-          EnableIpv6: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6 }}"
-          EnableIpv6dnsFromDhcp: "{{ effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6_dns_from_dhcp }}"
+        api_body: >-
+          {{
+            {
+              'Name': network_connectivity_policy_name,
+              'Description': 'Network connectivity policy for ' ~ infrastructure_network_model.deployment.name_prefix,
+              'Organization': {'Name': organization_name},
+              'EnableDynamicDns': effective_target_domain.policy_values.network_connectivity_policy.settings.enable_dynamic_dns,
+              'EnableIpv4dnsFromDhcp': effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv4_dns_from_dhcp,
+              'EnableIpv6': effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6,
+              'EnableIpv6dnsFromDhcp': effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv6_dns_from_dhcp
+            }
+            | combine(
+                (
+                  effective_target_domain.policy_values.network_connectivity_policy.settings.enable_ipv4_dns_from_dhcp
+                  | bool
+                )
+                | ternary(
+                    {},
+                    {
+                      'PreferredIpv4dnsServer': effective_target_domain.policy_values.network_connectivity_policy.settings.preferred_ipv4_dns_server,
+                      'AlternateIpv4dnsServer': effective_target_domain.policy_values.network_connectivity_policy.settings.alternate_ipv4_dns_server
+                    }
+                  ),
+                recursive=True
+              )
+          }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: network_connectivity_policy_result
       retries: 3
@@ -361,12 +387,15 @@
         query_params:
           $filter: "Name eq '{{ port_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
-        api_body:
-          Name: "{{ port_policy_name }}"
-          Description: "Port policy for {{ infrastructure_network_model.deployment.name_prefix }} infrastructure-network-provisioning"
-          Organization:
-            Moid: "{{ organization_moid }}"
-          DeviceModel: "{{ effective_target_domain.fi_model }}"
+        api_body: >-
+          {{
+            {
+              'Name': port_policy_name,
+              'Description': 'Port policy for ' ~ infrastructure_network_model.deployment.name_prefix ~ ' infrastructure-network-provisioning',
+              'Organization': {'Name': organization_name},
+              'DeviceModel': effective_target_domain.fi_model
+            }
+          }}
       when: (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
       register: port_policy_result
       retries: 3
@@ -390,11 +419,15 @@
             PortPolicy.Moid eq '{{ port_policy_moid }}'
             and PortIdStart eq {{ (effective_target_domain.fi_model == 'UCS-FI-6664') | ternary(25, 1) }}
             and PortIdEnd eq {{ effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int }}
-        api_body:
-          PortPolicy: "{{ port_policy_moid }}"
-          SlotId: 1
-          PortIdStart: "{{ (effective_target_domain.fi_model == 'UCS-FI-6664') | ternary(25, 1) }}"
-          PortIdEnd: "{{ effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int }}"
+        api_body: >-
+          {{
+            {
+              'PortPolicy': port_policy_moid,
+              'SlotId': 1,
+              'PortIdStart': ((effective_target_domain.fi_model == 'UCS-FI-6664') | ternary(25, 1)),
+              'PortIdEnd': (effective_target_domain.recommended_port_mapping.recommended_uplink_ports[0].end | int)
+            }
+          }}
       when:
         - (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'onboard', 'claim_and_onboard']
         - effective_target_domain.port_mapping_profile_id == 'ethernet_fc'
@@ -416,16 +449,36 @@
             {%- if '/' in (item.port_id | string) -%}
             and AggregatePortId eq {{ (item.port_id | string).split('/')[1] | int }}
             {%- endif -%}
-        api_body:
-          PortPolicy: "{{ port_policy_moid }}"
-          SlotId: 1
-          PortId: "{{ (item.port_id | string).split('/')[0] | int }}"
-          Fec: "{{ item.fec | default('Auto') }}"
-          AutoNegotiationDisabled: "{{ item.manual_numbering | default(false) }}"
-          AggregatePortId: "{{ ((item.port_id | string).split('/')[1] | int) if ('/' in (item.port_id | string)) else omit }}"
-          UserLabel: "{{ item.user_label if (item.user_label | default('') | length > 0) else omit }}"
-          PreferredDeviceType: "{{ item.preferred_device_type if (item.preferred_device_type | default('') | length > 0) else omit }}"
-          PreferredDeviceId: "{{ item.preferred_device_id if (item.preferred_device_id is defined) else omit }}"
+        api_body: >-
+          {{
+            {
+              'PortPolicy': port_policy_moid,
+              'SlotId': 1,
+              'PortId': ((item.port_id | string).split('/')[0] | int),
+              'Fec': item.fec | default('Auto'),
+              'AutoNegotiationDisabled': item.manual_numbering | default(false)
+            }
+            | combine(
+                ('/' in (item.port_id | string))
+                | ternary({'AggregatePortId': ((item.port_id | string).split('/')[1] | int)}, {}),
+                recursive=True
+              )
+            | combine(
+                ((item.user_label | default('') | length) > 0)
+                | ternary({'UserLabel': item.user_label}, {}),
+                recursive=True
+              )
+            | combine(
+                ((item.preferred_device_type | default('') | length) > 0)
+                | ternary({'PreferredDeviceType': item.preferred_device_type}, {}),
+                recursive=True
+              )
+            | combine(
+                (item.preferred_device_id is defined)
+                | ternary({'PreferredDeviceId': item.preferred_device_id}, {}),
+                recursive=True
+              )
+          }}
       loop: "{{ module_server_ports | default([]) }}"
       loop_control:
         label: "{{ item.port_id }}"
@@ -446,23 +499,42 @@
           $filter: >-
             PortPolicy.Moid eq '{{ port_policy_moid }}'
             and PcId eq {{ item.pc_id | int }}
-        api_body:
-          PortPolicy: "{{ port_policy_moid }}"
-          PcId: "{{ item.pc_id | int }}"
-          AdminSpeed: "{{ item.admin_speed | default('Auto') }}"
-          Fec: "{{ item.fec | default('Auto') }}"
-          UserLabel: "{{ item.user_label if (item.user_label | default('') | length > 0) else omit }}"
-          Ports: >-
-            {%- set out = [] -%}
-            {%- for member in item.ports | default([]) -%}
-            {%- set member_parts = (member.port_id | string).split('/') -%}
-            {%- set entry = {'PortId': (member_parts[0] | int), 'SlotId': 1, 'id': (member.port_id | string)} -%}
-            {%- if member_parts | length > 1 -%}
-            {%- set _ = entry.update({'AggregatePortId': (member_parts[1] | int)}) -%}
-            {%- endif -%}
-            {%- set _ = out.append(entry) -%}
-            {%- endfor -%}
-            {{ out }}
+        api_body: >-
+          {{
+            {
+              'PortPolicy': port_policy_moid,
+              'PcId': (item.pc_id | int),
+              'AdminSpeed': item.admin_speed | default('Auto'),
+              'Fec': item.fec | default('Auto'),
+              'Ports': (
+                [
+                  (
+                    {
+                      'PortId': ((member.port_id | string).split('/')[0] | int),
+                      'SlotId': 1,
+                      'id': (member.port_id | string)
+                    }
+                    | combine(
+                        (
+                          ((member.port_id | string).split('/')) | length > 1
+                        )
+                        | ternary(
+                            {'AggregatePortId': ((member.port_id | string).split('/')[1] | int)},
+                            {}
+                          ),
+                        recursive=True
+                      )
+                  )
+                  for member in (item.ports | default([]))
+                ]
+              )
+            }
+            | combine(
+                ((item.user_label | default('') | length) > 0)
+                | ternary({'UserLabel': item.user_label}, {}),
+                recursive=True
+              )
+          }}
       loop: "{{ module_ethernet_uplink_port_channels | default([]) }}"
       loop_control:
         label: "{{ item.pc_id }}"
