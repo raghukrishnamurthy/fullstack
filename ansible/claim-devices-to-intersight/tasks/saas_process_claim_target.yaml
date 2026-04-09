@@ -26,13 +26,99 @@
 
 - name: Build per-target desired credentials for inline SaaS claim readiness
   ansible.builtin.set_fact:
-    resolved_target_desired_credentials:
-      - username: "{{ claim_target_username }}"
-        password: "{{ claim_target_password }}"
-  no_log: false
+    claim_readiness_credential_candidates: >-
+      {{
+        (
+          (claim_target_context.target_credential_candidates | default([]))
+          + (claim_target_context.manufacturing_credential_candidates | default([]))
+        )
+        if (
+          (claim_target_context.target_category | default('')) == 'server'
+          and (claim_target_context.form_factor | default('')) == 'rack'
+          and (claim_target_context.management_type | default('')) == 'standalone'
+        )
+        else (
+          [
+            {
+              'username': (claim_target_context.claim_username | default('')),
+              'password': (claim_target_context.claim_password | default('')),
+              'password_ref': (claim_target_context.claim_password_ref | default(''))
+            }
+          ]
+          if (
+            (claim_target_context.claim_username | default('') | string | trim | length) > 0
+            and (
+              (claim_target_context.claim_password | default('') | string | trim | length) > 0
+              or (claim_target_context.claim_password_ref | default('') | string | trim | length) > 0
+            )
+          )
+          else (
+            [claim_target_context.selected_target_credential]
+            if ((claim_target_context.selected_target_credential | default({})) | length) > 0
+            else []
+          )
+        )
+      }}
+  tags:
+    - claim
+    - aggregate
+
+- name: Initialize ordered credentials for inline SaaS claim readiness
+  ansible.builtin.set_fact:
+    resolved_target_desired_credentials: []
+  tags:
+    - claim
+    - aggregate
+
+- name: Append resolved inline SaaS claim readiness credential
+  ansible.builtin.set_fact:
+    resolved_target_desired_credentials: >-
+      {{
+        (resolved_target_desired_credentials | default([]))
+        + [
+            {
+              'username': (claim_readiness_candidate.username | default('') | string | trim),
+              'password': (resolved_claim_readiness_password | string)
+            }
+          ]
+      }}
+  vars:
+    claim_readiness_password_ref: "{{ claim_readiness_candidate.password_ref | default('') | string | trim }}"
+    resolved_claim_readiness_password: >-
+      {{
+        (claim_readiness_candidate.password | default('') | string)
+        if (claim_readiness_candidate.password | default('') | string | length) > 0
+        else
+        lookup(
+          'ansible.builtin.file',
+          (claim_readiness_password_ref | regex_replace('^file://', '')),
+          errors='ignore'
+        )
+        if (claim_readiness_password_ref.startswith('file://'))
+        else
+        lookup(
+          'ansible.builtin.env',
+          (claim_readiness_password_ref | regex_replace('^env://', ''))
+        )
+        if (claim_readiness_password_ref.startswith('env://'))
+        else ''
+      }}
+  loop: "{{ claim_readiness_credential_candidates | default([]) }}"
+  loop_control:
+    loop_var: claim_readiness_candidate
+    label: "{{ claim_readiness_candidate.username | default('') }}"
   when:
-    - claim_target_username | string | trim | length > 0
-    - claim_target_password | string | trim | length > 0
+    - claim_readiness_candidate is mapping
+    - (claim_readiness_candidate.username | default('') | string | trim | length) > 0
+    - (resolved_claim_readiness_password | string | trim | length) > 0
+  no_log: true
+  tags:
+    - claim
+    - aggregate
+
+- name: Build per-target desired credentials for inline SaaS claim readiness
+  ansible.builtin.set_fact:
+    resolved_target_desired_credentials: "{{ resolved_target_desired_credentials | default([]) }}"
   tags:
     - claim
     - aggregate
