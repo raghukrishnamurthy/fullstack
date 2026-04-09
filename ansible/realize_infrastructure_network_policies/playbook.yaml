@@ -243,6 +243,56 @@
               {%- endfor -%}
               {{ out }}
 
+    - name: Build formatted system QoS classes for REST realization
+      ansible.builtin.set_fact:
+        formatted_system_qos_classes: >-
+          {%- set defaults = {
+                'Bronze': {'AdminState': 'Disabled', 'Cos': 1, 'Mtu': 1500, 'PacketDrop': True, 'Weight': 7},
+                'Silver': {'AdminState': 'Disabled', 'Cos': 2, 'Mtu': 1500, 'PacketDrop': True, 'Weight': 8},
+                'Gold': {'AdminState': 'Disabled', 'Cos': 4, 'Mtu': 1500, 'PacketDrop': True, 'Weight': 9},
+                'Platinum': {'AdminState': 'Disabled', 'Cos': 5, 'Mtu': 1500, 'PacketDrop': True, 'Weight': 10},
+                'Best Effort': {'AdminState': 'Enabled', 'Cos': 255, 'Mtu': 1500, 'PacketDrop': True, 'Weight': 5},
+                'FC': {'AdminState': 'Enabled', 'Cos': 3, 'Mtu': 2240, 'PacketDrop': False, 'Weight': 5}
+              } -%}
+          {%- set provided = effective_target_domain.policy_values.system_qos_policy.settings.classes | default([]) -%}
+          {%- set provided_map = {} -%}
+          {%- for qos_class in provided -%}
+          {%-   set class_name = qos_class.name -%}
+          {%-   set class_defaults = defaults.get(class_name, {}) -%}
+          {%-   set entry = {
+                  'Name': class_name,
+                  'AdminState': (qos_class.admin_state | default(class_defaults.AdminState)),
+                  'Cos': (qos_class.cos | default(class_defaults.Cos)),
+                  'Mtu': (qos_class.mtu | default(class_defaults.Mtu)),
+                  'PacketDrop': (
+                    qos_class.packet_drop
+                    if (qos_class.packet_drop is defined)
+                    else class_defaults.PacketDrop
+                  ),
+                  'Weight': (qos_class.weight | default(class_defaults.Weight)),
+                  'MulticastOptimize': false
+                } -%}
+          {%-   set _ = provided_map.update({class_name: entry}) -%}
+          {%- endfor -%}
+          {%- set ordered = [] -%}
+          {%- for class_name in ['Bronze', 'Silver', 'Gold', 'Platinum', 'Best Effort', 'FC'] -%}
+          {%-   if class_name in provided_map -%}
+          {%-     set _ = ordered.append(provided_map[class_name]) -%}
+          {%-   else -%}
+          {%-     set class_defaults = defaults[class_name] -%}
+          {%-     set _ = ordered.append({
+                    'Name': class_name,
+                    'AdminState': class_defaults.AdminState,
+                    'Cos': class_defaults.Cos,
+                    'Mtu': class_defaults.Mtu,
+                    'PacketDrop': class_defaults.PacketDrop,
+                    'Weight': class_defaults.Weight,
+                    'MulticastOptimize': false
+                  }) -%}
+          {%-   endif -%}
+          {%- endfor -%}
+          {{ ordered }}
+
     - name: Look up organization in Intersight for policy realization
       cisco.intersight.intersight_rest_api:
         <<: *api_info
@@ -368,7 +418,7 @@
             {
               'Name': system_qos_policy_name,
               'Description': 'System QoS policy for ' ~ infrastructure_network_model.deployment.name_prefix,
-              'Classes': effective_target_domain.policy_values.system_qos_policy.settings.classes
+              'Classes': formatted_system_qos_classes
             }
             | combine(
                 (existing_policy_map.system_qos_policy.exists | default(false))
