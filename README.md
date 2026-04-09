@@ -52,7 +52,9 @@ Start here:
 Repo execution standard:
 
 - Intersight-backed workflows are expected to pass full idempotent reruns, not just first-run provisioning.
-- A successful validation or summary grain does not by itself prove end-to-end idempotency; the discovery and realization phases must also rerun cleanly with the same inputs.
+- Each phase blueprint should end by running a validator grain, and that validator grain is the phase completion authority.
+- The validator grain should re-read durable state, decide readiness, and publish the stable downstream summary and handoff outputs.
+- Discovery and realization phases must still rerun cleanly with the same inputs before the validator is reached.
 - Live Intersight reads should use explicit retries for transient upstream failures, and realization logic should mutate only when live state meaningfully differs from desired state.
 
 Design requirement:

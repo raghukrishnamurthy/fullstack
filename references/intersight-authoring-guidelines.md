@@ -131,13 +131,26 @@ Reason:
 
 Every Intersight-backed phase should be authored with full reruns in mind.
 
+## Validator Grain Standard
+
+Each phase blueprint should end with a validator grain.
+
+That validator grain is the phase completion authority and should:
+
+1. re-read durable Intersight state
+2. decide `ready` versus `not ready`
+3. publish the stable phase summary outputs
+4. publish the downstream handoff contract
+
+The validator grain should be the canonical end-of-phase signal that later blueprints depend on.
+
 Repo expectation:
 
 1. A second full run with the same inputs should complete successfully across discovery, realization, deployment, validation, and summary phases.
 2. Read-heavy phases should tolerate transient upstream instability with explicit retries rather than failing on the first `500 Retry later` response.
 3. Realization phases should re-read live state, compare by stable identity, and only mutate when live state truly differs from desired state.
 4. Validation and summary phases should be safe to rerun repeatedly and should not depend on ephemeral outputs from previous runs when they can re-read durable state from Intersight.
-5. Do not treat a green summary grain as proof that the earlier realization grains are fully idempotent; the real idempotency bar is that the full phase chain reruns cleanly.
+5. The validator grain is the official completion authority, but the full phase chain still needs to rerun cleanly before that validator is reached.
 
 When reviewing idempotency, pay special attention to:
 

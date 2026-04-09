@@ -67,7 +67,9 @@ It is optimized for:
 10. Design for full idempotent phase reruns.
 - Do not optimize only for first-run success; the same phase chain should rerun cleanly with identical inputs.
 - Discovery, realization, deployment, and validation grains should all be safe on repeated execution.
-- A summary grain going green is not enough if earlier realization or discovery grains still fail or report avoidable drift on rerun.
+- Each phase blueprint should end with a validator grain, and that validator grain is the completion authority for the phase.
+- The validator grain should re-read durable state and publish the stable readiness and handoff outputs.
+- Discovery and realization grains still need to rerun cleanly before that validator is reached.
 - Re-read durable live state from Intersight when possible instead of depending on fragile previous grain outputs.
 - Treat repeated environment bootstrap changes, repeated deployment triggers, and repeated lookup failures as idempotency bugs, not normal noise.
 
