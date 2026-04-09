@@ -46,6 +46,8 @@ Start here:
   First read, first run, and safe validation path.
 - [docs/implementation-notes.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/implementation-notes.md)
   Current checkpoint and longer repo assumptions.
+- [references/intersight-authoring-guidelines.md](/tmp/jarvis-main-push/references/intersight-authoring-guidelines.md)
+  What to use, when to normalize, and how to safely realize or patch Intersight-backed objects.
 
 Design requirement:
 

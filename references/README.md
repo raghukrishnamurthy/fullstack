@@ -11,6 +11,8 @@ This directory holds non-runtime reference material that helps design, validate,
 
 - `model-examples/`
   Canonical example deployment inputs, baselines, and catalog-oriented reference data used by prompts and design docs.
+- [intersight-authoring-guidelines.md](/tmp/jarvis-main-push/references/intersight-authoring-guidelines.md)
+  Repo conventions for Intersight source-of-truth usage, model normalization, and create-vs-patch behavior.
 
 ## External Documentation Pointers
 
