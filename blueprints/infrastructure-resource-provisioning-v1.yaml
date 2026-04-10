@@ -8,9 +8,20 @@ inputs:
   deployment_json:
     type: string
     description: Wrapped deployment context JSON
+  api_uri:
+    type: string
+    description: Intersight SaaS or appliance API base URI
+    default: https://intersight.com/api/v1
+  intersight_api_key_id:
+    type: string
+    description: Intersight API key id
+  intersight_api_private_key:
+    type: string
+    description: Intersight API private key PEM content
   platform_json:
     type: string
-    description: Wrapped platform context JSON
+    description: Optional JSON platform context override including Intersight endpoint and non-secret settings
+    default: ''
   placement_json:
     type: string
     description: Wrapped placement context JSON
@@ -53,6 +64,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -82,6 +96,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -89,7 +106,19 @@ grains:
               ansible_connection: local
       inputs:
         - infrastructure_resource_model_json: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_model_json }}'
-        - platform_json: '{{ .inputs.platform_json }}'
+        - platform_json: |
+            {
+              "platform": {
+                "intersight": {
+                  "endpoint": "{{ .inputs.api_uri }}",
+                  "validate_certs": false,
+                  "credentials": {
+                    "api_key_id_ref": "env://INTERSIGHT_API_KEY_ID",
+                    "api_private_key_ref": "env://INTERSIGHT_API_PRIVATE_KEY"
+                  }
+                }
+              }
+            }
         - placement_json: '{{ .inputs.placement_json }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
         - lifecycle_action: '{{ .inputs.lifecycle_action }}'
@@ -109,6 +138,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -117,7 +149,19 @@ grains:
       inputs:
         - infrastructure_resource_model_json: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_model_json }}'
         - infrastructure_resource_live_state_json: '{{ .grains.discover_infrastructure_resource_targets.outputs.infrastructure_resource_live_state_json }}'
-        - platform_json: '{{ .inputs.platform_json }}'
+        - platform_json: |
+            {
+              "platform": {
+                "intersight": {
+                  "endpoint": "{{ .inputs.api_uri }}",
+                  "validate_certs": false,
+                  "credentials": {
+                    "api_key_id_ref": "env://INTERSIGHT_API_KEY_ID",
+                    "api_private_key_ref": "env://INTERSIGHT_API_PRIVATE_KEY"
+                  }
+                }
+              }
+            }
         - placement_json: '{{ .inputs.placement_json }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
         - lifecycle_action: '{{ .inputs.lifecycle_action }}'
