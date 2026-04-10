@@ -79,7 +79,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - placement_yaml: '{{ .inputs.placement_json }}'
+        - placement_json: '{{ .inputs.placement_json }}'
         - inventory_json: '{{ .inputs.inventory_json }}'
         - site_json: '{{ .inputs.site_json }}'
         - bootstrap_python_requirements: 'true'
@@ -121,7 +121,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - placement_yaml: '{{ .inputs.placement_json }}'
+        - placement_json: '{{ .inputs.placement_json }}'
         - inventory_json: '{{ .inputs.inventory_json }}'
         - site_json: '{{ .inputs.site_json }}'
         - bootstrap_python_requirements: 'true'
