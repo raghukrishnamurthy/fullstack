@@ -70,6 +70,21 @@
         (platform_data.intersight.validate_certs | default('false') | string | lower)
         in ['true', '1', 'yes']
       }}
+    chassis_power_policy_target_platform: >-
+      {{
+        {
+          'all': 'All',
+          'standalone': 'Standalone',
+          'fiattached': 'FIAttached',
+          'chassis': 'Chassis'
+        }[
+          infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.target_platform
+          | default('chassis')
+          | string
+          | trim
+          | lower
+        ]
+      }}
     apply_mode: "{{ (execution_intent | default('validate_only') | string | lower) in ['apply', 'deploy', 'provision', 'onboard', 'claim_and_onboard'] }}"
     lifecycle_action_normalized: "{{ lifecycle_action | default('create') | string | lower }}"
     python_bootstrap_enabled: "{{ (bootstrap_python_requirements | default('auto') | string | lower) }}"
@@ -143,7 +158,7 @@
         organization: "{{ organization_name }}"
         name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_power_policy }}"
         description: "Shared chassis power policy for infrastructure-resource-provisioning"
-        target_platform: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.target_platform }}"
+        target_platform: "{{ chassis_power_policy_target_platform }}"
         power_redundancy: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_redundancy }}"
         power_save_mode: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_save_mode }}"
         dynamic_power_rebalancing: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.dynamic_power_rebalancing }}"
