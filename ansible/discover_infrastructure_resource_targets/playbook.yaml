@@ -202,24 +202,24 @@
 
     - name: Build current discovery status facts
       ansible.builtin.set_fact:
-        current_phase_ready_value: "{{ current_discovered_chassis_count > 0 }}"
+        current_phase_ready_value: "{{ (current_discovered_chassis_count | int) > 0 }}"
         current_phase_status_value: >-
           {{
             'completed'
-            if (current_discovered_chassis_count > 0)
+            if ((current_discovered_chassis_count | int) > 0)
             else (
               'inventory_not_yet_present'
-              if ((current_expected_chassis_count > 0) or (current_expected_blade_count > 0))
+              if (((current_expected_chassis_count | int) > 0) or ((current_expected_blade_count | int) > 0))
               else 'no_targets_discovered'
             )
           }}
         current_phase_message: >-
           {{
             'Discovered chassis targets for infrastructure-resource-provisioning.'
-            if (current_discovered_chassis_count > 0)
+            if ((current_discovered_chassis_count | int) > 0)
             else (
               'Inventory expects chassis or blades, but live Intersight currently exposes no chassis targets through equipment.Chasses or equipment.ChassisIdentities.'
-              if ((current_expected_chassis_count > 0) or (current_expected_blade_count > 0))
+              if (((current_expected_chassis_count | int) > 0) or ((current_expected_blade_count | int) > 0))
               else 'No chassis targets were discovered in Intersight.'
             )
           }}
