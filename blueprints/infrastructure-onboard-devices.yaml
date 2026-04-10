@@ -99,6 +99,7 @@ grains:
               ansible_connection: local
       inputs:
         - bootstrap_python_requirements: 'true'
+        - bootstrap_ansible_collections: 'true'
         - platform_yaml: |
             platform:
               intersight:

@@ -5,6 +5,7 @@ Reusable first-run inputs for the current Torque blueprint:
 - [claim-devices-to-intersight.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/claim-devices-to-intersight.yaml)
 - [cisco-standalone-rack-reset-password.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/cisco-standalone-rack-reset-password.yaml)
 - [infrastructure-onboard-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-onboard-devices.yaml)
+- [infrastructure-full-stack.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-full-stack.yaml)
 
 ## SaaS Small Mixed Test
 
@@ -376,3 +377,33 @@ Use this for the current shared network planning phase with the same normalized 
   `execution_intent: validate_only`
 - The phase exports the standard phase outputs:
   `phase_ready`, `phase_status`, `phase_readiness_json`, and `phase_summary_json`.
+
+## Infrastructure Full Stack Small Test
+
+Use this for the full-stack Torque surface that chains onboarding, network,
+domain validation, and resource provisioning through the public JSON contracts.
+
+### Example input file
+
+- [infrastructure-full-stack-torque-inputs.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/examples/ai-pod-sjc01-prod/infrastructure-full-stack-torque-inputs.yaml)
+
+### Notes
+
+- The full-stack blueprint should now be tested with the same public JSON-string
+  inputs used by the standalone phase blueprints:
+  `deployment_json`, `placement_json`, `inventory_json`, `solution_json`,
+  and optional `site_json`.
+- Control-plane Intersight credentials stay as the public launch inputs
+  `intersight_api_key_id` and `intersight_api_private_key`; the blueprints
+  bridge them into env-backed refs internally for the grains.
+- Device-side secrets should continue to use the encrypted bundle path through:
+  `encrypted_device_secret_bundle_path` and `device_secret_bundle_key`.
+- Intersight-focused phase blueprints in the chain now rely on
+  `prepare-intersight-context` for the shared preparation rules:
+  Python bootstrap, Ansible collection bootstrap, and idempotent organization
+  ensure/create.
+- The phase-specific controls stay explicit at the top-level full-stack
+  contract:
+  onboarding, network, validator, and resource controls are passed straight
+  through to the underlying phase blueprints.
+- This is the right end-to-end Torque test surface for the current repo.

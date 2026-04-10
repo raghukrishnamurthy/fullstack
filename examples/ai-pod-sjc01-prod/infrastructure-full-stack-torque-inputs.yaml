@@ -1,0 +1,129 @@
+deployment_json: |
+  deployment:
+    id: ai-pod-sjc01-prod
+    site: sjc01
+    environment: prod
+
+api_uri: https://intersight.com/api/v1
+
+intersight_api_key_id: <your-intersight-api-key-id>
+intersight_api_private_key: |
+  -----BEGIN EC PRIVATE KEY-----
+  ...
+  -----END EC PRIVATE KEY-----
+
+placement_json: |
+  placement:
+    intersight:
+      organization: ai-prod
+      resource_group: ai-prod
+
+inventory_json: |
+  inventory:
+    devices:
+      - id: fi-a
+        category: fabric_interconnect
+        serial: FDO272406DE
+        mgmt_ip: 10.29.135.101
+
+      - id: fi-b
+        category: fabric_interconnect
+        serial: FDO272406CK
+        mgmt_ip: 10.29.135.102
+
+      - id: rack-server-01
+        category: server
+        serial: WZP270500PQ
+        mgmt_ip: 10.29.135.106
+        attributes:
+          form_factor: rack
+          management_type: standalone
+
+      - id: rack-server-02
+        category: server
+        serial: WZP270500PV
+        mgmt_ip: 10.29.135.107
+        attributes:
+          form_factor: rack
+          management_type: standalone
+
+      - id: rack-server-03
+        category: server
+        serial: WZP270500PA
+        mgmt_ip: 10.29.135.108
+        attributes:
+          form_factor: rack
+          management_type: standalone
+
+      - id: rack-server-04
+        category: server
+        serial: WZP280393WA
+        mgmt_ip: 10.29.135.109
+        attributes:
+          form_factor: rack
+          management_type: standalone
+
+    domains:
+      - domain_id: domain-01
+        type: fi_pair
+        members:
+          - fi-a
+          - fi-b
+
+    assist:
+      - id: assist-01
+        name: assist01
+        endpoint: assist-101.cisco.com
+        credentials:
+          username: admin
+
+    storage:
+      - id: pure-01
+        name: pure01
+        platform: pure
+        endpoint: 10.193.42.37
+        credentials:
+          username: pureuser
+        assist: assist-01
+
+solution_json: |
+  solution:
+    profile: virtualization_foundation
+    delivery_scope: infrastructure
+
+site_json: |
+  site:
+    code: sjc01
+    timezone: America/Los_Angeles
+
+credential_candidates_json: |
+  {}
+
+encrypted_device_secret_bundle_path: assets/secrets/device-secrets.enc
+device_secret_bundle_key: jarvis-poc-unlock-key
+
+name_prefix: vf1
+
+onboarding_validation_mode: live
+onboarding_execution_intent: apply
+onboarding_wait_for_completion: "true"
+onboarding_validation_poll_interval: "30"
+onboarding_validation_timeout_seconds: "600"
+
+network_validation_mode: strict
+network_execution_intent: apply
+policy_profile: recommended
+port_mapping_profile: ethernet
+domain_profile_selections_json: |
+  {"domains":{}}
+
+validator_validation_mode: strict
+wait_for_readiness: "true"
+readiness_poll_interval: "30"
+readiness_max_attempts: "240"
+
+resource_execution_intent: apply
+resource_lifecycle_action: create
+chassis_profile: recommended
+resource_profile_selections_json: |
+  {"domains":{}}

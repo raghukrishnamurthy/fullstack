@@ -7,8 +7,11 @@ cd "$repo_root"
 blueprints=(
   "blueprints/cisco-standalone-rack-reset-password.yaml"
   "blueprints/claim-devices-to-intersight.yaml"
+  "blueprints/infrastructure-full-stack.yaml"
   "blueprints/infrastructure-onboard-devices.yaml"
   "blueprints/infrastructure-network-provisioning.yaml"
+  "blueprints/infrastructure-resource-provisioning.yaml"
+  "blueprints/infrastructure-domain-post-validation.yaml"
 )
 
 for blueprint in "${blueprints[@]}"; do
