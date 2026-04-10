@@ -228,7 +228,7 @@ grains:
     spec:
       source:
         store: intersight-fullstack-repo
-        path: blueprints/infrastructure-domain-post-validation-v1.yaml
+        path: blueprints/infrastructure-domain-post-validation.yaml
       inputs:
         - agent: '{{ .inputs.agent }}'
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'
@@ -255,7 +255,7 @@ grains:
     spec:
       source:
         store: intersight-fullstack-repo
-        path: blueprints/infrastructure-resource-provisioning-v1.yaml
+        path: blueprints/infrastructure-resource-provisioning.yaml
       inputs:
         - agent: '{{ .inputs.agent }}'
         - deployment_yaml: '{{ .inputs.deployment_yaml }}'

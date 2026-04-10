@@ -60,8 +60,36 @@ inputs:
     default: '{"domains":{}}'
 
 grains:
+  prepare_intersight_context:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/prepare-intersight-context/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - bootstrap_python_requirements: 'true'
+        - bootstrap_ansible_collections: 'true'
+        - platform_yaml: '{{ .inputs.platform_yaml }}'
+        - placement_yaml: '{{ .inputs.placement_yaml }}'
+      outputs:
+        - context_status
+        - org_status
+        - org_name
+        - org_action
+        - org_result_json
+        - context_result_json
+
   resolve_infrastructure_network_model:
     kind: ansible
+    depends-on: prepare_intersight_context
     spec:
       source:
         store: intersight-fullstack-repo

@@ -80,10 +80,10 @@ Implementation notes from review:
 - it should remain the phase completion authority, but future hardening should prefer direct durable-state checks where practical
 - validator-owned Torque output export should be treated as authoritative and should not be silently ignored on failure
 
-### `infrastructure-resource-provisioning-v1`
+### `infrastructure-resource-provisioning`
 
 - Blueprint:
-  [infrastructure-resource-provisioning-v1.yaml](/tmp/jarvis-main-push/blueprints/infrastructure-resource-provisioning-v1.yaml)
+  [infrastructure-resource-provisioning.yaml](/tmp/jarvis-main-push/blueprints/infrastructure-resource-provisioning.yaml)
 - Validator grain:
   [validate_and_summarize_infrastructure_resources/playbook.yaml](/tmp/jarvis-main-push/ansible/validate_and_summarize_infrastructure_resources/playbook.yaml)
 
@@ -110,10 +110,10 @@ Validator steps:
    - `validation_summary_json`
    - `tac_handoff_json`
 
-### `infrastructure-domain-post-validation-v1`
+### `infrastructure-domain-post-validation`
 
 - Blueprint:
-  [infrastructure-domain-post-validation-v1.yaml](/tmp/jarvis-main-push/blueprints/infrastructure-domain-post-validation-v1.yaml)
+  [infrastructure-domain-post-validation.yaml](/tmp/jarvis-main-push/blueprints/infrastructure-domain-post-validation.yaml)
 - Validator grain:
   [validate_infrastructure_domain_inventory/playbook.yaml](/tmp/jarvis-main-push/ansible/validate_infrastructure_domain_inventory/playbook.yaml)
 

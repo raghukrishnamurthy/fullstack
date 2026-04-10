@@ -36,8 +36,46 @@ inputs:
     description: JSON array of Intersight claim targets to process
     default: '[]'
 grains:
+  prepare_intersight_context:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/prepare-intersight-context/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - bootstrap_python_requirements: 'true'
+        - bootstrap_ansible_collections: 'true'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+        - organization: '{{ .inputs.organization }}'
+      outputs:
+        - context_status
+        - org_status
+        - org_name
+        - org_action
+        - org_result_json
+        - context_result_json
+
   prepare_device_secret_bundle:
     kind: ansible
+    depends-on: prepare_intersight_context
     spec:
       source:
         store: intersight-fullstack-repo
@@ -164,7 +202,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - organization: '{{ .inputs.organization }}'
+        - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.assist_claim_targets_json }}'
       outputs:
         - batch_status
@@ -214,7 +252,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - organization: '{{ .inputs.organization }}'
+        - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.direct_claim_targets_json }}'
       outputs:
         - batch_status
@@ -264,7 +302,7 @@ grains:
                 credentials:
                   api_key_id_ref: env://INTERSIGHT_API_KEY_ID
                   api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
-        - organization: '{{ .inputs.organization }}'
+        - organization: '{{ .grains.prepare_intersight_context.outputs.org_name }}'
         - claim_targets_json: '{{ .grains.split_claim_target_phases.outputs.assist_dependent_claim_targets_json }}'
       outputs:
         - batch_status
