@@ -364,12 +364,9 @@
     - name: Create switch control policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: >-
-          {{
-            '/fabric/SwitchControlPolicies/' ~ existing_policy_map.switch_control_policy.moid
-            if (existing_policy_map.switch_control_policy.exists | default(false))
-            else '/fabric/SwitchControlPolicies'
-          }}
+        # Use the collection path with a filter so the module can resolve
+        # existing objects without duplicating the Moid in update URLs.
+        resource_path: /fabric/SwitchControlPolicies
         query_params:
           $filter: "Name eq '{{ switch_control_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
@@ -407,12 +404,7 @@
     - name: Create system QoS policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: >-
-          {{
-            '/fabric/SystemQosPolicies/' ~ existing_policy_map.system_qos_policy.moid
-            if (existing_policy_map.system_qos_policy.exists | default(false))
-            else '/fabric/SystemQosPolicies'
-          }}
+        resource_path: /fabric/SystemQosPolicies
         query_params:
           $filter: "Name eq '{{ system_qos_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
@@ -467,12 +459,9 @@
     - name: Create network connectivity policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: >-
-          {{
-            '/networkconfig/Policies/' ~ existing_policy_map.network_connectivity_policy.moid
-            if (existing_policy_map.network_connectivity_policy.exists | default(false))
-            else '/networkconfig/Policies'
-          }}
+        # The networkconfig.Policy endpoint is resolved from the filter by the
+        # module. Appending the Moid here causes the module to duplicate it.
+        resource_path: /networkconfig/Policies
         query_params:
           $filter: "Name eq '{{ network_connectivity_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
@@ -515,12 +504,7 @@
     - name: Create port policy in Intersight via REST
       cisco.intersight.intersight_rest_api:
         <<: *api_info
-        resource_path: >-
-          {{
-            '/fabric/PortPolicies/' ~ existing_policy_map.port_policy.moid
-            if (existing_policy_map.port_policy.exists | default(false))
-            else '/fabric/PortPolicies'
-          }}
+        resource_path: /fabric/PortPolicies
         query_params:
           $filter: "Name eq '{{ port_policy_name }}' and Organization.Moid eq '{{ organization_moid }}'"
           $expand: Organization
