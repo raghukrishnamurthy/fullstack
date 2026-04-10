@@ -30,6 +30,20 @@
     api_private_key_direct: "{{ platform_data.intersight.credentials.api_private_key | default('') | string }}"
     api_key_id_ref: "{{ platform_data.intersight.credentials.api_key_id_ref | default('') | string }}"
     api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
+    candidate_api_private_key: >-
+      {{
+        direct_api_private_key
+        if (direct_api_private_key | length > 0)
+        else (
+          api_private_key_direct
+          if (api_private_key_direct | length > 0)
+          else (
+            lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+            if (api_private_key_ref | regex_search('^env://'))
+            else ''
+          )
+        )
+      }}
     resolved_api_key_id: >-
       {{
         direct_api_key_id
@@ -46,17 +60,11 @@
       }}
     resolved_api_private_key: >-
       {{
-        direct_api_private_key
-        if (direct_api_private_key | length > 0)
-        else (
-          api_private_key_direct
-          if (api_private_key_direct | length > 0)
-          else (
-            lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
-            if (api_private_key_ref | regex_search('^env://'))
-            else ''
-          )
-        )
+        candidate_api_private_key
+        | regex_replace('^"(.*)"$', '\1')
+        | regex_replace("^'(.*)'$", '\1')
+        | replace('\\r', '')
+        | replace('\\n', '\n')
       }}
     validate_certs: >-
       {{
