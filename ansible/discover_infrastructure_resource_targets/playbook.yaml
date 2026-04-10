@@ -195,10 +195,10 @@
       ansible.builtin.set_fact:
         current_expected_chassis_count: "{{ infrastructure_resource_model.inventory_expectations.expected_chassis_count | default(0) | int }}"
         current_expected_blade_count: "{{ infrastructure_resource_model.inventory_expectations.expected_blade_count | default(0) | int }}"
-        current_discovered_chassis_count: "{{ normalized_discovered_chassis | default([]) | length }}"
-        current_discovered_chassis_endpoint_count: "{{ current_discovered_chasses | default([]) | length }}"
-        current_discovered_chassis_identity_count: "{{ current_discovered_chassis_identities | default([]) | length }}"
-        current_discovered_blade_count: "{{ current_discovered_blades | default([]) | length }}"
+        current_discovered_chassis_count: "{{ normalized_discovered_chassis | default([]) | length | int }}"
+        current_discovered_chassis_endpoint_count: "{{ current_discovered_chasses | default([]) | length | int }}"
+        current_discovered_chassis_identity_count: "{{ current_discovered_chassis_identities | default([]) | length | int }}"
+        current_discovered_blade_count: "{{ current_discovered_blades | default([]) | length | int }}"
 
     - name: Build current discovery status facts
       ansible.builtin.set_fact:
