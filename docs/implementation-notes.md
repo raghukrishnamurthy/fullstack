@@ -12,7 +12,7 @@ This page holds the longer-lived assumptions and the current validated checkpoin
   - `platform_yaml` for the claim and context grains.
   - `placement_yaml` only for `prepare-intersight-context`.
   - `credential_candidates_yaml` only for the secret-bundle and credential-resolution grains.
-- Claim grains assume the organization/context is already prepared and consume direct `organization`.
+- Claim grains assume the organization/context is already prepared before claim execution.
 - `site_json` is optional and carries site-scoped operational defaults such as location, DNS, NTP, and proxy settings.
 - `credential_candidates_json` and `credential_candidates_yaml` are optional override contracts for target credential candidates.
 - The public claim and onboarding blueprints now prefer encrypted bundle inputs for device-side secrets:
@@ -58,6 +58,10 @@ This page holds the longer-lived assumptions and the current validated checkpoin
 ## Current Checkpoint
 
 - `main` is clean and includes the docs reorg, prompt consolidation, references layout, and bundle-based onboarding updates.
+- The repo is now being tightened around three equal target surfaces:
+  - Torque-ready public blueprints
+  - directly runnable grains for focused debugging and composition
+  - directly runnable Ansible playbooks when explicit inputs are provided
 - PVA flow is proven live for:
   - one FI pair claim unit derived from a declared `fi_pair` domain
   - standalone rack claim targets
@@ -65,6 +69,7 @@ This page holds the longer-lived assumptions and the current validated checkpoin
 - Appliance storage short-circuits existing storage targets first, then waits for the referenced Assist to reach `Connected` before submitting new storage claims.
 - Appliance claim follow-up now waits once after all submissions, then enriches results in an aggregate pass.
 - The focused claim blueprint now uses the active grain-level chain:
+  - `prepare_intersight_context`
   - `prepare_device_secret_bundle`
   - `prepare_claim_target_credentials`
   - `split_claim_target_phases`
@@ -82,6 +87,11 @@ This page holds the longer-lived assumptions and the current validated checkpoin
   - `device_secret_bundle_key`
   - `credential_candidates_yaml`
   - `claim_targets_json`
+- Intersight-focused blueprints now use `prepare-intersight-context` as the shared pre-step for common Intersight setup.
+- `prepare-intersight-context` currently covers:
+  - shared Python/bootstrap setup needed by Intersight flows
+  - shared Ansible collection bootstrap for native `cisco.intersight.*` modules
+  - idempotent organization ensure/create behavior
 - The public onboarding blueprint now uses the active phase chain:
   - `prepare_intersight_context`
   - `build_infrastructure_onboarding_targets`

@@ -1,4 +1,4 @@
-# Infrastructure Network Provisioning Grain Sequence v1
+# Infrastructure Network Provisioning Grain Sequence
 
 ## Purpose
 
@@ -19,7 +19,7 @@ Keep the workflow:
 - easy to split into grains
 - clean enough for later customer baseline and override support
 
-## Recommended v1 Grain Chain
+## Recommended Grain Chain
 
 ### 1. `resolve_infrastructure_network_model`
 

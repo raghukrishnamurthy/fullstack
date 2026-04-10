@@ -1,8 +1,8 @@
-# FI Model Matrix v1
+# FI Model Matrix
 
 ## Purpose
 
-Define the v1 FI model matrix used by the
+Define the current FI model matrix used by the
 `infrastructure-network-provisioning` resolver.
 
 This matrix is the model-aware source used to derive:
@@ -26,7 +26,7 @@ This matrix is the model-aware source used to derive:
 Use recommended settings based on recommended port mappings for the discovered
 model and selected `port_mapping_profile`.
 
-In v1, the exposed port mapping profiles remain:
+The exposed port mapping profiles remain:
 
 - `ethernet`
 - `ethernet_fc`

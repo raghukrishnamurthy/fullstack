@@ -1,8 +1,8 @@
-# Infrastructure Resource Provisioning Schema v1
+# Infrastructure Resource Provisioning Schema
 
 ## Purpose
 
-Define the first v1 input and output contract for
+Define the current input and output contract for
 `infrastructure-resource-provisioning`.
 
 This first cut is intentionally narrow:
@@ -41,7 +41,7 @@ These are names only.
 
 ## `resource_profile_selections_json`
 
-Current v1 shape:
+Current shape:
 
 ```json
 {
@@ -51,7 +51,7 @@ Current v1 shape:
 
 Reserved for future per-domain or per-resource refinement.
 
-No override merge behavior is implemented in v1.
+No override merge behavior is implemented yet.
 
 ## Resolved Model Shape
 

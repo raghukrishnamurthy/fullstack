@@ -1,8 +1,8 @@
-# Infrastructure Network Provisioning Schema v1
+# Infrastructure Network Provisioning Schema
 
 ## Purpose
 
-Define the v1 schema contract for `infrastructure-network-provisioning`.
+Define the current schema contract for `infrastructure-network-provisioning`.
 
 This document focuses on:
 
@@ -20,10 +20,10 @@ clean enough for later expansion.
   facts
 - support global defaults with per-domain refinement
 - keep the resolved model separate from the input model
-- keep v1 built-in only, but shape the resolver so future customer baseline and
+- keep the initial built-in profile set only, but shape the resolver so future customer baseline and
   override support can be added later
 
-## Top-Level v1 Input Contract
+## Top-Level Input Contract
 
 The phase should continue to accept the broad wrapped Jarvis context:
 
@@ -39,9 +39,9 @@ The phase should continue to accept the broad wrapped Jarvis context:
 - `validation_mode`
 - `execution_intent`
 
-On top of that broad context, v1 adds the specific phase selections below.
+On top of that broad context, the phase adds the specific selections below.
 
-## Phase-Specific v1 Inputs
+## Phase-Specific Inputs
 
 ### Required
 

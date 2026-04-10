@@ -1,4 +1,4 @@
-# Policy Profile Values v1
+# Policy Profile Values
 
 ## Purpose
 
@@ -15,7 +15,7 @@ These profiles apply to the current in-scope shared physical/domain policies:
 - `ntp_policy`
 - `network_connectivity_policy`
 
-For v1, the two profiles should differ mainly by values, not by policy
+The two profiles should differ mainly by values, not by policy
 membership.
 
 ## Shared Membership

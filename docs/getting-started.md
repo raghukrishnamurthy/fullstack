@@ -4,22 +4,33 @@ Use this path when you want to understand or safely exercise the current repo wi
 
 ## Read First
 
-1. [README.md](/Users/rkrishn2/Documents/Jarvis_IAC/README.md)
+1. [README.md](../README.md)
    Repo entry point, structure, and current scope.
-2. [docs/README.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/README.md)
+2. [docs/README.md](./README.md)
    Index for implementation guides and reference material.
-3. [docs/catalog-ui.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/catalog-ui.md)
+3. [docs/catalog-ui.md](./catalog-ui.md)
    Current user-facing launch contract.
-4. [docs/wiring-table.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/wiring-table.md)
+4. [docs/wiring-table.md](./wiring-table.md)
    Grain wiring and output flow.
-5. [docs/blueprint-test-inputs.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/blueprint-test-inputs.md)
+5. [docs/blueprint-test-inputs.md](./blueprint-test-inputs.md)
    Reusable first-run inputs.
+
+## Current Repo Goals
+
+- Torque-ready phase blueprints for:
+  - onboarding
+  - network provisioning
+  - resource provisioning
+  - final validation
+- phase blueprints that can run cleanly as standalone blueprint surfaces
+- grains that can still run directly for focused debugging and composition
+- Ansible playbooks that remain usable outside Torque when inputs are provided explicitly
 
 ## Run First
 
-- Start with [blueprints/infrastructure-onboard-devices.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/blueprints/infrastructure-onboard-devices.yaml) for the active onboarding phase.
+- Start with [blueprints/infrastructure-onboard-devices.yaml](../blueprints/infrastructure-onboard-devices.yaml) for the active onboarding phase.
 - The current phase blueprints use JSON-string launch context on the public surface, even when downstream grains still consume YAML-shaped internal contracts.
-- Use [examples/ai-pod-sjc01-prod/infrastructure-onboard-devices-torque-inputs.yaml](/Users/rkrishn2/Documents/Jarvis_IAC/examples/ai-pod-sjc01-prod/infrastructure-onboard-devices-torque-inputs.yaml) as the current sample launch input set.
+- Use [examples/ai-pod-sjc01-prod/infrastructure-onboard-devices-torque-inputs.yaml](../examples/ai-pod-sjc01-prod/infrastructure-onboard-devices-torque-inputs.yaml) as the current sample launch input set.
 
 ## Modes
 
@@ -59,4 +70,4 @@ Use this path when you want to understand or safely exercise the current repo wi
 - Device-side secrets prefer the encrypted bundle path:
   - `encrypted_device_secret_bundle_path`
   - `device_secret_bundle_key`
-- See [docs/secret-handling-runbook.md](/Users/rkrishn2/Documents/Jarvis_IAC/docs/secret-handling-runbook.md) for the full pattern.
+- See [docs/secret-handling-runbook.md](./secret-handling-runbook.md) for the full pattern.

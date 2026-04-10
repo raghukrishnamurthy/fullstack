@@ -21,6 +21,12 @@ These standards apply across the current phase model:
 4. `infrastructure-domain-post-validation`
 5. future infrastructure phases added to the same stack model
 
+Current tightening goals:
+
+- each phase should publish a Torque-ready blueprint surface
+- the same phase logic should still be runnable at the grain level for focused debugging
+- the underlying Ansible playbooks should remain usable directly when operators provide explicit inputs and environment
+
 ## Coding Style
 
 Phase automation should favor clarity over cleverness.
