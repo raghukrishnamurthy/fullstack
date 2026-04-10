@@ -18,6 +18,24 @@ Use these rules when adding or changing:
 3. Normalize at the provider boundary when the internal model and Intersight schema differ.
 4. Do not pass provider-only runtime identifiers such as organization Moids across blueprint phases when the downstream phase can look them up directly.
 5. Prefer one shared normalization path per provider shape instead of repeating ad hoc field mapping in multiple grains.
+6. Prefer native `cisco.intersight.*` modules when the required module is available and supported in the runtime.
+7. Use `cisco.intersight.intersight_rest_api` as the fallback path when no suitable module exists or the module is not viable in Torque.
+
+## Collection Bootstrap Rules
+
+Native Intersight modules only work when the Cisco collection is actually installed in the worker runtime.
+
+Rules:
+
+- adding `requirements.yaml` to a grain does not install the collection by itself
+- a playbook or shared preparation grain must run `ansible-galaxy collection install -r <requirements.yaml>`
+- for shared Intersight workflows, bootstrap the collection once in `prepare-intersight-context`
+- downstream grains should assume shared collection preparation has already happened rather than repeating per-grain installs
+
+Reason:
+
+- Torque runners may start with different collection contents than local developer environments
+- shared bootstrap keeps module availability consistent across discovery, realization, and validator grains in the same blueprint run
 
 ## What To Store In The Model
 
@@ -53,6 +71,11 @@ Examples:
 - sparse QoS class model -> full `fabric.SystemQosPolicy.Classes` payload
 
 This normalization should happen as close as possible to the REST or module call that needs the provider shape.
+
+Examples:
+
+- `chassis` -> `Chassis` for module enum inputs
+- customer-facing booleans or mode names -> provider enum values expected by the selected Intersight module
 
 ## Create Vs Patch Rules
 

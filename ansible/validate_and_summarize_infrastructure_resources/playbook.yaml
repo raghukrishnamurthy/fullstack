@@ -43,7 +43,7 @@
             | length
           }}
 
-    - name: Build final resource summary outputs
+    - name: Build final resource readiness facts
       ansible.builtin.set_fact:
         phase_ready_value: >-
           {{
@@ -92,6 +92,9 @@
               else 'no_targets_discovered'
             )
           }}
+
+    - name: Build final resource summary outputs
+      ansible.builtin.set_fact:
         validation_summary:
           provider_family: "{{ infrastructure_resource_model.provider.family }}"
           resource_summary: "{{ infrastructure_resource_summary }}"

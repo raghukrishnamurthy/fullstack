@@ -21,6 +21,8 @@ Shared Jarvis grain that prepares the requested Intersight target context before
 ## Current behavior
 
 - resolves the Intersight endpoint and Intersight API credentials from `platform_yaml`
+- optionally bootstraps shared Python requirements
+- optionally bootstraps the Cisco Intersight Ansible collection from local `requirements.yaml`
 - supported Intersight credential inputs within `platform_yaml.intersight.credentials` are:
   - direct values
   - `env://...` references
@@ -54,3 +56,6 @@ Shared Jarvis grain that prepares the requested Intersight target context before
 - Resource Group and reservation creation still stay inside the current claim implementations
 - the first slice is intentionally narrow: shared org context first, broader shared placement context later
 - a shared secret-resolution helper now backs this grain so control-plane secret references follow the same direct/file/env contract used elsewhere in the branch
+- this grain is the preferred shared preparation point for Intersight collection bootstrap in Torque blueprints
+- downstream grains should rely on this shared preparation when they use native `cisco.intersight.*` modules
+- `requirements.yaml` in a downstream grain is not enough on its own unless that grain also runs `ansible-galaxy collection install`

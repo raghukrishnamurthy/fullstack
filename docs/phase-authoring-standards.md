@@ -101,11 +101,21 @@ Intersight is the durable operational source of truth for these phases.
 Rules:
 
 - re-read current Intersight state before deciding whether to mutate
+- prefer native `cisco.intersight.*` modules when the needed module exists and works in the target runtime
+- use `cisco.intersight.intersight_rest_api` only when a native module does not exist or is not viable in the Torque runtime
 - use stable identity for lookups, such as `Name` plus organization scope
 - create on collection paths and patch on instance paths
 - do not patch read-only relationships such as `Organization`
 - normalize to provider shape at the boundary to the REST or module call
 - do not pass provider-only Moids across phases when later phases can look them up directly
+- keep provider enum normalization close to the module or REST call so model-facing contracts can stay stable
+
+Collection and preparation rules:
+
+- declaring `requirements.yaml` in a grain is not enough by itself; the runtime must actually run `ansible-galaxy collection install`
+- shared Intersight collection bootstrap should happen once in `prepare-intersight-context`, not separately in every downstream grain
+- blueprints that use native Intersight modules should depend on `prepare-intersight-context` before discovery, realization, or validation grains that need those modules
+- downstream grains may still bootstrap Python requirements locally, but collection bootstrap should be treated as shared run preparation
 
 Read-path rules:
 
