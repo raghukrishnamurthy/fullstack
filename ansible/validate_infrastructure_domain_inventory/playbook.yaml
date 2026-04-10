@@ -269,4 +269,3 @@
       delegate_to: localhost
       run_once: true
       tags: always
-      ignore_errors: true
