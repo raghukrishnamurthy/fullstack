@@ -311,6 +311,9 @@
     - name: Capture organization Moid for REST policy realization
       ansible.builtin.set_fact:
         organization_moid: "{{ policy_realization_organization_lookup.api_response.Moid }}"
+        organization_ref:
+          ObjectType: organization.Organization
+          Moid: "{{ policy_realization_organization_lookup.api_response.Moid }}"
 
     - name: Look up existing policy objects by name for REST realization
       cisco.intersight.intersight_rest_api:
@@ -391,7 +394,7 @@
             }
             | combine(
                 (existing_policy_map.switch_control_policy.exists | default(false))
-                | ternary({}, {'Organization': {'Name': organization_name}}),
+                | ternary({}, {'Organization': organization_ref}),
                 recursive=True
               )
           }}
@@ -422,7 +425,7 @@
             }
             | combine(
                 (existing_policy_map.system_qos_policy.exists | default(false))
-                | ternary({}, {'Organization': {'Name': organization_name}}),
+                | ternary({}, {'Organization': organization_ref}),
                 recursive=True
               )
           }}
@@ -454,7 +457,7 @@
             }
             | combine(
                 (existing_policy_map.ntp_policy.exists | default(false))
-                | ternary({}, {'Organization': {'Name': organization_name}}),
+                | ternary({}, {'Organization': organization_ref}),
                 recursive=True
               )
           }}
@@ -488,7 +491,7 @@
             }
             | combine(
                 (existing_policy_map.network_connectivity_policy.exists | default(false))
-                | ternary({}, {'Organization': {'Name': organization_name}}),
+                | ternary({}, {'Organization': organization_ref}),
                 recursive=True
               )
             | combine(
@@ -533,7 +536,7 @@
             }
             | combine(
                 (existing_policy_map.port_policy.exists | default(false))
-                | ternary({}, {'Organization': {'Name': organization_name}}),
+                | ternary({}, {'Organization': organization_ref}),
                 recursive=True
               )
           }}
