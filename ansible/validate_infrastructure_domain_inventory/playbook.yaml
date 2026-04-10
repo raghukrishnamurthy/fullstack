@@ -66,6 +66,15 @@
         | replace('\\r', '')
         | replace('\\n', '\n')
       }}
+    organization_name: >-
+      {{
+        (
+          placement_data.intersight.organization
+          | default(placement_data.organization | default(''))
+        )
+        | string
+        | trim
+      }}
     validate_certs: >-
       {{
         (platform_data.intersight.validate_certs | default('false') | string | lower)
@@ -170,7 +179,7 @@
       ansible.builtin.assert:
         that:
           - deployment_data.id | default('') | string | trim | length > 0
-          - placement_data.intersight.organization | default('') | string | trim | length > 0
+          - organization_name | length > 0
           - resolved_api_key_id | length > 0
           - resolved_api_private_key | length > 0
           - readiness_max_attempts_normalized | int > 0
@@ -224,7 +233,7 @@
           phase: infrastructure-domain-validator
           deployment_id: "{{ deployment_data.id }}"
           site_id: "{{ site_data.id | default(deployment_data.site | default('')) }}"
-          organization: "{{ placement_data.intersight.organization | default('') }}"
+          organization: "{{ organization_name }}"
           expected: "{{ validator_summary.expected }}"
           present_devices: "{{ validator_summary.present_devices }}"
           missing_devices: "{{ validator_summary.missing_devices }}"
@@ -281,7 +290,7 @@
           summary: "{{ validation_summary }}"
         tac_handoff:
           deployment_id: "{{ deployment_data.id }}"
-          organization: "{{ placement_data.intersight.organization | default('') }}"
+          organization: "{{ organization_name }}"
           missing_devices: "{{ validator_summary.missing_devices }}"
           not_ready_devices: "{{ validator_summary.not_ready_devices }}"
           blocking_scope: "{{ validator_summary.blocking_scope }}"
