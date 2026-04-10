@@ -6,17 +6,20 @@
   any_errors_fatal: true
 
   vars:
-    deployment_root: "{{ (deployment_json | default('') | trim | length > 0) | ternary(deployment_json | from_json, {}) }}"
-    platform_root: "{{ (platform_json | default('') | trim | length > 0) | ternary(platform_json | from_json, {}) }}"
-    placement_root: "{{ (placement_json | default('') | trim | length > 0) | ternary(placement_json | from_json, {}) }}"
-    inventory_root: "{{ (inventory_json | default('') | trim | length > 0) | ternary(inventory_json | from_json, {}) }}"
-    site_root: "{{ (site_json | default('') | trim | length > 0) | ternary(site_json | from_json, {}) }}"
+    deployment_root: "{{ (deployment_json | default('') | trim | length > 0) | ternary(deployment_json | from_json, ((deployment_yaml | default('') | trim | length > 0) | ternary(deployment_yaml | from_yaml, {}))) }}"
+    platform_root: "{{ (platform_json | default('') | trim | length > 0) | ternary(platform_json | from_json, ((platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}))) }}"
+    placement_root: "{{ (placement_json | default('') | trim | length > 0) | ternary(placement_json | from_json, ((placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}))) }}"
+    inventory_root: "{{ (inventory_json | default('') | trim | length > 0) | ternary(inventory_json | from_json, ((inventory_yaml | default('') | trim | length > 0) | ternary(inventory_yaml | from_yaml, {}))) }}"
+    site_root: "{{ (site_json | default('') | trim | length > 0) | ternary(site_json | from_json, ((site_yaml | default('') | trim | length > 0) | ternary(site_yaml | from_yaml, {}))) }}"
     deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
     placement_data: "{{ placement_root.placement | default(placement_root) }}"
     inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"
     site_data: "{{ site_root.site | default(site_root) }}"
-    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    direct_api_uri: "{{ api_uri | default('') | string | trim }}"
+    direct_api_key_id: "{{ intersight_api_key_id | default('') | string | trim }}"
+    direct_api_private_key: "{{ intersight_api_private_key | default('') | string }}"
+    raw_api_uri: "{{ direct_api_uri if (direct_api_uri | length > 0) else (platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim) }}"
     api_uri_normalized: >-
       {{
         raw_api_uri
@@ -29,22 +32,30 @@
     api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
     resolved_api_key_id: >-
       {{
-        api_key_id_direct
-        if (api_key_id_direct | length > 0)
+        direct_api_key_id
+        if (direct_api_key_id | length > 0)
         else (
-          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
-          if (api_key_id_ref | regex_search('^env://'))
-          else ''
+          api_key_id_direct
+          if (api_key_id_direct | length > 0)
+          else (
+            lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+            if (api_key_id_ref | regex_search('^env://'))
+            else ''
+          )
         )
       }}
     resolved_api_private_key: >-
       {{
-        api_private_key_direct
-        if (api_private_key_direct | length > 0)
+        direct_api_private_key
+        if (direct_api_private_key | length > 0)
         else (
-          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
-          if (api_private_key_ref | regex_search('^env://'))
-          else ''
+          api_private_key_direct
+          if (api_private_key_direct | length > 0)
+          else (
+            lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+            if (api_private_key_ref | regex_search('^env://'))
+            else ''
+          )
         )
       }}
     validate_certs: >-
@@ -269,3 +280,4 @@
       delegate_to: localhost
       run_once: true
       tags: always
+      ignore_errors: true

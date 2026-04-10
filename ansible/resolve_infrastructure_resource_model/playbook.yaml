@@ -6,10 +6,10 @@
   any_errors_fatal: true
 
   vars:
-    deployment_root: "{{ (deployment_json | default('') | trim | length > 0) | ternary(deployment_json | from_json, {}) }}"
-    inventory_root: "{{ (inventory_json | default('') | trim | length > 0) | ternary(inventory_json | from_json, {}) }}"
-    placement_root: "{{ (placement_json | default('') | trim | length > 0) | ternary(placement_json | from_json, {}) }}"
-    site_root: "{{ (site_json | default('') | trim | length > 0) | ternary(site_json | from_json, {}) }}"
+    deployment_root: "{{ (deployment_json | default('') | trim | length > 0) | ternary(deployment_json | from_json, ((deployment_yaml | default('') | trim | length > 0) | ternary(deployment_yaml | from_yaml, {}))) }}"
+    inventory_root: "{{ (inventory_json | default('') | trim | length > 0) | ternary(inventory_json | from_json, ((inventory_yaml | default('') | trim | length > 0) | ternary(inventory_yaml | from_yaml, {}))) }}"
+    placement_root: "{{ (placement_json | default('') | trim | length > 0) | ternary(placement_json | from_json, ((placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}))) }}"
+    site_root: "{{ (site_json | default('') | trim | length > 0) | ternary(site_json | from_json, ((site_yaml | default('') | trim | length > 0) | ternary(site_yaml | from_yaml, {}))) }}"
     selection_root: "{{ (resource_profile_selections_json | default('{\"domains\":{}}') | trim | length > 0) | ternary(resource_profile_selections_json | from_json, {'domains': {}}) }}"
     deployment_data: "{{ deployment_root.deployment | default(deployment_root) }}"
     inventory_data: "{{ inventory_root.inventory | default(inventory_root) }}"

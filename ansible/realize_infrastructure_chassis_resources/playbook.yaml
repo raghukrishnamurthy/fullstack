@@ -8,11 +8,14 @@
   vars:
     infrastructure_resource_model: "{{ infrastructure_resource_model_json | from_json }}"
     infrastructure_resource_live_state: "{{ infrastructure_resource_live_state_json | from_json }}"
-    platform_root: "{{ (platform_json | default('') | trim | length > 0) | ternary(platform_json | from_json, {}) }}"
-    placement_root: "{{ (placement_json | default('') | trim | length > 0) | ternary(placement_json | from_json, {}) }}"
+    platform_root: "{{ (platform_json | default('') | trim | length > 0) | ternary(platform_json | from_json, ((platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}))) }}"
+    placement_root: "{{ (placement_json | default('') | trim | length > 0) | ternary(placement_json | from_json, ((placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}))) }}"
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
     placement_data: "{{ placement_root.placement | default(placement_root) }}"
-    raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
+    direct_api_uri: "{{ api_uri | default('') | string | trim }}"
+    direct_api_key_id: "{{ intersight_api_key_id | default('') | string | trim }}"
+    direct_api_private_key: "{{ intersight_api_private_key | default('') | string }}"
+    raw_api_uri: "{{ direct_api_uri if (direct_api_uri | length > 0) else (platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim) }}"
     api_uri_normalized: >-
       {{
         raw_api_uri
@@ -25,22 +28,30 @@
     api_private_key_ref: "{{ platform_data.intersight.credentials.api_private_key_ref | default('') | string }}"
     resolved_api_key_id: >-
       {{
-        api_key_id_direct
-        if (api_key_id_direct | length > 0)
+        direct_api_key_id
+        if (direct_api_key_id | length > 0)
         else (
-          lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
-          if (api_key_id_ref | regex_search('^env://'))
-          else ''
+          api_key_id_direct
+          if (api_key_id_direct | length > 0)
+          else (
+            lookup('ansible.builtin.env', api_key_id_ref | regex_replace('^env://', ''))
+            if (api_key_id_ref | regex_search('^env://'))
+            else ''
+          )
         )
       }}
     resolved_api_private_key: >-
       {{
-        api_private_key_direct
-        if (api_private_key_direct | length > 0)
+        direct_api_private_key
+        if (direct_api_private_key | length > 0)
         else (
-          lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
-          if (api_private_key_ref | regex_search('^env://'))
-          else ''
+          api_private_key_direct
+          if (api_private_key_direct | length > 0)
+          else (
+            lookup('ansible.builtin.env', api_private_key_ref | regex_replace('^env://', ''))
+            if (api_private_key_ref | regex_search('^env://'))
+            else ''
+          )
         )
       }}
     organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
