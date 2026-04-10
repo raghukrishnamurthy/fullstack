@@ -61,6 +61,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -68,13 +71,18 @@ grains:
               ansible_connection: local
       inputs:
         - deployment_json: '{{ .inputs.deployment_json }}'
-        - api_uri: '{{ .inputs.api_uri }}'
-        - intersight_api_key_id: '{{ .inputs.intersight_api_key_id }}'
-        - intersight_api_private_key: '{{ .inputs.intersight_api_private_key }}'
-        - platform_json: '{{ .inputs.platform_json }}'
-        - placement_json: '{{ .inputs.placement_json }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+        - placement_yaml: '{{ .inputs.placement_json }}'
         - inventory_json: '{{ .inputs.inventory_json }}'
         - site_json: '{{ .inputs.site_json }}'
+        - bootstrap_python_requirements: 'true'
         - validation_mode: '{{ .inputs.validation_mode }}'
         - wait_for_readiness: '{{ .inputs.wait_for_readiness }}'
         - readiness_poll_interval: '{{ .inputs.readiness_poll_interval }}'
@@ -95,6 +103,9 @@ grains:
       command-arguments: -vvv
       agent:
         name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
       inventory-file:
         localhost:
           hosts:
@@ -102,13 +113,18 @@ grains:
               ansible_connection: local
       inputs:
         - deployment_json: '{{ .inputs.deployment_json }}'
-        - api_uri: '{{ .inputs.api_uri }}'
-        - intersight_api_key_id: '{{ .inputs.intersight_api_key_id }}'
-        - intersight_api_private_key: '{{ .inputs.intersight_api_private_key }}'
-        - platform_json: '{{ .inputs.platform_json }}'
-        - placement_json: '{{ .inputs.placement_json }}'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+        - placement_yaml: '{{ .inputs.placement_json }}'
         - inventory_json: '{{ .inputs.inventory_json }}'
         - site_json: '{{ .inputs.site_json }}'
+        - bootstrap_python_requirements: 'true'
         - validation_mode: '{{ .inputs.validation_mode }}'
         - wait_for_readiness: '{{ .inputs.wait_for_readiness }}'
         - readiness_poll_interval: '{{ .inputs.readiness_poll_interval }}'
