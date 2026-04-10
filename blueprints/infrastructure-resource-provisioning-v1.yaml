@@ -55,8 +55,46 @@ inputs:
     default: '{"domains":{}}'
 
 grains:
+  prepare_intersight_context:
+    kind: ansible
+    spec:
+      source:
+        store: intersight-fullstack-repo
+        path: ansible/prepare-intersight-context/playbook.yaml
+      command-arguments: -vvv
+      agent:
+        name: '{{ .inputs.agent }}'
+      env-vars:
+        - INTERSIGHT_API_KEY_ID: '{{ .inputs.intersight_api_key_id }}'
+        - INTERSIGHT_API_PRIVATE_KEY: '{{ .inputs.intersight_api_private_key }}'
+      inventory-file:
+        localhost:
+          hosts:
+            localhost:
+              ansible_connection: local
+      inputs:
+        - bootstrap_python_requirements: 'true'
+        - bootstrap_ansible_collections: 'true'
+        - platform_yaml: |
+            platform:
+              intersight:
+                endpoint: {{ .inputs.api_uri }}
+                validate_certs: false
+                credentials:
+                  api_key_id_ref: env://INTERSIGHT_API_KEY_ID
+                  api_private_key_ref: env://INTERSIGHT_API_PRIVATE_KEY
+        - placement_yaml: '{{ .inputs.placement_json }}'
+      outputs:
+        - context_status
+        - org_status
+        - org_name
+        - org_action
+        - org_result_json
+        - context_result_json
+
   resolve_infrastructure_resource_model:
     kind: ansible
+    depends-on: prepare_intersight_context
     spec:
       source:
         store: intersight-fullstack-repo

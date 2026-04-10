@@ -35,6 +35,17 @@
           (lookup('ansible.builtin.env', 'TORQUE_WORKSPACE') | string | trim | length) > 0
         )
       }}
+    collection_bootstrap_enabled: "{{ (bootstrap_ansible_collections | default('auto') | string | lower) }}"
+    collection_bootstrap_should_run: >-
+      {{
+        true
+        if collection_bootstrap_enabled == 'true'
+        else false
+        if collection_bootstrap_enabled == 'false'
+        else (
+          (lookup('ansible.builtin.env', 'TORQUE_WORKSPACE') | string | trim | length) > 0
+        )
+      }}
   pre_tasks:
     - name: Resolve shared Intersight API key id secret
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../shared/tasks/lib_resolve_secret_value.yaml"
@@ -68,6 +79,24 @@
       ansible.builtin.pip:
         requirements: "{{ playbook_dir }}/../requirements.txt"
       when: python_bootstrap_should_run | bool
+      tags:
+        - always
+        - precheck
+
+    - name: Install required Ansible collections for prepare-intersight-context
+      ansible.builtin.command:
+        argv:
+          - ansible-galaxy
+          - collection
+          - install
+          - -r
+          - "{{ playbook_dir }}/requirements.yaml"
+          - --force
+      register: collection_install_result
+      changed_when: >-
+        'Installing' in (collection_install_result.stdout | default(''))
+        or 'was installed successfully' in (collection_install_result.stdout | default(''))
+      when: collection_bootstrap_should_run | bool
       tags:
         - always
         - precheck
