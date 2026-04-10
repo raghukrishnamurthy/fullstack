@@ -48,15 +48,15 @@
         phase_ready_value: >-
           {{
             (
-              current_chassis_count > 0
+              (current_chassis_count | int) > 0
             )
             and
             (
               (not apply_mode)
               or
               (
-                current_failed_profile_count == 0
-                and current_associated_profile_count == current_chassis_count
+                (current_failed_profile_count | int) == 0
+                and (current_associated_profile_count | int) == (current_chassis_count | int)
               )
             )
           }}
@@ -64,27 +64,27 @@
           {{
             'completed'
             if (
-              (current_chassis_count > 0)
+              ((current_chassis_count | int) > 0)
               and
               (
                 (not apply_mode)
                 or
                 (
-                  current_failed_profile_count == 0
-                  and current_associated_profile_count == current_chassis_count
+                  (current_failed_profile_count | int) == 0
+                  and (current_associated_profile_count | int) == (current_chassis_count | int)
                 )
               )
             )
             else 'apply_failed'
             if (
               apply_mode
-              and current_failed_profile_count > 0
+              and (current_failed_profile_count | int) > 0
             )
             else 'waiting_for_profile_association'
             if (
               apply_mode
-              and current_chassis_count > 0
-              and current_associated_profile_count < current_chassis_count
+              and (current_chassis_count | int) > 0
+              and (current_associated_profile_count | int) < (current_chassis_count | int)
             )
             else (
               current_discovery_status
