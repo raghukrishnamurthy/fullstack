@@ -8,8 +8,8 @@
   vars:
     infrastructure_resource_model: "{{ infrastructure_resource_model_json | from_json }}"
     infrastructure_resource_live_state: "{{ infrastructure_resource_live_state_json | from_json }}"
-    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
-    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    platform_root: "{{ (platform_json | default('') | trim | length > 0) | ternary(platform_json | from_json, {}) }}"
+    placement_root: "{{ (placement_json | default('') | trim | length > 0) | ternary(placement_json | from_json, {}) }}"
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
     placement_data: "{{ placement_root.placement | default(placement_root) }}"
     raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"

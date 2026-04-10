@@ -5,25 +5,25 @@ inputs:
     type: agent
     title: Torque Agent
     description: Torque agent that runs this workflow.
-  deployment_yaml:
+  deployment_json:
     type: string
-    description: Wrapped deployment context YAML
-  platform_yaml:
+    description: Wrapped deployment context JSON
+  platform_json:
     type: string
-    description: Wrapped platform context YAML
-  placement_yaml:
+    description: Wrapped platform context JSON
+  placement_json:
     type: string
-    description: Wrapped placement context YAML
-  inventory_yaml:
+    description: Wrapped placement context JSON
+  inventory_json:
     type: string
-    description: Wrapped inventory context YAML
-  solution_yaml:
+    description: Wrapped inventory context JSON
+  solution_json:
     type: string
-    description: Optional wrapped solution context YAML
+    description: Optional wrapped solution context JSON
     default: ""
-  site_yaml:
+  site_json:
     type: string
-    description: Optional wrapped site context YAML
+    description: Optional wrapped site context JSON
     default: ""
   execution_intent:
     type: string
@@ -59,12 +59,12 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
-        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
-        - solution_yaml: '{{ .inputs.solution_yaml }}'
-        - site_yaml: '{{ .inputs.site_yaml }}'
+        - deployment_json: '{{ .inputs.deployment_json }}'
+        - platform_json: '{{ .inputs.platform_json }}'
+        - placement_json: '{{ .inputs.placement_json }}'
+        - inventory_json: '{{ .inputs.inventory_json }}'
+        - solution_json: '{{ .inputs.solution_json }}'
+        - site_json: '{{ .inputs.site_json }}'
         - name_prefix: '{{ .inputs.name_prefix }}'
         - chassis_profile: '{{ .inputs.chassis_profile }}'
         - resource_profile_selections_json: '{{ .inputs.resource_profile_selections_json }}'
@@ -89,8 +89,8 @@ grains:
               ansible_connection: local
       inputs:
         - infrastructure_resource_model_json: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_model_json }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - platform_json: '{{ .inputs.platform_json }}'
+        - placement_json: '{{ .inputs.placement_json }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
         - lifecycle_action: '{{ .inputs.lifecycle_action }}'
       outputs:
@@ -117,8 +117,8 @@ grains:
       inputs:
         - infrastructure_resource_model_json: '{{ .grains.resolve_infrastructure_resource_model.outputs.infrastructure_resource_model_json }}'
         - infrastructure_resource_live_state_json: '{{ .grains.discover_infrastructure_resource_targets.outputs.infrastructure_resource_live_state_json }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
+        - platform_json: '{{ .inputs.platform_json }}'
+        - placement_json: '{{ .inputs.placement_json }}'
         - execution_intent: '{{ .inputs.execution_intent }}'
         - lifecycle_action: '{{ .inputs.lifecycle_action }}'
       outputs:

@@ -7,8 +7,8 @@
 
   vars:
     infrastructure_resource_model: "{{ infrastructure_resource_model_json | from_json }}"
-    platform_root: "{{ (platform_yaml | default('') | trim | length > 0) | ternary(platform_yaml | from_yaml, {}) }}"
-    placement_root: "{{ (placement_yaml | default('') | trim | length > 0) | ternary(placement_yaml | from_yaml, {}) }}"
+    platform_root: "{{ (platform_json | default('') | trim | length > 0) | ternary(platform_json | from_json, {}) }}"
+    placement_root: "{{ (placement_json | default('') | trim | length > 0) | ternary(placement_json | from_json, {}) }}"
     platform_data: "{{ platform_root.platform | default(platform_root) }}"
     placement_data: "{{ placement_root.placement | default(placement_root) }}"
     raw_api_uri: "{{ platform_data.intersight.endpoint | default('https://intersight.com/api/v1') | string | trim }}"
@@ -67,7 +67,7 @@
           - organization_name | length > 0
           - resolved_api_key_id | length > 0
           - resolved_api_private_key | length > 0
-        fail_msg: "platform_yaml and placement_yaml must provide Intersight credentials and organization"
+        fail_msg: "platform_json and placement_json must provide Intersight credentials and organization"
 
     - name: Look up organization in Intersight
       cisco.intersight.intersight_rest_api:

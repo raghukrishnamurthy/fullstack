@@ -5,21 +5,21 @@ inputs:
     type: agent
     title: Torque Agent
     description: Torque agent that runs this workflow.
-  deployment_yaml:
+  deployment_json:
     type: string
-    description: Wrapped deployment context YAML
-  platform_yaml:
+    description: Wrapped deployment context JSON
+  platform_json:
     type: string
-    description: Wrapped platform context YAML
-  placement_yaml:
+    description: Wrapped platform context JSON
+  placement_json:
     type: string
-    description: Wrapped placement context YAML
-  inventory_yaml:
+    description: Wrapped placement context JSON
+  inventory_json:
     type: string
-    description: Wrapped inventory context YAML
-  site_yaml:
+    description: Wrapped inventory context JSON
+  site_json:
     type: string
-    description: Optional wrapped site context YAML
+    description: Optional wrapped site context JSON
     default: ""
   validation_mode:
     type: string
@@ -56,11 +56,11 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
-        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
-        - site_yaml: '{{ .inputs.site_yaml }}'
+        - deployment_json: '{{ .inputs.deployment_json }}'
+        - platform_json: '{{ .inputs.platform_json }}'
+        - placement_json: '{{ .inputs.placement_json }}'
+        - inventory_json: '{{ .inputs.inventory_json }}'
+        - site_json: '{{ .inputs.site_json }}'
         - validation_mode: '{{ .inputs.validation_mode }}'
         - wait_for_readiness: '{{ .inputs.wait_for_readiness }}'
         - readiness_poll_interval: '{{ .inputs.readiness_poll_interval }}'
@@ -87,11 +87,11 @@ grains:
             localhost:
               ansible_connection: local
       inputs:
-        - deployment_yaml: '{{ .inputs.deployment_yaml }}'
-        - platform_yaml: '{{ .inputs.platform_yaml }}'
-        - placement_yaml: '{{ .inputs.placement_yaml }}'
-        - inventory_yaml: '{{ .inputs.inventory_yaml }}'
-        - site_yaml: '{{ .inputs.site_yaml }}'
+        - deployment_json: '{{ .inputs.deployment_json }}'
+        - platform_json: '{{ .inputs.platform_json }}'
+        - placement_json: '{{ .inputs.placement_json }}'
+        - inventory_json: '{{ .inputs.inventory_json }}'
+        - site_json: '{{ .inputs.site_json }}'
         - validation_mode: '{{ .inputs.validation_mode }}'
         - wait_for_readiness: '{{ .inputs.wait_for_readiness }}'
         - readiness_poll_interval: '{{ .inputs.readiness_poll_interval }}'
