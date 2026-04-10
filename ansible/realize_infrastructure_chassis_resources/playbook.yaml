@@ -135,37 +135,38 @@
         label: "{{ item.serial | default('unknown-chassis') }}"
 
     - name: Realize shared chassis power policy
-      cisco.intersight.intersight_power_policy:
-        api_private_key: "{{ resolved_api_private_key }}"
-        api_key_id: "{{ resolved_api_key_id }}"
-        api_uri: "{{ api_uri_normalized }}"
-        validate_certs: "{{ validate_certs }}"
-        organization: "{{ organization_name }}"
-        name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_power_policy }}"
-        description: "Shared chassis power policy for infrastructure-resource-provisioning"
-        target_platform: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.target_platform }}"
-        power_redundancy: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_redundancy }}"
-        power_save_mode: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_save_mode }}"
-        dynamic_power_rebalancing: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.dynamic_power_rebalancing }}"
-        extended_power_capacity: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.extended_power_capacity }}"
-        power_allocation: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_allocation }}"
-        state: present
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /power/Policies
+        query_params:
+          $filter: "Name eq '{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_power_policy }}'"
+        api_body:
+          Organization:
+            Name: "{{ organization_name }}"
+          Name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_power_policy }}"
+          Description: "Shared chassis power policy for infrastructure-resource-provisioning"
+          RedundancyMode: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_redundancy }}"
+          PowerSaveMode: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_save_mode }}"
+          DynamicRebalancing: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.dynamic_power_rebalancing }}"
+          ExtendedPowerCapacity: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.extended_power_capacity }}"
+          AllocatedBudget: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_power_policy.settings.power_allocation }}"
       when:
         - apply_mode
         - lifecycle_action_normalized == 'create'
       register: chassis_power_policy_realization
 
     - name: Realize shared chassis thermal policy
-      cisco.intersight.intersight_thermal_policy:
-        api_private_key: "{{ resolved_api_private_key }}"
-        api_key_id: "{{ resolved_api_key_id }}"
-        api_uri: "{{ api_uri_normalized }}"
-        validate_certs: "{{ validate_certs }}"
-        organization: "{{ organization_name }}"
-        name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_thermal_policy }}"
-        description: "Shared chassis thermal policy for infrastructure-resource-provisioning"
-        fan_control_mode: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_thermal_policy.settings.fan_control_mode }}"
-        state: present
+      cisco.intersight.intersight_rest_api:
+        <<: *api_info
+        resource_path: /thermal/Policies
+        query_params:
+          $filter: "Name eq '{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_thermal_policy }}'"
+        api_body:
+          Organization:
+            Name: "{{ organization_name }}"
+          Name: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.managed_object_names.chassis_thermal_policy }}"
+          Description: "Shared chassis thermal policy for infrastructure-resource-provisioning"
+          FanControlMode: "{{ infrastructure_resource_model.resource_bundles.chassis_profile.policy_values.chassis_thermal_policy.settings.fan_control_mode }}"
       when:
         - apply_mode
         - lifecycle_action_normalized == 'create'
