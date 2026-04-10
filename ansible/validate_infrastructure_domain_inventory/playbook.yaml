@@ -70,10 +70,7 @@
       }}
     organization_name: >-
       {{
-        (
-          placement_data.intersight.organization
-          | default(placement_data.organization | default(''))
-        )
+        (placement_data.intersight.organization | default(''))
         | string
         | trim
       }}

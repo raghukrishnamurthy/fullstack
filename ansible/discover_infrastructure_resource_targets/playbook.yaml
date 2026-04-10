@@ -63,7 +63,7 @@
         | replace('\\r', '')
         | replace('\\n', '\n')
       }}
-    organization_name: "{{ placement_data.intersight.organization | default(placement_data.organization | default('')) | string | trim }}"
+    organization_name: "{{ placement_data.intersight.organization | default('') | string | trim }}"
     validate_certs: >-
       {{
         (platform_data.intersight.validate_certs | default('false') | string | lower)

@@ -147,7 +147,7 @@
             id: "{{ deployment_data.id | default(name_prefix) }}"
             name_prefix: "{{ name_prefix }}"
           placement:
-            organization: "{{ placement_data.intersight.organization | default(placement_data.organization | default('')) }}"
+            organization: "{{ placement_data.intersight.organization | default('') }}"
           site:
             id: "{{ site_data.id | default('') }}"
             global_settings: "{{ site_data.global_settings | default({}) }}"
