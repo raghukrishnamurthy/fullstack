@@ -62,6 +62,13 @@
         if (discovery_model | length) > 0
         else (inventory_data.domains | default([]))
       }}
+    inventory_storage: >-
+      {{
+        discovery_model.inventory.storage
+        | default([])
+        if (discovery_model | length) > 0
+        else (inventory_data.storage | default([]))
+      }}
     claim_execution_results_input: "{{ claim_execution_results_json | default('') }}"
     claim_execution_results: >-
       {{
@@ -147,6 +154,25 @@
     direct_target_categories:
       - Rack
       - FabricInterconnect
+    expected_direct_claim_target_count: "{{ (direct_fi_pair_domains | length) + (direct_rack_serials | length) }}"
+    assist_managed_storage_inventory: >-
+      {{
+        inventory_storage
+        | selectattr('assist', 'defined')
+        | selectattr('assist', 'truthy')
+        | list
+      }}
+    expected_storage_claim_target_ids: >-
+      {{
+        assist_managed_storage_inventory
+        | map(attribute='id')
+        | map('default', '')
+        | map('string')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+    expected_storage_claim_target_count: "{{ expected_storage_claim_target_ids | length }}"
     present_direct_rack_count: "{{ polled_present_devices | default([]) | selectattr('category', 'equalto', 'Rack') | list | length }}"
     present_direct_fi_pair_count: >-
       {{
@@ -368,14 +394,37 @@
           {{
             direct_claim_execution_results
             | selectattr('status', 'defined')
-            | selectattr('status', 'in', ['submitted', 'already_claimed', 'already_compliant'])
+            | selectattr('status', 'in', ['successful', 'submitted', 'already_claimed', 'already_compliant'])
             | list
           }}
         blocking_claim_results: >-
           {{
             direct_claim_execution_results
             | selectattr('status', 'defined')
-            | rejectattr('status', 'in', ['submitted', 'already_claimed', 'already_compliant', 'not_applicable'])
+            | rejectattr('status', 'in', ['successful', 'submitted', 'already_claimed', 'already_compliant', 'not_applicable'])
+            | list
+          }}
+        storage_claim_execution_results: >-
+          {{
+            (claim_execution_results | default([]))
+            | selectattr('target_category', 'defined')
+            | selectattr('target_category', 'equalto', 'storage')
+            | selectattr('management_type', 'defined')
+            | selectattr('management_type', 'equalto', 'assist_managed')
+            | list
+          }}
+        successful_storage_claim_results: >-
+          {{
+            storage_claim_execution_results
+            | selectattr('status', 'defined')
+            | selectattr('status', 'in', ['successful', 'submitted', 'already_claimed', 'already_compliant'])
+            | list
+          }}
+        blocking_storage_claim_results: >-
+          {{
+            storage_claim_execution_results
+            | selectattr('status', 'defined')
+            | rejectattr('status', 'in', ['successful', 'submitted', 'already_claimed', 'already_compliant', 'not_applicable'])
             | list
           }}
       tags:
@@ -393,9 +442,12 @@
           summary:
             direct_fi_pair_count: "{{ direct_fi_pair_domains | length }}"
             direct_rack_count: "{{ direct_rack_serials | length }}"
-            direct_target_count: "{{ (direct_fi_pair_domains | length) + (direct_rack_serials | length) }}"
+            direct_target_count: "{{ expected_direct_claim_target_count }}"
             successful_claim_result_count: "{{ successful_claim_results | length }}"
             blocking_claim_result_count: "{{ blocking_claim_results | length }}"
+            storage_target_count: "{{ expected_storage_claim_target_count }}"
+            successful_storage_claim_result_count: "{{ successful_storage_claim_results | length }}"
+            blocking_storage_claim_result_count: "{{ blocking_storage_claim_results | length }}"
             live_validation_enabled: "{{ effective_live_validation_enabled }}"
             present_direct_target_count: "{{ present_direct_target_count }}"
             present_direct_rack_count: "{{ present_direct_rack_count }}"
@@ -408,6 +460,9 @@
             missing_devices: "{{ polled_missing_devices }}"
             not_ready_devices: "{{ polled_not_ready_devices }}"
             fi_pair_errors: "{{ polled_fi_pair_validation_errors | default([]) }}"
+          claim_execution:
+            direct_results: "{{ direct_claim_execution_results }}"
+            storage_results: "{{ storage_claim_execution_results }}"
           source_checks:
             action_requested: "{{ action_requested }}"
             action_status: "{{ onboarding_action_execution.status | default('not_requested') }}"
@@ -424,13 +479,49 @@
             and (polled_not_ready_devices | length == 0)
             and ((polled_fi_pair_validation_errors | default([])) | length == 0)
           }}
+        direct_claims_ready: >-
+          {{
+            (not action_requested)
+            or
+            (
+              (blocking_claim_results | length == 0)
+              and (
+                (expected_direct_claim_target_count | int) == 0
+                or (successful_claim_results | length) >= (expected_direct_claim_target_count | int)
+              )
+            )
+          }}
+        storage_claims_ready: >-
+          {{
+            (not action_requested)
+            or
+            (
+              (blocking_storage_claim_results | length == 0)
+              and (
+                (expected_storage_claim_target_count | int) == 0
+                or (successful_storage_claim_results | length) >= (expected_storage_claim_target_count | int)
+              )
+            )
+          }}
         completion_blockers: >-
           {%- set blockers = [] -%}
           {%- if action_requested and (blocking_claim_results | length > 0) -%}
           {%- set _ = blockers.append('One or more onboarding claim actions ended in a blocking state') -%}
           {%- endif -%}
-          {%- if action_requested and (blocking_claim_results | length == 0) and (successful_claim_results | length == 0) and (direct_target_serials | length > 0) -%}
+          {%- if action_requested and (blocking_claim_results | length == 0) and (successful_claim_results | length == 0) and (expected_direct_claim_target_count | int > 0) -%}
           {%- set _ = blockers.append('Onboarding apply was requested, but no successful direct-target claim results were produced') -%}
+          {%- endif -%}
+          {%- if action_requested and (blocking_claim_results | length == 0) and (successful_claim_results | length > 0) and ((successful_claim_results | length) < (expected_direct_claim_target_count | int)) -%}
+          {%- set _ = blockers.append('Onboarding apply did not produce successful claim results for every direct target') -%}
+          {%- endif -%}
+          {%- if action_requested and (blocking_storage_claim_results | length > 0) -%}
+          {%- set _ = blockers.append('One or more Assist-managed storage claims ended in a blocking state') -%}
+          {%- endif -%}
+          {%- if action_requested and (blocking_storage_claim_results | length == 0) and (expected_storage_claim_target_count | int > 0) and (successful_storage_claim_results | length == 0) -%}
+          {%- set _ = blockers.append('Onboarding apply was requested, but no successful Assist-managed storage claim results were produced') -%}
+          {%- endif -%}
+          {%- if action_requested and (blocking_storage_claim_results | length == 0) and ((successful_storage_claim_results | length) < (expected_storage_claim_target_count | int)) and (expected_storage_claim_target_count | int > 0) -%}
+          {%- set _ = blockers.append('Onboarding apply did not produce successful claim results for every Assist-managed storage target') -%}
           {%- endif -%}
           {%- if effective_live_validation_enabled and (polled_missing_devices | length > 0) -%}
           {%- set _ = blockers.append('One or more direct onboarding targets are still missing from the Intersight readiness view') -%}
@@ -448,13 +539,13 @@
           {%- set _ = blockers.append('Onboarding actions have not been executed or verified complete for all direct targets') -%}
           {%- endif -%}
           {{ blockers }}
-        completion_ready: "{{ live_completion_ready }}"
+        completion_ready: "{{ live_completion_ready and direct_claims_ready and storage_claims_ready }}"
         completion_status: >-
           {{
             'completed'
-            if live_completion_ready
+            if (live_completion_ready and direct_claims_ready and storage_claims_ready)
             else 'action_failed'
-            if (action_requested and (blocking_claim_results | length > 0))
+            if (action_requested and ((blocking_claim_results | length > 0) or (blocking_storage_claim_results | length > 0)))
             else 'onboarding_submitted'
             if action_requested
             else 'blocked'

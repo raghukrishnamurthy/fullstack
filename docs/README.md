@@ -20,6 +20,8 @@ Supplemental repo documentation lives here so the active contracts are easier to
   Shared coding, Torque-ready Ansible, Python documentation, Intersight, and validator standards across all phases.
 - [Phase Validator Steps](./phase-validator-steps.md)
   Current phase blueprints, their validator grains, and the checks each validator performs.
+- [Full-Stack Rerun Best Practices](./full-stack-rerun-best-practices.md)
+  Practical guidance captured from real end-to-end reruns, including idempotency, REST path handling, validator ownership, and cleanup order.
 
 ## Architecture
 

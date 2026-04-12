@@ -110,11 +110,17 @@ Rules:
 - prefer native `cisco.intersight.*` modules when the needed module exists and works in the target runtime
 - use `cisco.intersight.intersight_rest_api` only when a native module does not exist or is not viable in the Torque runtime
 - use stable identity for lookups, such as `Name` plus organization scope
-- create on collection paths and patch on instance paths
+- prefer collection paths plus stable filters for `intersight_rest_api` create and update flows unless a specific endpoint is already proven to require instance-path patching in the target runtime
 - do not patch read-only relationships such as `Organization`
 - normalize to provider shape at the boundary to the REST or module call
 - do not pass provider-only Moids across phases when later phases can look them up directly
 - keep provider enum normalization close to the module or REST call so model-facing contracts can stay stable
+
+Rerun hardening reminder:
+
+- do not generalize one endpoint family's REST-path behavior to all endpoints
+- document endpoint-specific exceptions discovered during full-stack reruns
+- treat invalid update URLs and duplicate-Moid paths as idempotency bugs
 
 Collection and preparation rules:
 
@@ -205,3 +211,4 @@ When reviewing a phase, check:
 5. Does the validator own `phase_ready` and `phase_status`?
 6. Can the full phase rerun with the same inputs?
 7. Is the phase documentation clear about scope, validator checks, and outputs?
+8. Does the phase follow the rerun best practices in [full-stack-rerun-best-practices.md](./full-stack-rerun-best-practices.md)?

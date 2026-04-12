@@ -52,6 +52,8 @@ Start here:
   Shared coding style, Torque-ready Ansible, Python documentation, Intersight, and validator standards for all phases.
 - [docs/phase-validator-steps.md](/tmp/jarvis-main-push/docs/phase-validator-steps.md)
   Phase-by-phase list of validator grains and the checks each validator performs.
+- [docs/full-stack-rerun-best-practices.md](/tmp/jarvis-main-push/docs/full-stack-rerun-best-practices.md)
+  Practical rules learned from repeated end-to-end reruns, including idempotency hardening, REST-path safety, validator authority, and cleanup order.
 
 Repo execution standard:
 

@@ -62,11 +62,20 @@
     - name: Build merged claim results
       ansible.builtin.set_fact:
         claim_results: "{{ assist_results + direct_results + assist_dependent_results }}"
+        assist_managed_storage_result_items: >-
+          {{
+            (assist_results + direct_results + assist_dependent_results)
+            | selectattr('target_category', 'defined')
+            | selectattr('target_category', 'equalto', 'storage')
+            | selectattr('management_type', 'defined')
+            | selectattr('management_type', 'equalto', 'assist_managed')
+            | list
+          }}
         successful_result_items: >-
           {{
             (assist_results + direct_results + assist_dependent_results)
             | selectattr('status', 'defined')
-            | selectattr('status', 'in', ['successful', 'submitted', 'already_claimed'])
+            | selectattr('status', 'in', ['successful', 'submitted', 'already_claimed', 'already_compliant'])
             | list
           }}
         failed_result_items: >-
@@ -97,13 +106,25 @@
             | selectattr('changed', 'equalto', true)
             | list
           }}
+        assist_managed_storage_blocking_result_items: >-
+          {{
+            assist_managed_storage_result_items
+            | selectattr('status', 'defined')
+            | rejectattr('status', 'in', ['successful', 'submitted', 'already_claimed', 'already_compliant', 'not_applicable'])
+            | list
+          }}
       tags:
         - merge
         - aggregate
 
     - name: Build merged claim aggregate outputs
       ansible.builtin.set_fact:
-        batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
+        batch_status: >-
+          {{
+            'failed'
+            if ((failed_result_items | length) > 0) or ((assist_managed_storage_blocking_result_items | length) > 0)
+            else 'successful'
+          }}
         successful_targets: "{{ successful_result_items | length | string }}"
         failed_targets: "{{ failed_result_items | length | string }}"
         conflict_targets: "{{ conflict_result_items | length | string }}"
@@ -120,7 +141,14 @@
             conflict_count: "{{ conflict_result_items | length }}"
             skipped_count: "{{ skipped_result_items | length }}"
             changed_count: "{{ changed_result_items | length }}"
-            batch_status: "{{ 'failed' if (failed_result_items | length) > 0 else 'successful' }}"
+            assist_managed_storage_result_count: "{{ assist_managed_storage_result_items | length }}"
+            assist_managed_storage_blocking_count: "{{ assist_managed_storage_blocking_result_items | length }}"
+            batch_status: >-
+              {{
+                'failed'
+                if ((failed_result_items | length) > 0) or ((assist_managed_storage_blocking_result_items | length) > 0)
+                else 'successful'
+              }}
           results: "{{ claim_results }}"
       tags:
         - merge
